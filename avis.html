@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avis clients — Subito Pizza Hénin-Beaumont</title>
+<meta name="description" content="Découvrez les avis de nos clients sur Subito Pizza à Hénin-Beaumont : qualité, service et satisfaction au rendez-vous.">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/main.js" defer></script>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="site-header__logo" aria-label="Subito Pizza — accueil">
+    <img src="assets/img/logo.jpg" alt="Subito Pizza">
+  </a>
+  <p class="site-header__slogan">Goûtez la différence !</p>
+</header>
+
+<nav class="site-nav" aria-label="Navigation principale">
+  <ul class="site-nav__list">
+    <li><a class="site-nav__link" href="menu.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21 3 6a18 18 0 0 1 18 0Z"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></span>Menu</a></li>
+    <li><a class="site-nav__link" href="avis.html#ecrire-avis"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1-5.4 3.1 1.3-6-4.6-4.1 6.1-.6L12 3Z"/></svg></span>Avis clients</a></li>
+    <li><a class="site-nav__link" href="reseaux.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="5.5" r="2.2"/><circle cx="18" cy="18.5" r="2.2"/><path d="M8 10.8 16 6.7M8 13.2l8 4.1"/></svg></span>Nos réseaux</a></li>
+  </ul>
+</nav>
+
+<main>
+  <section class="write-review-section" id="ecrire-avis">
+    <h1 class="section-title">Donnez votre avis</h1>
+    <p class="write-review__tagline">Votre satisfaction, notre priorité !</p>
+    <!--
+      TODO IMPORTANT avant mise en ligne : vérifier que la boîte mail
+      avis@subito-pizza-heninbeaumont.fr existe et est bien relevée (ou la
+      remplacer par une adresse email existante) dans assets/js/main.js —
+      c'est cette adresse qui reçoit les avis envoyés depuis ce formulaire.
+      Si ce n'est pas fait, les avis envoyés par les clients seront perdus
+      sans que personne ne le sache.
+    -->
+    <form class="review-form" id="review-form">
+      <label class="review-form__field">
+        Votre prénom
+        <input type="text" name="nom" required>
+      </label>
+      <label class="review-form__field">
+        Votre note
+        <select name="note" required>
+          <option value="">Choisissez une note</option>
+          <option value="★★★★★ (5/5)">★★★★★ — Excellent</option>
+          <option value="★★★★ (4/5)">★★★★ — Très bien</option>
+          <option value="★★★ (3/5)">★★★ — Correct</option>
+          <option value="★★ (2/5)">★★ — Décevant</option>
+          <option value="★ (1/5)">★ — Mauvais</option>
+        </select>
+      </label>
+      <label class="review-form__field">
+        Votre avis
+        <textarea name="avis" rows="4" maxlength="600" required placeholder="Racontez votre expérience..."></textarea>
+      </label>
+      <button type="submit" class="btn-solid">Envoyer mon avis</button>
+    </form>
+  </section>
+
+  <section>
+    <h2 class="section-title">Ce que disent nos clients</h2>
+
+    <!--
+      ================================================================
+      COMMENT AJOUTER UN NOUVEL AVIS (pas besoin de savoir coder) :
+
+      1. Choisissez un des blocs ci-dessous, du "DEBUT AVIS" au "FIN AVIS".
+      2. Sélectionnez tout le bloc (y compris les lignes DEBUT AVIS et
+         FIN AVIS) et copiez-le (Ctrl+C).
+      3. Collez-le (Ctrl+V) juste au-dessus de ce commentaire-ci, pour
+         que le nouvel avis apparaisse en premier, en haut de la page.
+      4. Dans le bloc collé, remplacez uniquement :
+           - le nom du client (là où c'est écrit "A REMPLACER : nom du client")
+           - la date (là où c'est écrit "A REMPLACER : date de l'avis")
+           - le texte de l'avis (là où c'est écrit "A REMPLACER : texte de l'avis")
+         Ne touchez à rien d'autre (les mots entre chevrons < >).
+      5. Pour les étoiles : la ligne "review-card__stars" contient 5
+         étoiles ★ par défaut. Pour mettre moins de 5 étoiles, effacez
+         simplement une ou plusieurs étoiles ★ (ex : ★★★★ pour 4 étoiles).
+      6. Enregistrez le fichier et envoyez-le sur le site par FTP.
+
+      POUR SUPPRIMER UN AVIS QUE VOUS NE VOULEZ PLUS AFFICHER :
+      1. Repérez le bloc de cet avis, du "DEBUT AVIS" au "FIN AVIS".
+      2. Sélectionnez tout le bloc (y compris les lignes DEBUT AVIS et
+         FIN AVIS) et supprimez-le entièrement.
+      3. Enregistrez le fichier et renvoyez-le sur le site par FTP.
+      ================================================================
+    -->
+    <!-- AVIS CLIENT — pour en ajouter un nouveau : copiez tout le bloc entre "DEBUT AVIS" et "FIN AVIS" ci-dessous, collez-le juste au-dessus de ce commentaire, puis remplacez auteur/date/texte. -->
+
+    <!-- DEBUT AVIS -->
+    <article class="review-card">
+      <p class="review-card__stars">★★★★★</p>
+      <p class="review-card__author">A REMPLACER : nom du client<span class="review-card__date">A REMPLACER : date de l'avis (ex. 3 août 2026)</span></p>
+      <p class="review-card__text">A REMPLACER : texte de l'avis. Exemple : « Pizzas délicieuses et service très rapide, je recommande vivement ! »</p>
+    </article>
+    <!-- FIN AVIS -->
+
+    <!-- DEBUT AVIS -->
+    <article class="review-card">
+      <p class="review-card__stars">★★★★★</p>
+      <p class="review-card__author">A REMPLACER : nom du client<span class="review-card__date">A REMPLACER : date de l'avis (ex. 22 juillet 2026)</span></p>
+      <p class="review-card__text">A REMPLACER : texte de l'avis. Exemple : « Toujours un accueil chaleureux et des pizzas généreuses. Notre pizzeria préférée à Hénin-Beaumont ! »</p>
+    </article>
+    <!-- FIN AVIS -->
+
+    <!-- DEBUT AVIS -->
+    <article class="review-card">
+      <p class="review-card__stars">★★★★★</p>
+      <p class="review-card__author">A REMPLACER : nom du client<span class="review-card__date">A REMPLACER : date de l'avis (ex. 10 juillet 2026)</span></p>
+      <p class="review-card__text">A REMPLACER : texte de l'avis. Exemple : « Pâte fine et croustillante, garnitures fraîches, rien à redire ! »</p>
+    </article>
+    <!-- FIN AVIS -->
+
+    <!-- DEBUT AVIS -->
+    <article class="review-card">
+      <p class="review-card__stars">★★★★★</p>
+      <p class="review-card__author">A REMPLACER : nom du client<span class="review-card__date">A REMPLACER : date de l'avis (ex. 28 juin 2026)</span></p>
+      <p class="review-card__text">A REMPLACER : texte de l'avis. Exemple : « Commande prête à l'heure, personnel sympathique, très bon rapport qualité-prix. »</p>
+    </article>
+    <!-- FIN AVIS -->
+
+    <!-- DEBUT AVIS -->
+    <article class="review-card">
+      <p class="review-card__stars">★★★★★</p>
+      <p class="review-card__author">A REMPLACER : nom du client<span class="review-card__date">A REMPLACER : date de l'avis (ex. 15 juin 2026)</span></p>
+      <p class="review-card__text">A REMPLACER : texte de l'avis. Exemple : « Une valeur sûre depuis des années, la meilleure pizzeria du coin ! »</p>
+    </article>
+    <!-- FIN AVIS -->
+
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Subito Pizza — 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — <a href="tel:0321200033">03 21 20 00 33</a></p>
+</footer>
+
+</body>
+</html>

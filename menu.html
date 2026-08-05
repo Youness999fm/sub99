@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menu — Subito Pizza Hénin-Beaumont</title>
+<meta name="description" content="Le menu complet de Subito Pizza à Hénin-Beaumont : pizzas, pâtes, subitowichs, tex-mex, salades, desserts et boissons.">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/main.js" defer></script>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="site-header__logo" aria-label="Subito Pizza — accueil">
+    <img src="assets/img/logo.jpg" alt="Subito Pizza">
+  </a>
+  <p class="site-header__slogan">Goûtez la différence !</p>
+</header>
+
+<nav class="site-nav" aria-label="Navigation principale">
+  <ul class="site-nav__list">
+    <li><a class="site-nav__link" href="menu.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21 3 6a18 18 0 0 1 18 0Z"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></span>Menu</a></li>
+    <li><a class="site-nav__link" href="avis.html#ecrire-avis"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1-5.4 3.1 1.3-6-4.6-4.1 6.1-.6L12 3Z"/></svg></span>Avis clients</a></li>
+    <li><a class="site-nav__link" href="reseaux.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="5.5" r="2.2"/><circle cx="18" cy="18.5" r="2.2"/><path d="M8 10.8 16 6.7M8 13.2l8 4.1"/></svg></span>Nos réseaux</a></li>
+  </ul>
+</nav>
+
+<main>
+  <section>
+    <h1 class="section-title">Notre menu</h1>
+  </section>
+
+  <!--
+    ================================================================
+    COMMENT AJOUTER LES PHOTOS (pas besoin de savoir coder) :
+
+    Chaque plat a sa propre case "Photo à venir" (.img-placeholder).
+    Pour ajouter la vraie photo d'un plat, remplacez sa case par :
+      <img src="assets/img/menu/NOM-DU-FICHIER.jpg" alt="NOM DU PLAT">
+    Le nom et les ingrédients sont déjà écrits en dessous, il n'y a
+    rien d'autre à changer. Envoyez le dossier assets/img/menu/ par
+    FTP avec vos photos une fois que c'est fait.
+
+    Certaines cases (Tex-Mex, Desserts, une salade) n'ont pas encore
+    de nom/ingrédients définis — remplacez aussi le texte "À COMPLÉTER"
+    par le vrai nom et les vrais ingrédients de ces plats.
+    ================================================================
+  -->
+
+  <nav class="menu-jump" aria-label="Aller à une catégorie">
+    <a href="#pizzas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21 3 6a18 18 0 0 1 18 0Z"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg> Pizzas</a>
+    <a href="#pates"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v6a2 2 0 0 0 4 0V2M9 8v14M15 2c-1.5 1.5-1.5 5 0 6.5V22"/></svg> Pâtes</a>
+    <a href="#subitowichs"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M4 12l1-4a2 2 0 0 1 2-1.5h10A2 2 0 0 1 19 8l1 4M4 12l1 4a2 2 0 0 0 2 1.5h10a2 2 0 0 0 2-1.5l1-4"/></svg> Subitowichs</a>
+    <a href="#tex-mex"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c-1 3-4 4-4 8a4 4 0 0 0 8 0c0-1.5-.7-2-1.3-3 .6 2-.7 3-1.7 2.2C14 8 13 6 12 2Z"/></svg> Tex-Mex</a>
+    <a href="#salades"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 0 16 0Z"/><path d="M4 12h16M12 12V6M9 12 7.5 5.5M15 12l1.5-6.5"/></svg> Salades</a>
+    <a href="#desserts"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 12 8l8 12Z"/><path d="M4 20h16M9.5 14h5M12 8V5m0 0a1.3 1.3 0 1 0 0-2.6A1.3 1.3 0 0 0 12 5Z"/></svg> Desserts</a>
+    <a href="#boissons"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8h10l-1 12a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1L7 8Z"/><path d="M9 8 8.5 4h7L15 8M13 2v3"/></svg> Boissons</a>
+  </nav>
+
+  <section class="menu-category" id="pizzas">
+    <h2 class="menu-category__title"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21 3 6a18 18 0 0 1 18 0Z"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg> Pizzas</h2>
+    <div class="size-chart">
+      <div class="size-chart__item">
+        <span class="size-chart__name">Solo</span>
+        <span class="size-chart__cm">26 cm</span>
+        <span class="size-chart__price">11,00 €</span>
+      </div>
+      <div class="size-chart__item">
+        <span class="size-chart__name">Duo</span>
+        <span class="size-chart__cm">33 cm</span>
+        <span class="size-chart__price">16,00 €</span>
+      </div>
+      <div class="size-chart__item">
+        <span class="size-chart__name">Quatro</span>
+        <span class="size-chart__cm">40 cm</span>
+        <span class="size-chart__price">23,00 €</span>
+      </div>
+      <div class="size-chart__item">
+        <span class="size-chart__name">XXL</span>
+        <span class="size-chart__cm">50 cm</span>
+        <span class="size-chart__price">33,00 €</span>
+      </div>
+    </div>
+    <div class="menu-grid">
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-07.jpg" alt="Pizza Végétarienne">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Végétarienne</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, poivrons, champignons, oignons, olives</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Pizza 3 Jambons">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">3 Jambons</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, jambon, mortadelle, chorizo</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-08.jpg" alt="Pizza 4 Saisons">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">4 Saisons</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, jambon, champignons, poivrons, olives, artichauts</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-31.jpg" alt="Calzone soufflée">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Calzone (soufflée)</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, jambon ou thon ou kebab ou viande hachée ou poulet, oeuf</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-06.jpg" alt="Pizza Campione">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Campione</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, viande hachée, champignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Pizza Kebab">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Kebab</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, kebab, oignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-09.jpg" alt="Pizza Napolitaine">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Napolitaine</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, anchois, câpres</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-22.jpg" alt="Pizza Régina">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Régina</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, jambon, champignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Pizza Chicken">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Chicken</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, poulet, poivrons, champignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-27.jpg" alt="Pizza Kefta">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Kefta</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, oignons, viande hachée, oeuf</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-05.jpg" alt="Pizza Neptune">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Neptune</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, thon, olives, oignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-01.jpg" alt="Pizza 4 Fromages">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">4 Fromages</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, brie, bleu, parmesan</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/carnivora.jpg" alt="Pizza Carnivora">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Carnivora</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, viande hachée, merguez, chorizo</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-23.jpg" alt="Pizza L'Extravagante">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">L'Extravagante</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, jambon, chorizo, merguez, champignons, oeuf</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-13.jpg" alt="Pizza Fruits de mer">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Fruits de mer</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, cocktail de fruits de mer, ail, persil</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-04.jpg" alt="Pizza Orientale">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Orientale</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, merguez, oignons, poivrons, oeuf</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Pizza Pacifico">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Pacifico</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, saumon fumé, crème fraîche</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-24.jpg" alt="Pizza Subito">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Subito</h3>
+          <p class="menu-item__ingredients">Sauce tomate, fromage, viande hachée, chorizo, oeuf, oignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-03.jpg" alt="Pizza Venezia">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Venezia</h3>
+          <p class="menu-item__ingredients">Crème fraîche, fromage, saumon fumé</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/chevre-miel.jpg" alt="Pizza Chèvre miel">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Chèvre miel</h3>
+          <p class="menu-item__ingredients">Crème fraîche, fromage, fromage de chèvre, miel</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-21.jpg" alt="Pizza Chicken Chika">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Chicken Chika</h3>
+          <p class="menu-item__ingredients">Crème fraîche, fromage, poulet, poivrons, oignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-18.jpg" alt="Pizza Milano">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Milano</h3>
+          <p class="menu-item__ingredients">Crème fraîche, fromage, jambon, oignons, pommes de terre</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-16.jpg" alt="Pizza Normande">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Normande</h3>
+          <p class="menu-item__ingredients">Crème fraîche, fromage, bleu, fromage de chèvre, parmesan</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-20.jpg" alt="Pizza Fajitas">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Fajitas</h3>
+          <p class="menu-item__ingredients">Crème fraîche, fromage de chèvre, viande hachée, poivrons, oignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/maroilles.jpg" alt="Pizza Maroilles">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Maroilles</h3>
+          <p class="menu-item__ingredients">Crème fraîche, fromage, maroilles</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/pollame.jpg" alt="Pizza Pollame">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Pollame</h3>
+          <p class="menu-item__ingredients">Crème fraîche, fromage, jambon, poulet, kebab</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-15.jpg" alt="Pizza Savoyarde">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Savoyarde</h3>
+          <p class="menu-item__ingredients">Crème fraîche, lardons, pommes de terre, oignons, reblochons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Pizza Suisse">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Suisse</h3>
+          <p class="menu-item__ingredients">Crème fraîche, jambon, pommes de terre, oignons, fromage à raclette</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-02.jpg" alt="Pizza Indienne">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Indienne</h3>
+          <p class="menu-item__ingredients">Base crème fraîche/curry, fromage, poulet, oignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/carolina.jpg" alt="Pizza Carolina">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Carolina</h3>
+          <p class="menu-item__ingredients">Base barbecue, fromage, viande hachée, poivrons</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="menu-category" id="pates">
+    <h2 class="menu-category__title"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v6a2 2 0 0 0 4 0V2M9 8v14M15 2c-1.5 1.5-1.5 5 0 6.5V22"/></svg> Pâtes</h2>
+    <p class="menu-category__price-note">Spaghettis ou tagliatelles — 8,50 €</p>
+    <div class="menu-grid">
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-45.jpg" alt="Pâtes Bolognaise">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Bolognaise</h3>
+          <p class="menu-item__ingredients">Sauce tomate, viande hachée, oignons</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-44.jpg" alt="Pâtes 3 fromages">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">3 fromages</h3>
+          <p class="menu-item__ingredients">Crème fraîche, brie, bleu, parmesan</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-47.jpg" alt="Pâtes Saumon">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Saumon</h3>
+          <p class="menu-item__ingredients">Crème fraîche, saumon</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-46.jpg" alt="Pâtes Carbonara">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Carbonara</h3>
+          <p class="menu-item__ingredients">Crème fraîche, lardons</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="menu-category" id="subitowichs">
+    <h2 class="menu-category__title"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M4 12l1-4a2 2 0 0 1 2-1.5h10A2 2 0 0 1 19 8l1 4M4 12l1 4a2 2 0 0 0 2 1.5h10a2 2 0 0 0 2-1.5l1-4"/></svg> Subitowichs</h2>
+    <p class="menu-category__price-note">Tomate ou crème fraîche — 6,00 €</p>
+    <div class="menu-grid">
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-38.jpg" alt="Subitowich Milano">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Milano</h3>
+          <p class="menu-item__ingredients">Fromage, poulet</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-34.jpg" alt="Subitowich Vesuvio">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Vesuvio</h3>
+          <p class="menu-item__ingredients">Fromage, viande hachée</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-37.jpg" alt="Subitowich 4 fromages">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">4 fromages</h3>
+          <p class="menu-item__ingredients">Fromage, brie, bleu, parmesan</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/panini-thon.jpg" alt="Subitowich Rome">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Rome</h3>
+          <p class="menu-item__ingredients">Fromage, thon</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-36.jpg" alt="Subitowich Venise">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Venise</h3>
+          <p class="menu-item__ingredients">Fromage, jambon</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-39.jpg" alt="Subitowich Norvégien">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Norvégien</h3>
+          <p class="menu-item__ingredients">Fromage, saumon fumé</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Subitowich Kebab">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Kebab</h3>
+          <p class="menu-item__ingredients">Fromage, kebab</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- Section Tex-Mex : identifiée à partir de vos photos (ailes, tenders, nuggets, onion rings). Ajustez les noms/prix si besoin. -->
+  <section class="menu-category" id="tex-mex">
+    <h2 class="menu-category__title"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c-1 3-4 4-4 8a4 4 0 0 0 8 0c0-1.5-.7-2-1.3-3 .6 2-.7 3-1.7 2.2C14 8 13 6 12 2Z"/></svg> Tex-Mex</h2>
+    <p class="menu-category__price-note">Prix à définir</p>
+    <div class="menu-grid">
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-40.jpg" alt="Ailes de poulet">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Ailes de poulet</h3>
+          <p class="menu-item__ingredients">Ailes de poulet frites</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-41.jpg" alt="Tenders de poulet">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Tenders de poulet</h3>
+          <p class="menu-item__ingredients">Aiguillettes de poulet panées</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-42.jpg" alt="Nuggets">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Nuggets</h3>
+          <p class="menu-item__ingredients">Nuggets de poulet panés</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-43.jpg" alt="Onion rings">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Onion rings</h3>
+          <p class="menu-item__ingredients">Rondelles d'oignon panées et frites</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- Section Salades : 5/5 identifiées depuis vos photos. Le nom de la 5ème (salade de pâtes au pesto) est une supposition à confirmer. -->
+  <section class="menu-category" id="salades">
+    <h2 class="menu-category__title"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 0 16 0Z"/><path d="M4 12h16M12 12V6M9 12 7.5 5.5M15 12l1.5-6.5"/></svg> Salades</h2>
+    <p class="menu-category__price-note">Composées de produits frais — 7,50 €</p>
+    <div class="menu-grid">
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Salade Exotique">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Exotique</h3>
+          <p class="menu-item__ingredients">Salade, tomates, oeuf, crevettes, maïs</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Salade Niçoise">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Niçoise</h3>
+          <p class="menu-item__ingredients">Salade, tomates, oeuf, thon, pommes de terre</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Salade Printanière">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Printanière</h3>
+          <p class="menu-item__ingredients">Salade, tomates, oeuf, jambon, fromage</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <div class="img-placeholder" data-alt="Salade Di Roma">Photo à venir</div>
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Di Roma</h3>
+          <p class="menu-item__ingredients">Salade, tomates, oeuf, thon, artichauts</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-48.jpg" alt="Salade Pesto">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Pesto <span class="menu-item__price" style="display:inline;">(nom à confirmer)</span></h3>
+          <p class="menu-item__ingredients">Pâtes, pesto, tomates cerises, mozzarella</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- Section Desserts : 3/3 identifiés depuis vos photos. Ajustez les noms/prix si besoin. -->
+  <section class="menu-category" id="desserts">
+    <h2 class="menu-category__title"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 12 8l8 12Z"/><path d="M4 20h16M9.5 14h5M12 8V5m0 0a1.3 1.3 0 1 0 0-2.6A1.3 1.3 0 0 0 12 5Z"/></svg> Desserts</h2>
+    <p class="menu-category__price-note">Prix à définir</p>
+    <div class="menu-grid">
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-57.jpg" alt="Calzone Nutella">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Calzone Nutella</h3>
+          <p class="menu-item__ingredients">Pâte à pizza soufflée, Nutella</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-54.jpg" alt="Cookies &amp; Cream">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Cookies &amp; Cream</h3>
+          <p class="menu-item__ingredients">Crème vanille, éclats de biscuits chocolat</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-56.jpg" alt="M&amp;M's">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">M&amp;M's</h3>
+          <p class="menu-item__ingredients">Crème vanille, biscuits, M&amp;M's</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- Section Boissons : pas de nombre de cases précisé, j'ai regroupé par format (2 cases). Dites-moi si vous préférez une case par saveur. -->
+  <section class="menu-category" id="boissons">
+    <h2 class="menu-category__title"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8h10l-1 12a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1L7 8Z"/><path d="M9 8 8.5 4h7L15 8M13 2v3"/></svg> Boissons</h2>
+    <div class="menu-grid">
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-64.jpg" alt="Boissons 33cl">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Boisson 33cl</h3>
+          <p class="menu-item__ingredients">Coca Cola, Oasis Tropical, Oasis Pomme Cassis Framboise, Oasis Pomme Poire, Oasis Thé Pêche, Orangina, Schweppes Agrumes, Schweppes Citron, Dada Litchi, Dada Melon, Dada Fraise</p>
+          <p class="menu-item__price">1,50 €</p>
+        </div>
+      </article>
+
+      <article class="menu-item">
+        <img src="assets/img/photos/photo-73.jpg" alt="Grande bouteille">
+        <div class="menu-item__body">
+          <h3 class="menu-item__name">Grande bouteille</h3>
+          <p class="menu-item__ingredients">Coca Cola 1.5L, Orangina 1.5L, Oasis Tropical 2L, Oasis Pomme Cassis Framboise 2L</p>
+          <p class="menu-item__price">3,00 à 3,50 €</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <p class="placeholder-note" style="display:block; max-width:var(--max-width); margin:24px auto 0; text-align:center;">Offre à emporter : sur toute pizza, 1 achetée = la 2ème offerte ! (la pizza la moins chère sera celle offerte, offre cumulable)</p>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Subito Pizza — 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — <a href="tel:0321200033">03 21 20 00 33</a></p>
+</footer>
+
+</body>
+</html>
