@@ -3,18 +3,21 @@
 :root {
   --red: #D62828;
   --red-dark: #A81E1E;
-  --cream: #FFF8F0;
-  --dark: #24201E;
+  --green: #0E3B27;
+  --green-dark: #092A1B;
+  --green-tint: #F0F5F2;
+  --cream: #FFFFFF;
+  --dark: #1C1B19;
   --gray: #6B6560;
-  --border: #EAE2D8;
+  --border: #E7E5E1;
   --radius: 14px;
-  --shadow: 0 6px 20px rgba(36, 32, 30, 0.08);
+  --shadow: 0 6px 20px rgba(28, 27, 25, 0.07);
   --max-width: 960px;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
   margin: 0;
@@ -22,6 +25,8 @@ body {
   color: var(--dark);
   background: var(--cream);
   line-height: 1.5;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 img { max-width: 100%; display: block; }
@@ -55,21 +60,6 @@ a { color: inherit; }
   border-radius: 6px;
 }
 
-.site-header__logo-placeholder {
-  width: 180px;
-  height: 90px;
-  margin: 0 auto;
-  border: 2px dashed var(--border);
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 1.3rem;
-  color: var(--red);
-  letter-spacing: 0.5px;
-}
-
 .site-header__slogan {
   margin: 12px 0 0;
   font-style: italic;
@@ -80,7 +70,7 @@ a { color: inherit; }
 /* ---------- Navigation ---------- */
 
 .site-nav {
-  background: var(--red);
+  background: var(--green);
 }
 
 .site-nav__list {
@@ -119,7 +109,32 @@ a { color: inherit; }
 }
 
 .site-nav__link.is-active {
-  border-bottom-color: #fff;
+  border-bottom-color: var(--red);
+}
+
+/* ---------- Bannière offre ---------- */
+
+.offer-banner {
+  padding: 0;
+}
+
+.offer-banner img {
+  width: 100%;
+  aspect-ratio: 1962 / 802;
+  object-fit: cover;
+}
+
+@media (min-width: 640px) {
+  .offer-banner {
+    padding: 20px 20px 0;
+  }
+
+  .offer-banner img {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
 }
 
 /* ---------- Bouton réservation téléphone ---------- */
@@ -228,8 +243,8 @@ section { padding: 32px 20px; }
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  border: 2px solid var(--red);
-  color: var(--red);
+  border: 2px solid var(--green);
+  color: var(--green);
   text-decoration: none;
   border-radius: 999px;
   font-weight: 600;
@@ -237,7 +252,7 @@ section { padding: 32px 20px; }
 }
 
 .btn-outline:hover,
-.btn-outline:focus-visible { background: var(--red); color: #fff; }
+.btn-outline:focus-visible { background: var(--green); color: #fff; }
 
 /* ---------- Galerie photos ---------- */
 
@@ -305,8 +320,8 @@ section { padding: 32px 20px; }
 
 .lightbox__close {
   position: absolute;
-  top: 20px;
-  right: 24px;
+  top: calc(20px + env(safe-area-inset-top));
+  right: calc(24px + env(safe-area-inset-right));
   background: none;
   border: none;
   color: #fff;
@@ -362,6 +377,10 @@ section { padding: 32px 20px; }
 
 /* ---------- Présentation texte ---------- */
 
+.presentation-section {
+  background: var(--green-tint);
+}
+
 .presentation {
   max-width: 720px;
   margin: 0 auto;
@@ -371,7 +390,7 @@ section { padding: 32px 20px; }
 
 .presentation__lead {
   font-style: italic;
-  color: var(--red);
+  color: var(--green);
   font-weight: 600;
   margin-bottom: 16px;
 }
@@ -446,7 +465,7 @@ section { padding: 32px 20px; }
   text-align: center;
   font-style: italic;
   font-weight: 600;
-  color: var(--red);
+  color: var(--green);
 }
 
 .review-form {
@@ -477,7 +496,7 @@ section { padding: 32px 20px; }
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--dark);
-  background: var(--cream);
+  background: var(--green-tint);
   resize: vertical;
 }
 
@@ -519,7 +538,7 @@ section { padding: 32px 20px; }
   gap: 6px;
   text-decoration: none;
   background: #fff;
-  color: var(--red);
+  color: var(--green);
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 6px 14px;
@@ -528,7 +547,7 @@ section { padding: 32px 20px; }
 }
 
 .menu-jump a:hover,
-.menu-jump a:focus-visible { background: var(--red); color: #fff; }
+.menu-jump a:focus-visible { background: var(--green); color: #fff; }
 
 .menu-category {
   padding-top: 12px;
@@ -691,9 +710,16 @@ section { padding: 32px 20px; }
 
 .site-footer {
   text-align: center;
-  padding: 24px 20px 32px;
-  color: var(--gray);
+  padding: 28px 20px calc(34px + env(safe-area-inset-bottom));
+  margin-top: 12px;
+  background: var(--green);
+  color: rgba(255, 255, 255, 0.75);
   font-size: 0.85rem;
+}
+
+.site-footer a {
+  color: #fff;
+  font-weight: 600;
 }
 
 /* ---------- Responsive ---------- */
