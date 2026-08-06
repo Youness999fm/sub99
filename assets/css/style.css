@@ -67,6 +67,14 @@ a { color: inherit; }
   font-size: 1.05rem;
 }
 
+.site-header__location {
+  margin: 6px 0 0;
+  font-weight: 700;
+  color: var(--green);
+  font-size: 0.95rem;
+  letter-spacing: 0.2px;
+}
+
 /* ---------- Navigation ---------- */
 
 .site-nav {
