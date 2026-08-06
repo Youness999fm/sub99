@@ -263,6 +263,23 @@ section { padding: 32px 20px; }
   color: var(--gray);
 }
 
+.community-tag {
+  max-width: fit-content;
+  margin: -10px auto 26px;
+  text-align: center;
+  background: var(--red);
+  color: #fff;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+}
+
+.community-tag__hashtag {
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
 .delivery-grid {
   max-width: var(--max-width);
   margin: 0 auto;
