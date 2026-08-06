@@ -112,31 +112,6 @@ a { color: inherit; }
   border-bottom-color: var(--red);
 }
 
-/* ---------- Bannière offre ---------- */
-
-.offer-banner {
-  padding: 0;
-}
-
-.offer-banner img {
-  width: 100%;
-  aspect-ratio: 1962 / 802;
-  object-fit: cover;
-}
-
-@media (min-width: 640px) {
-  .offer-banner {
-    padding: 20px 20px 0;
-  }
-
-  .offer-banner img {
-    max-width: var(--max-width);
-    margin: 0 auto;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-  }
-}
-
 /* ---------- Bouton réservation téléphone ---------- */
 
 .call-section {
