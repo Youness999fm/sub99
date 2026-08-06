@@ -527,19 +527,6 @@ section { padding: 32px 20px; }
   flex-shrink: 0;
 }
 
-.qr-block {
-  max-width: 280px;
-  margin: 32px auto 0;
-  text-align: center;
-  background: #fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 20px;
-}
-
-.qr-block img { margin: 0 auto 10px; border-radius: 8px; }
-.qr-block p { margin: 0; color: var(--gray); font-size: 0.9rem; }
-
 /* ---------- Écrire un avis ---------- */
 
 .write-review-section {
