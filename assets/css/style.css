@@ -254,6 +254,53 @@ section { padding: 32px 20px; }
 .btn-outline:hover,
 .btn-outline:focus-visible { background: var(--green); color: #fff; }
 
+/* ---------- Zone de livraison ---------- */
+
+.delivery-intro {
+  max-width: var(--max-width);
+  margin: -10px auto 20px;
+  text-align: center;
+  color: var(--gray);
+}
+
+.delivery-grid {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.delivery-tier {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  text-align: center;
+}
+
+.delivery-tier__price {
+  margin: 0 0 6px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.delivery-tier__price span {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.delivery-tier__cities {
+  margin: 0;
+  font-weight: 600;
+  color: var(--dark);
+}
+
 /* ---------- Galerie photos ---------- */
 
 .gallery-grid {
