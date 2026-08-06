@@ -4,20 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   markActiveNavLink();
   initLightbox();
   initReviewForm();
-  initSplash();
 });
-
-function initSplash() {
-  const splash = document.getElementById('splash');
-  if (!splash) return;
-
-  const hide = () => {
-    splash.classList.add('is-hidden');
-    splash.addEventListener('transitionend', () => splash.remove(), { once: true });
-  };
-
-  window.addEventListener('load', () => setTimeout(hide, 500));
-}
 
 function markActiveNavLink() {
   const current = location.pathname.split('/').pop() || 'index.html';
