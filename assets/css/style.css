@@ -1887,11 +1887,23 @@ section { padding: 32px 20px; }
 
 /* ---------- Écran d'intro (logo, page d'accueil uniquement) ---------- */
 
-body.intro-lock { overflow: hidden; }
+html.intro-lock,
+body.intro-lock {
+  overflow: hidden;
+  height: 100%;
+}
+
+html.intro-lock {
+  position: fixed;
+  width: 100%;
+}
 
 .intro-splash {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   z-index: 3000;
   display: flex;
   flex-direction: column;

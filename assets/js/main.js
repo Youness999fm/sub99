@@ -143,6 +143,7 @@ function initIntroSplash() {
     return;
   }
 
+  document.documentElement.classList.add('intro-lock');
   document.body.classList.add('intro-lock');
   let dismissed = false;
 
@@ -150,6 +151,7 @@ function initIntroSplash() {
     if (dismissed) return;
     dismissed = true;
     splash.classList.add('is-hiding');
+    document.documentElement.classList.remove('intro-lock');
     document.body.classList.remove('intro-lock');
     try { sessionStorage.setItem('subitoIntroSeen', '1'); } catch (e) { /* tant pis, l'intro rejouera */ }
     window.removeEventListener('keydown', dismiss);
