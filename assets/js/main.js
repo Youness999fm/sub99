@@ -163,25 +163,49 @@ function initIntroSplash() {
 }
 
 function initReviewForm() {
+  const funnel = document.getElementById('review-funnel');
   const form = document.getElementById('review-form');
-  if (!form) return;
+  if (!funnel || !form) return;
 
   // TODO: remplacer par l'adresse email où Subito Pizza veut recevoir les avis clients.
   const ownerEmail = 'avis@subito-pizza-heninbeaumont.fr';
 
+  const panels = funnel.querySelectorAll('[data-panel]');
+  const showPanel = (name) => {
+    panels.forEach((panel) => { panel.hidden = panel.dataset.panel !== name; });
+    funnel.dataset.step = name;
+  };
+
+  let currentNote = null;
+
+  funnel.querySelectorAll('.review-star').forEach((star) => {
+    star.addEventListener('click', () => {
+      currentNote = Number(star.dataset.value);
+
+      // 5 étoiles = très satisfait -> on encourage l'avis public sur Google.
+      // 1 à 4 étoiles = insatisfaction -> on garde le retour en interne, jamais vers Google.
+      if (currentNote === 5) {
+        showPanel('thanks-google');
+      } else {
+        showPanel('comment');
+        form.nom.focus();
+      }
+    });
+  });
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const nom = form.nom.value.trim();
-    const note = form.note.value;
     const avis = form.avis.value.trim();
 
     if (!nom) { form.nom.focus(); return; }
     if (!avis) { form.avis.focus(); return; }
 
-    const subject = `Nouvel avis client Subito Pizza — ${nom}`;
-    const body = `Prénom : ${nom}\nNote : ${note}\n\nAvis :\n${avis}`;
+    const subject = `Nouvel avis client Subito Pizza — ${nom} (${currentNote}/5)`;
+    const body = `Prénom : ${nom}\nNote : ${'★'.repeat(currentNote)} (${currentNote}/5)\n\nAvis :\n${avis}`;
     const mailtoUrl = `mailto:${ownerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
     window.location.href = mailtoUrl;
+    showPanel('thanks-internal');
   });
 }

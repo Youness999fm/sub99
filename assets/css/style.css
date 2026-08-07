@@ -1381,6 +1381,94 @@ section { padding: 32px 20px; }
   text-align: center;
 }
 
+/* ---------- Funnel d'avis (étoiles d'abord) ---------- */
+
+.review-funnel {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.review-step {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: review-step-in 0.35s ease both;
+}
+
+@keyframes review-step-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.review-step__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--green);
+  text-align: center;
+}
+
+.review-step--thanks {
+  align-items: center;
+  text-align: center;
+}
+
+.review-step--thanks p:not(.review-step__title):not(.review-step__icon) {
+  margin: 0;
+  color: var(--gray);
+}
+
+.review-step--thanks .btn-solid {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.review-step__icon {
+  margin: 0;
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.review-stars {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.review-star {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--border);
+  padding: 4px;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.review-star:hover,
+.review-star:focus-visible,
+.review-star.is-active {
+  color: var(--red);
+  transform: scale(1.12);
+}
+
+.review-star:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-step { animation: none; }
+  .review-star { transition: none; }
+}
+
 /* ---------- Page Menu : catalogue par catégories ---------- */
 
 .menu-jump {

@@ -69,33 +69,53 @@
       TODO IMPORTANT avant mise en ligne : vérifier que la boîte mail
       avis@subito-pizza-heninbeaumont.fr existe et est bien relevée (ou la
       remplacer par une adresse email existante) dans assets/js/main.js —
-      c'est cette adresse qui reçoit les avis envoyés depuis ce formulaire.
-      Si ce n'est pas fait, les avis envoyés par les clients seront perdus
-      sans que personne ne le sache.
+      c'est cette adresse qui reçoit les avis 1 à 4 étoiles envoyés depuis
+      ce formulaire (les avis 5 étoiles ne passent jamais par cette boîte,
+      ils sont redirigés directement vers Google). Si ce n'est pas fait,
+      les avis envoyés par les clients seront perdus sans que personne ne
+      le sache.
     -->
-    <form class="review-form" id="review-form">
-      <label class="review-form__field">
-        Votre prénom
-        <input type="text" name="nom" required>
-      </label>
-      <label class="review-form__field">
-        Votre note
-        <select name="note" required>
-          <option value="">Choisissez une note</option>
-          <option value="★★★★★ (5/5)">★★★★★ — Excellent</option>
-          <option value="★★★★ (4/5)">★★★★ — Très bien</option>
-          <option value="★★★ (3/5)">★★★ — Correct</option>
-          <option value="★★ (2/5)">★★ — Décevant</option>
-          <option value="★ (1/5)">★ — Mauvais</option>
-        </select>
-      </label>
-      <label class="review-form__field">
-        Votre avis
-        <textarea name="avis" rows="4" maxlength="600" required placeholder="Racontez votre expérience..." aria-describedby="avis-note"></textarea>
-      </label>
-      <p class="review-form__note" id="avis-note">600 caractères maximum.</p>
-      <button type="submit" class="btn-solid">Envoyer mon avis</button>
-    </form>
+    <div class="review-funnel" id="review-funnel" data-step="rate">
+
+      <div class="review-step review-step--rate" data-panel="rate">
+        <p class="review-step__title">Quelle note nous donnez-vous ?</p>
+        <div class="review-stars" role="group" aria-label="Choisissez une note de 1 à 5 étoiles">
+          <button type="button" class="review-star" data-value="1" aria-label="1 étoile sur 5">★</button>
+          <button type="button" class="review-star" data-value="2" aria-label="2 étoiles sur 5">★</button>
+          <button type="button" class="review-star" data-value="3" aria-label="3 étoiles sur 5">★</button>
+          <button type="button" class="review-star" data-value="4" aria-label="4 étoiles sur 5">★</button>
+          <button type="button" class="review-star" data-value="5" aria-label="5 étoiles sur 5">★</button>
+        </div>
+      </div>
+
+      <form class="review-step review-step--comment" data-panel="comment" id="review-form" hidden>
+        <p class="review-step__title">Dites-nous ce que nous pouvons améliorer</p>
+        <label class="review-form__field">
+          Votre prénom
+          <input type="text" name="nom" required>
+        </label>
+        <label class="review-form__field">
+          Votre avis
+          <textarea name="avis" rows="4" maxlength="600" required placeholder="Votre commentaire…" aria-describedby="avis-note"></textarea>
+        </label>
+        <p class="review-form__note" id="avis-note">600 caractères maximum. Cet avis reste en interne, il n'est pas publié sur Google.</p>
+        <button type="submit" class="btn-solid">Envoyer mon avis</button>
+      </form>
+
+      <div class="review-step review-step--thanks" data-panel="thanks-internal" hidden>
+        <p class="review-step__icon" aria-hidden="true">🙏</p>
+        <p class="review-step__title">Merci pour votre retour.</p>
+        <p>Vos remarques nous aideront à améliorer notre service.</p>
+      </div>
+
+      <div class="review-step review-step--thanks" data-panel="thanks-google" hidden>
+        <p class="review-step__icon" aria-hidden="true">⭐</p>
+        <p class="review-step__title">Merci beaucoup !</p>
+        <p>Nous sommes ravis que votre expérience vous ait plu. Votre avis sur Google nous aiderait énormément.</p>
+        <a class="btn-solid" href="https://www.google.com/maps/search/?api=1&amp;query=Subito+Pizza+333+rue+Elie+Gruyelle+H%C3%A9nin-Beaumont" target="_blank" rel="noopener">Laisser mon avis sur Google ↗</a>
+      </div>
+
+    </div>
   </section>
 
   <section>
