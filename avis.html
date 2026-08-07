@@ -24,6 +24,78 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="assets/js/main.js" defer></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://subito-pizza-heninbeaumont.fr/index.html" },
+    { "@type": "ListItem", "position": 2, "name": "Avis clients", "item": "https://subito-pizza-heninbeaumont.fr/avis.html" }
+  ]
+}
+</script>
+<!--
+  TODO si vous ajoutez ou supprimez un avis ci-dessous : mettez aussi à
+  jour "ratingValue" et "reviewCount" dans le bloc JSON-LD juste en dessous
+  (reviewCount = nombre total d'avis affichés sur cette page ; ratingValue
+  = moyenne des étoiles). Ce bloc aide Google à afficher vos étoiles
+  directement dans les résultats de recherche.
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Restaurant",
+  "name": "Subito Pizza",
+  "image": "https://subito-pizza-heninbeaumont.fr/assets/img/logo.jpg",
+  "telephone": "+33321200033",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "333 rue Elie Gruyelle",
+    "postalCode": "62110",
+    "addressLocality": "Hénin-Beaumont",
+    "addressCountry": "FR"
+  },
+  "url": "https://subito-pizza-heninbeaumont.fr/avis.html",
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "5",
+    "bestRating": "5",
+    "reviewCount": "5"
+  },
+  "review": [
+    {
+      "@type": "Review",
+      "author": { "@type": "Person", "name": "Dorothée Huret" },
+      "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+      "reviewBody": "Nous y allons depuis l'heure ouverture il y a quelques années. Toujours aussi excellent."
+    },
+    {
+      "@type": "Review",
+      "author": { "@type": "Person", "name": "Luce Dufosse" },
+      "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+      "reviewBody": "Pizzas très bonnes, je recommande le livreur très sympathique."
+    },
+    {
+      "@type": "Review",
+      "author": { "@type": "Person", "name": "Samir Bouslama" },
+      "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+      "reviewBody": "La meilleure pizza du 62 et 59 confondus. Client depuis plus de 20 ans."
+    },
+    {
+      "@type": "Review",
+      "author": { "@type": "Person", "name": "Jawad Ketoun" },
+      "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+      "reviewBody": "Le meilleur rapport qualité prix avec une expérience inégalable dans le secteur."
+    },
+    {
+      "@type": "Review",
+      "author": { "@type": "Person", "name": "Abdelilah Douiri" },
+      "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+      "reviewBody": "Excellente pizza."
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -212,7 +284,7 @@
 <footer class="site-footer">
   <p class="footer-promo">🍕 1 pizza achetée = 1 offerte, à emporter <span style="font-weight:400;">(ou 2ème à −50% en livraison)</span></p>
   <p>🍕 Subito Pizza — 📍 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — 📞 <a href="tel:0321200033">03 21 20 00 33</a></p>
-  <p class="site-footer__legal">🥗 Pour votre santé, mangez au moins cinq fruits et légumes par jour. <a href="https://www.mangerbouger.fr" target="_blank" rel="noopener">www.mangerbouger.fr</a></p>
+  <p class="site-footer__legal">🥗 Pour votre santé, mangez au moins cinq fruits et légumes par jour. <a href="https://www.mangerbouger.fr" target="_blank" rel="noopener">www.mangerbouger.fr</a> — <a href="mentions-legales.html">Mentions légales</a></p>
 </footer>
 
 </body>
