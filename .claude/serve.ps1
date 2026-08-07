@@ -1,6 +1,6 @@
 param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot),
-  [int]$Port = 8090
+  [int]$Port = $(if ($env:PORT) { [int]$env:PORT } else { 8090 })
 )
 
 $listener = New-Object System.Net.HttpListener
@@ -18,6 +18,9 @@ $mime = @{
   ".jpeg" = "image/jpeg"
   ".svg"  = "image/svg+xml"
   ".ico"  = "image/x-icon"
+  ".txt"  = "text/plain; charset=utf-8"
+  ".xml"  = "application/xml; charset=utf-8"
+  ".webmanifest" = "application/manifest+json"
 }
 
 while ($listener.IsListening) {

@@ -1,6 +1,6 @@
 # Subito Pizza — site statique
 
-Site 100% HTML/CSS/JS, sans backend. 4 pages : `index.html` (accueil), `menu.html`, `avis.html`, `reseaux.html`. Styles partagés dans `assets/css/style.css`, comportements (nav active, lightbox galerie) dans `assets/js/main.js`.
+Site 100% HTML/CSS/JS, sans backend. 5 pages : `index.html` (accueil), `menu.html`, `composer.html` (composer sa pizza), `avis.html`, `reseaux.html`. Styles partagés dans `assets/css/style.css`, comportements (nav active, lightbox galerie, formulaire avis) dans `assets/js/main.js`.
 
 ## Prévisualiser en local
 
@@ -16,7 +16,7 @@ Le domaine `subito-pizza-heninbeaumont.fr` reste le même, seul le contenu chang
 1. Connecte-toi en FTP avec les identifiants reçus par email (hôte `ftp.cluster102.hosting.ovh.net`, utilisateur `coursguil-subito`).
 2. **Sauvegarde d'abord l'existant** : télécharge une copie du contenu actuel du dossier racine (l'ancien site WordPress) sur ton ordinateur avant de toucher à quoi que ce soit, au cas où.
 3. Supprime (ou déplace dans un sous-dossier d'archive) les anciens fichiers WordPress du dossier racine du site (`wp-admin`, `wp-content`, `wp-includes`, `wp-config.php`, etc.).
-4. Envoie tout le contenu de ce dossier (`index.html`, `menu.html`, `avis.html`, `reseaux.html`, le dossier `assets/`) à la racine du site.
+4. Envoie tout le contenu de ce dossier (`index.html`, `menu.html`, `composer.html`, `avis.html`, `reseaux.html`, `manifest.json`, le dossier `assets/`) à la racine du site.
 5. Vérifie en visitant `https://subito-pizza-heninbeaumont.fr` que tout s'affiche correctement.
 
 Si tu préfères que ton agence (BROWEB) s'en charge, ce dossier complet est prêt à leur être transmis tel quel.

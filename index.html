@@ -1,26 +1,107 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="no-js">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Subito Pizza — Pizzeria à Hénin-Beaumont</title>
 <meta name="description" content="Subito Pizza, votre pizzeria à Hénin-Beaumont. Réservez par téléphone, découvrez notre menu, notre galerie et les avis de nos clients.">
+<meta property="og:type" content="restaurant">
+<meta property="og:site_name" content="Subito Pizza">
+<meta property="og:title" content="Subito Pizza — Pizzeria à Hénin-Beaumont">
+<meta property="og:description" content="Pizzeria à Hénin-Beaumont depuis 1999. Menu, offres du moment, avis clients et livraison.">
+<meta property="og:image" content="https://subito-pizza-heninbeaumont.fr/assets/img/logo.jpg">
+<meta property="og:url" content="https://subito-pizza-heninbeaumont.fr/index.html">
+<meta property="og:locale" content="fr_FR">
+<link rel="canonical" href="https://subito-pizza-heninbeaumont.fr/index.html">
+<meta name="twitter:card" content="summary">
 <link rel="icon" href="assets/img/icons/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="assets/img/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="assets/img/icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0E3B27">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="assets/js/main.js" defer></script>
+<script>
+  try {
+    if (sessionStorage.getItem('subitoIntroSeen') === '1') {
+      document.documentElement.classList.add('intro-skip');
+    }
+  } catch (e) { /* stockage indisponible : l'intro s'affichera normalement */ }
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Restaurant",
+  "name": "Subito Pizza",
+  "servesCuisine": ["Pizza"],
+  "image": "https://subito-pizza-heninbeaumont.fr/assets/img/logo.jpg",
+  "telephone": "+33321200033",
+  "priceRange": "€€",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "333 rue Elie Gruyelle",
+    "postalCode": "62110",
+    "addressLocality": "Hénin-Beaumont",
+    "addressCountry": "FR"
+  },
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+      "opens": "18:00",
+      "closes": "23:00"
+    }
+  ],
+  "accessibilityFeature": "wheelchairAccessible",
+  "amenityFeature": {
+    "@type": "LocationFeatureSpecification",
+    "name": "Accès handicapé",
+    "value": true
+  },
+  "url": "https://subito-pizza-heninbeaumont.fr/index.html"
+}
+</script>
 </head>
 <body>
 
+<a class="skip-link" href="#main-content">Aller au contenu principal</a>
+
+<div class="intro-splash" id="intro-splash" aria-hidden="true">
+  <div class="intro-splash__glow"></div>
+  <div class="intro-splash__stage">
+    <svg class="intro-splash__ring" viewBox="0 0 220 220"><circle cx="110" cy="110" r="98"/></svg>
+    <div class="intro-splash__logo-wrap">
+      <img class="intro-splash__logo" src="assets/img/logo.jpg" alt="">
+      <span class="intro-splash__sheen"></span>
+    </div>
+  </div>
+  <p class="intro-splash__tagline">Pizzeria à Hénin-Beaumont depuis 1999</p>
+</div>
+
 <header class="site-header">
-  <a href="index.html" class="site-header__logo" aria-label="Subito Pizza — accueil">
-    <img src="assets/img/logo.jpg" alt="Subito Pizza">
-  </a>
-  <p class="site-header__slogan">Goûtez la différence !</p>
-  <p class="site-header__location">📍 Hénin-Beaumont</p>
+  <div class="site-header__top">
+    <a class="site-header__badge site-header__badge--hashtag" href="reseaux.html" aria-label="Partagez vos photos avec le hashtag SubitoPizza">
+      <span class="hashtag-bubble" aria-hidden="true">#</span>
+      <span class="site-header__badge-text">#SUBITOPIZZA<small>Partagez vos photos</small></span>
+    </a>
+
+    <a href="index.html" class="site-header__logo" aria-label="Subito Pizza — accueil">
+      <img src="assets/img/logo.jpg" alt="Subito Pizza">
+    </a>
+
+    <a class="site-header__badge site-header__badge--social" href="reseaux.html" aria-label="Suivez-nous sur nos réseaux sociaux">
+      <span class="site-header__badge-icon" aria-hidden="true">
+        <svg viewBox="0 0 44 44" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="22" fill="#1877F2"/><path d="M24 14h2.5v-3.5h-2.7c-2.8 0-4.6 1.7-4.6 4.6v2.4h-2.7v3.9h2.7V31h4.1v-9.6h2.8l.5-3.9h-3.3v-2c0-1 .3-1.5 1.7-1.5z" fill="#fff"/></svg>
+        <svg viewBox="0 0 44 44" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="igGradHdr" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#FED576"/><stop offset="26%" stop-color="#F47133"/><stop offset="61%" stop-color="#BC3081"/><stop offset="100%" stop-color="#4C63D2"/></radialGradient></defs><circle cx="22" cy="22" r="22" fill="url(#igGradHdr)"/><rect x="13" y="13" width="18" height="18" rx="6" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="22" cy="22" r="5" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="28.5" cy="15.5" r="1.6" fill="#fff"/></svg>
+        <svg viewBox="0 0 44 44" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="22" fill="#111"/><path d="M25 10c.6 2.7 2.4 4.6 5.2 4.9v3.4c-1.8 0-3.4-.6-5.2-1.7v8.3c0 4.2-3.4 7.1-7.3 6.6-3.2-.4-5.7-3-5.9-6.2-.3-4 3-7.2 6.9-6.9v3.5c-1.7-.3-3.3.9-3.4 2.7-.1 1.7 1.3 3.1 3 3 1.6-.1 2.8-1.4 2.8-3V10h3.9z" fill="#25F4EE" transform="translate(-0.8,-0.8)"/><path d="M25 10c.6 2.7 2.4 4.6 5.2 4.9v3.4c-1.8 0-3.4-.6-5.2-1.7v8.3c0 4.2-3.4 7.1-7.3 6.6-3.2-.4-5.7-3-5.9-6.2-.3-4 3-7.2 6.9-6.9v3.5c-1.7-.3-3.3.9-3.4 2.7-.1 1.7 1.3 3.1 3 3 1.6-.1 2.8-1.4 2.8-3V10h3.9z" fill="#FE2C55" transform="translate(0.8,0.8)"/><path d="M25 10c.6 2.7 2.4 4.6 5.2 4.9v3.4c-1.8 0-3.4-.6-5.2-1.7v8.3c0 4.2-3.4 7.1-7.3 6.6-3.2-.4-5.7-3-5.9-6.2-.3-4 3-7.2 6.9-6.9v3.5c-1.7-.3-3.3.9-3.4 2.7-.1 1.7 1.3 3.1 3 3 1.6-.1 2.8-1.4 2.8-3V10h3.9z" fill="#fff"/></svg>
+        <svg viewBox="0 0 44 44" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="22" fill="#FFFC00"/><path d="M13,18 A9,9 0 1 1 31,18 L31,27 A3,3 0 0 1 25,27 A3,3 0 0 1 19,27 A3,3 0 0 1 13,27 Z" fill="#fff" stroke="#111" stroke-width="0.6"/><path d="M14 13c-1.8 0-2.5-2-1.3-3.2" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M30 13c1.8 0 2.5-2 1.3-3.2" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </span>
+      <span class="site-header__badge-text">SUIVEZ-NOUS<small>sur nos réseaux</small></span>
+    </a>
+  </div>
 </header>
 
 <nav class="site-nav" aria-label="Navigation principale">
@@ -32,9 +113,41 @@
   </ul>
 </nav>
 
-<main>
+<main id="main-content" tabindex="-1">
 
-  <section class="call-section">
+  <section class="hero">
+    <div class="hero__glow" aria-hidden="true"></div>
+    <div class="hero__glow hero__glow--left" aria-hidden="true"></div>
+    <div class="hero__inner">
+      <div class="hero__text">
+        <p class="hero__eyebrow">Pizzeria · Hénin-Beaumont · depuis 1999</p>
+        <a href="avis.html" class="hero__rating">★★★★★ <span>5/5 sur nos avis clients</span></a>
+        <h1 class="hero__title">L'art de la pizza,<br>servi avec <em>passion</em>.</h1>
+        <p class="hero__subtitle">Depuis 1999, Subito Pizza fait vivre à Hénin-Beaumont une tradition portée par la passion et le savoir-faire, pizza après pizza.</p>
+        <div class="hero__actions">
+          <a href="tel:0321200033" class="btn-solid">📞 03 21 20 00 33</a>
+          <a href="menu.html" class="btn-outline">Découvrir le menu</a>
+        </div>
+        <div class="hero__meta">
+          <span>🕒 Ouvert 7j/7 · 18h–23h</span>
+          <span>🛵 Livraison 19h–22h</span>
+        </div>
+      </div>
+      <div class="hero__showcase">
+        <div class="hero__plate">
+          <img src="assets/img/photos/photo-24.jpg" alt="La Pizza Subito, notre recette signature : sauce tomate, fromage, viande hachée, chorizo, oeuf, oignons" fetchpriority="high">
+        </div>
+        <p class="hero__showcase-caption">Notre signature, celle qui porte fièrement le nom de la maison : la <strong>Pizza Subito</strong></p>
+      </div>
+    </div>
+    <div class="hero__wave" aria-hidden="true">
+      <svg viewBox="0 0 1440 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,32 C240,80 480,0 720,24 C960,48 1200,88 1440,40 L1440,80 L0,80 Z" fill="#FFFFFF"/>
+      </svg>
+    </div>
+  </section>
+
+  <section class="call-section call-section--tight">
     <a href="tel:0321200033" class="call-button">
       <span class="call-button__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1.1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.5 21 3 13.5 3 4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.2 1.1L6.6 10.8Z"/></svg></span>
       <span class="call-button__text">
@@ -42,6 +155,13 @@
         <span class="call-button__number">03 21 20 00 33</span>
       </span>
     </a>
+    <p class="call-section__note">En cas de forte affluence, la ligne peut être momentanément occupée : n'hésitez pas à rappeler, vous serez le prochain client pris en charge.</p>
+  </section>
+
+  <section class="promo-highlight" aria-label="Offres en cours">
+    <p class="promo-highlight__main">🍕 1 pizza achetée = 1 offerte<small>Sur toutes les tailles, à emporter</small></p>
+    <p class="promo-highlight__secondary">— ou 2ᵉ pizza à −50% en livraison —</p>
+    <p class="promo-highlight__legal">Offre cumulable sans limite dans la même commande. Pour chaque paire, la pizza la moins chère est offerte à l'emporter, ou à −50% en livraison.</p>
   </section>
 
   <section class="map-section">
@@ -54,6 +174,7 @@
         <span aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg></span> Lancer l'itinéraire
       </a>
     </div>
+    <p class="access-note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="17" cy="5" r="1.6" fill="currentColor" stroke="none"/><path d="M11 8h6M9.5 21l2.5-8-3-2 1-3.5L15 9l1.5 3H20"/><circle cx="10" cy="18" r="3.2"/></svg> Restaurant accessible aux personnes à mobilité réduite</p>
   </section>
 
   <section class="delivery-section">
@@ -100,29 +221,29 @@
       bouton pour qu'ils pointent vers le fichier image réel.
     -->
     <div class="gallery-grid">
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/photos/photo-13.jpg" data-lightbox-alt="Pizza Fruits de mer">
-        <img src="assets/img/photos/photo-13.jpg" alt="Pizza Fruits de mer">
+      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/pizza-1.jpg" data-lightbox-alt="Pizzas — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Pizzas<br>📸 Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/photos/photo-08.jpg" data-lightbox-alt="Pizza 4 Saisons">
-        <img src="assets/img/photos/photo-08.jpg" alt="Pizza 4 Saisons">
+      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/pizza-2.jpg" data-lightbox-alt="Pizzas — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Pizzas<br>📸 Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/restaurant-1.jpg" data-lightbox-alt="Restaurant — photo à venir">
-        <div class="img-placeholder">Restaurant — photo à venir</div>
+      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/restaurant-1.jpg" data-lightbox-alt="Restaurant — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Restaurant<br>📸 Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/restaurant-2.jpg" data-lightbox-alt="Restaurant — photo à venir">
-        <div class="img-placeholder">Restaurant — photo à venir</div>
+      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/restaurant-2.jpg" data-lightbox-alt="Restaurant — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Restaurant<br>📸 Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/equipe-1.jpg" data-lightbox-alt="Équipe — photo à venir">
-        <div class="img-placeholder">Équipe — photo à venir</div>
+      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/equipe-1.jpg" data-lightbox-alt="Équipe — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Équipe<br>📸 Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/equipe-2.jpg" data-lightbox-alt="Équipe — photo à venir">
-        <div class="img-placeholder">Équipe — photo à venir</div>
+      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/equipe-2.jpg" data-lightbox-alt="Équipe — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Équipe<br>📸 Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/photos/photo-32.jpg" data-lightbox-alt="Ingrédients frais Subito Pizza">
-        <img src="assets/img/photos/photo-32.jpg" alt="Ingrédients frais Subito Pizza">
+      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/ingredients.jpg" data-lightbox-alt="Ingrédients — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Ingrédients<br>📸 Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/photos/photo-53.jpg" data-lightbox-alt="Dessert Subito Pizza">
-        <img src="assets/img/photos/photo-53.jpg" alt="Dessert Subito Pizza">
+      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/dessert.jpg" data-lightbox-alt="Desserts — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Desserts<br>📸 Shooting en cours</span></div>
       </button>
     </div>
   </section>
@@ -131,13 +252,17 @@
     <h2 class="section-title">Ce que disent nos clients</h2>
     <article class="review-card">
       <p class="review-card__stars">★★★★★</p>
-      <p class="review-card__author">REMPLACER — prénom du client<span class="review-card__date">REMPLACER — date</span></p>
-      <p class="review-card__text">REMPLACER — coller ici le texte de l'avis client fourni par le propriétaire.</p>
+      <p class="review-card__author">Dorothée Huret<span class="review-card__date">Avis Google — juin 2026</span></p>
+      <p class="review-card__text">« Nous y allons depuis l'heure ouverture il y a quelques années. Toujours aussi excellent. »</p>
+      <p class="review-card__reply"><strong>🍕 Réponse de Subito Pizza —</strong> Merci pour votre fidélité depuis toutes ces années, ça nous touche beaucoup !</p>
+      <a class="review-card__google-link" href="https://www.google.com/maps/search/?api=1&amp;query=Subito+Pizza+333+rue+Elie+Gruyelle+H%C3%A9nin-Beaumont" target="_blank" rel="noopener">Voir cet avis sur Google ↗</a>
     </article>
     <article class="review-card">
       <p class="review-card__stars">★★★★★</p>
-      <p class="review-card__author">REMPLACER — prénom du client<span class="review-card__date">REMPLACER — date</span></p>
-      <p class="review-card__text">REMPLACER — coller ici le texte de l'avis client fourni par le propriétaire.</p>
+      <p class="review-card__author">Samir Bouslama<span class="review-card__date">Avis Google — juillet 2025</span></p>
+      <p class="review-card__text">« La meilleure pizza du 62 et 59 confondus. Depuis que je suis enfant je mange ici et jamais déçu, client depuis plus de 20 ans. »</p>
+      <p class="review-card__reply"><strong>🍕 Réponse de Subito Pizza —</strong> Merci infiniment pour votre fidélité depuis tant d'années, c'est un plaisir de vous servir !</p>
+      <a class="review-card__google-link" href="https://www.google.com/maps/search/?api=1&amp;query=Subito+Pizza+333+rue+Elie+Gruyelle+H%C3%A9nin-Beaumont" target="_blank" rel="noopener">Voir cet avis sur Google ↗</a>
     </article>
     <div class="reviews-cta">
       <a class="btn-solid" href="avis.html">Voir tous les avis</a>
@@ -148,8 +273,8 @@
     <h2 class="section-title">Subito Pizza — Hénin-Beaumont</h2>
     <div class="presentation">
       <p class="presentation__lead">Une histoire de famille et de passion depuis 1999</p>
-      <p>Depuis 1999, Subito Pizza fait partie du quotidien des habitants de Hénin-Beaumont. Ce qui a commencé comme une petite pizzeria de quartier est aujourd'hui devenu une véritable institution locale, portée par la même passion du bon produit et de la pizza faite maison.</p>
-      <p>Plus de vingt ans après son ouverture, Subito Pizza continue de séduire autant de clients qu'à ses débuts. La recette de ce succès ? Une pâte préparée avec soin, des ingrédients frais et de qualité, et surtout une équipe fidèle à ses valeurs : convivialité, générosité et régularité, service après service, année après année.</p>
+      <p>Depuis 1999, Subito Pizza fait partie du quotidien des habitants de Hénin-Beaumont. Ce qui a commencé comme une petite pizzeria de quartier est aujourd'hui devenu une véritable institution locale, portée par la même passion du métier et le goût du travail bien fait.</p>
+      <p>Plus de vingt ans après son ouverture, Subito Pizza continue de séduire autant de clients qu'à ses débuts. La recette de ce succès ? Un savoir-faire transmis avec soin, une attention constante à la qualité, et surtout une équipe fidèle à ses valeurs : convivialité, générosité et régularité, service après service, année après année.</p>
       <p>À Hénin-Beaumont, Subito Pizza est devenu bien plus qu'une simple adresse où commander une pizza : c'est un rendez-vous gourmand que petits et grands ont pris l'habitude de partager, que ce soit en famille, entre amis ou après une longue journée de travail.</p>
     </div>
   </section>

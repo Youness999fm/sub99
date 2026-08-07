@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://subito-pizza-heninbeaumont.fr/sitemap.xml
