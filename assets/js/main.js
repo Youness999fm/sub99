@@ -11,7 +11,102 @@ document.addEventListener('DOMContentLoaded', () => {
   initIntroSplash();
   initHeaderCompact();
   initBackToTop();
+  initParallax();
+  initHeroCarousel();
 });
+
+// Fait défiler la photo du héros à travers toute la carte des pizzas
+// (même cadre circulaire que la Pizza Subito), une image à la fois avec
+// un fondu doux. Ne charge la photo suivante qu'au moment où elle est
+// nécessaire, pour ne pas alourdir le chargement initial sur mobile.
+function initHeroCarousel() {
+  const img = document.getElementById('hero-plate-img');
+  const caption = document.getElementById('hero-plate-caption');
+  if (!img || !caption) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const pizzas = [
+    { name: 'Subito', src: 'assets/img/photos/photo-24.jpg', caption: 'Notre signature, celle qui porte fièrement le nom de la maison : la <strong>Pizza Subito</strong>' },
+    { name: 'Carnivora', src: 'assets/img/photos/carnivora.jpg' },
+    { name: '4 Fromages', src: 'assets/img/photos/photo-01.jpg' },
+    { name: 'Chèvre miel', src: 'assets/img/photos/chevre-miel.jpg' },
+    { name: 'Végétarienne', src: 'assets/img/photos/photo-07.jpg' },
+    { name: '3 Jambons', src: 'assets/img/photos/photo-30.jpg' },
+    { name: '4 Saisons', src: 'assets/img/photos/photo-08.jpg' },
+    { name: 'Calzone', src: 'assets/img/photos/photo-31.jpg' },
+    { name: 'Campione', src: 'assets/img/photos/photo-06.jpg' },
+    { name: 'Kebab', src: 'assets/img/photos/photo-28.jpg' },
+    { name: 'Napolitaine', src: 'assets/img/photos/photo-09.jpg' },
+    { name: 'Régina', src: 'assets/img/photos/photo-22.jpg' },
+    { name: 'Chicken', src: 'assets/img/photos/photo-02.jpg' },
+    { name: 'Kefta', src: 'assets/img/photos/photo-27.jpg' },
+    { name: 'Neptune', src: 'assets/img/photos/photo-05.jpg' },
+    { name: "L'Extravagante", src: 'assets/img/photos/photo-23.jpg' },
+    { name: 'Fruits de mer', src: 'assets/img/photos/photo-13.jpg' },
+    { name: 'Orientale', src: 'assets/img/photos/photo-04.jpg' },
+    { name: 'Pacifico', src: 'assets/img/photos/photo-03.jpg' },
+    { name: 'Venezia', src: 'assets/img/photos/photo-19.jpg' },
+    { name: 'Chicken Chika', src: 'assets/img/photos/photo-21.jpg' },
+    { name: 'Milano', src: 'assets/img/photos/photo-18.jpg' },
+    { name: 'Normande', src: 'assets/img/photos/photo-16.jpg' },
+    { name: 'Fajitas', src: 'assets/img/photos/photo-20.jpg' },
+    { name: 'Maroilles', src: 'assets/img/photos/maroilles.jpg' },
+    { name: 'Pollame', src: 'assets/img/photos/pollame.jpg' },
+    { name: 'Savoyarde', src: 'assets/img/photos/photo-15.jpg' },
+    { name: 'Indienne', src: 'assets/img/photos/photo-14.jpg' },
+    { name: 'Carolina', src: 'assets/img/photos/carolina.jpg' }
+  ];
+
+  const preloadAt = (i) => {
+    const next = new Image();
+    next.src = pizzas[(i + 1) % pizzas.length].src;
+  };
+  preloadAt(0);
+
+  let index = 0;
+  window.setInterval(() => {
+    index = (index + 1) % pizzas.length;
+    const p = pizzas[index];
+
+    img.classList.add('is-swapping');
+    caption.classList.add('is-swapping');
+
+    window.setTimeout(() => {
+      img.src = p.src;
+      img.alt = `Pizza ${p.name}, à retrouver sur notre carte`;
+      caption.innerHTML = p.caption || `🍕 À retrouver sur notre carte : <strong>Pizza ${p.name}</strong>`;
+      img.classList.remove('is-swapping');
+      caption.classList.remove('is-swapping');
+    }, 250);
+
+    preloadAt(index);
+  }, 3200);
+}
+
+// Léger effet de profondeur sur les halos décoratifs du héros, desktop
+// uniquement : sur mobile, priorité à la fluidité, on ne touche pas au
+// scroll (voir prefers-reduced-motion aussi respecté).
+function initParallax() {
+  const glows = document.querySelectorAll('.hero__glow');
+  if (!glows.length) return;
+  if (window.matchMedia('(max-width: 759px)').matches) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  let ticking = false;
+  const update = () => {
+    const y = window.scrollY;
+    glows.forEach((glow, i) => {
+      glow.style.transform = `translateY(${y * (i === 0 ? 0.12 : 0.08)}px)`;
+    });
+    ticking = false;
+  };
+
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(update);
+  }, { passive: true });
+}
 
 function initBackToTop() {
   const btn = document.createElement('button');
@@ -110,8 +205,11 @@ function initScrollReveal() {
   const targets = document.querySelectorAll('main > section, main > nav.menu-jump');
   if (!targets.length) return;
 
-  if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (!('IntersectionObserver' in window) || reduceMotion) {
     targets.forEach((el) => el.classList.add('is-visible'));
+    document.querySelectorAll('.gallery-grid__item, .review-card, .delivery-tier').forEach((el) => el.classList.add('is-visible'));
     return;
   }
 
@@ -128,6 +226,19 @@ function initScrollReveal() {
     el.classList.add('reveal');
     el.style.transitionDelay = `${Math.min(i, 4) * 60}ms`;
     observer.observe(el);
+  });
+
+  // Petite apparition en cascade pour les grilles de cartes (galerie, avis,
+  // zone de livraison) — délai local au groupe, plafonné pour rester rapide
+  // même quand il y a beaucoup d'éléments.
+  ['.gallery-grid__item', '.review-card', '.delivery-tier'].forEach((selector) => {
+    const items = document.querySelectorAll(selector);
+    if (!items.length) return;
+    items.forEach((el, i) => {
+      el.classList.add('reveal');
+      el.style.transitionDelay = `${Math.min(i, 5) * 70}ms`;
+      observer.observe(el);
+    });
   });
 }
 

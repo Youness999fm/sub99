@@ -476,6 +476,19 @@ a { color: inherit; }
   object-fit: cover;
   object-position: center 46%;
   transform: scale(1.08);
+  transition: opacity 0.25s ease;
+}
+
+.hero__plate img.is-swapping {
+  opacity: 0;
+}
+
+.hero__showcase-caption {
+  transition: opacity 0.25s ease;
+}
+
+.hero__showcase-caption.is-swapping {
+  opacity: 0;
 }
 
 @keyframes heroFloat {
@@ -796,6 +809,8 @@ section { padding: 32px 20px; }
 }
 
 .btn-outline {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -808,6 +823,24 @@ section { padding: 32px 20px; }
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.btn-outline::before,
+.btn-solid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.4) 50%, transparent 65%);
+  transform: translateX(-130%);
+  transition: transform 0.65s ease;
+  pointer-events: none;
+}
+
+.btn-outline:hover::before,
+.btn-outline:focus-visible::before,
+.btn-solid:hover::before,
+.btn-solid:focus-visible::before {
+  transform: translateX(130%);
+}
+
 .btn-outline:hover,
 .btn-outline:focus-visible {
   background: var(--green);
@@ -815,7 +848,11 @@ section { padding: 32px 20px; }
   transform: translateY(-2px);
   box-shadow: 0 10px 22px -12px rgba(14, 59, 39, 0.5);
 }
-.btn-outline:active { transform: translateY(0); }
+.btn-outline:active { transform: translateY(0) scale(0.98); }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-outline::before, .btn-solid::before { display: none; }
+}
 
 /* ---------- Zone de livraison ---------- */
 
@@ -1130,6 +1167,8 @@ section { padding: 32px 20px; }
 }
 
 .btn-solid {
+  position: relative;
+  overflow: hidden;
   display: inline-block;
   background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
   color: #fff;
@@ -1145,7 +1184,7 @@ section { padding: 32px 20px; }
   transform: translateY(-2px);
   box-shadow: 0 14px 28px -10px rgba(214, 40, 40, 0.6);
 }
-.btn-solid:active { transform: translateY(0); }
+.btn-solid:active { transform: translateY(0) scale(0.98); }
 
 /* ---------- Présentation texte ---------- */
 
