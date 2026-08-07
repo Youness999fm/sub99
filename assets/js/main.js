@@ -169,8 +169,10 @@ function initReviewForm() {
   const form = document.getElementById('review-form');
   if (!funnel || !form) return;
 
-  // TODO: remplacer par l'adresse email où Subito Pizza veut recevoir les avis clients.
-  const ownerEmail = 'avis@subito-pizza-heninbeaumont.fr';
+  // Adresse affichée dans le code / dans le mail du client (pas la vraie boîte
+  // finale) : voir TODO plus bas dans avis.html pour la redirection OVH à créer
+  // vers subito.pizza.hb@gmail.com.
+  const ownerEmail = 'contact@subito-pizza-heninbeaumont.fr';
 
   const panels = funnel.querySelectorAll('[data-panel]');
   const showPanel = (name) => {
@@ -232,8 +234,20 @@ function initReviewForm() {
     if (!nom) { form.nom.focus(); return; }
     if (!avis) { form.avis.focus(); return; }
 
-    const subject = `Nouvel avis client Subito Pizza — ${nom} (${currentNote}/5)`;
-    const body = `Prénom : ${nom}\nNote : ${'★'.repeat(currentNote)} (${currentNote}/5)\n\nAvis :\n${avis}`;
+    const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const stars = '★'.repeat(currentNote) + '☆'.repeat(5 - currentNote);
+
+    const subject = `Nouvel avis client (${currentNote}/5) — ${nom}`;
+    const body =
+      `Nouvel avis reçu depuis le site Subito Pizza\n` +
+      `-----------------------------------------\n` +
+      `Note      : ${stars}  (${currentNote}/5)\n` +
+      `Prénom    : ${nom}\n` +
+      `Date      : ${date}\n` +
+      `-----------------------------------------\n\n` +
+      `Message du client :\n${avis}\n\n` +
+      `-----------------------------------------\n` +
+      `Cet avis est privé : il n'est pas publié sur Google.`;
     const mailtoUrl = `mailto:${ownerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
     window.location.href = mailtoUrl;

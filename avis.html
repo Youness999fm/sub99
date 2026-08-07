@@ -66,14 +66,15 @@
     <h1 class="section-title">Donnez votre avis</h1>
     <p class="write-review__tagline">Votre satisfaction, notre priorité !</p>
     <!--
-      TODO IMPORTANT avant mise en ligne : vérifier que la boîte mail
-      avis@subito-pizza-heninbeaumont.fr existe et est bien relevée (ou la
-      remplacer par une adresse email existante) dans assets/js/main.js —
-      c'est cette adresse qui reçoit les avis 1 à 4 étoiles envoyés depuis
-      ce formulaire (les avis 5 étoiles ne passent jamais par cette boîte,
-      ils sont redirigés directement vers Google). Si ce n'est pas fait,
-      les avis envoyés par les clients seront perdus sans que personne ne
-      le sache.
+      TODO IMPORTANT avant mise en ligne : le formulaire envoie les avis
+      1 à 4 étoiles à contact@subito-pizza-heninbeaumont.fr (adresse choisie
+      pour ne pas exposer la vraie boîte mail dans le code du site). Il faut
+      créer, dans l'espace client OVH (Emails > Redirections), une
+      redirection de contact@subito-pizza-heninbeaumont.fr vers
+      subito.pizza.hb@gmail.com, sinon les avis envoyés par les clients
+      seront perdus sans que personne ne le sache. (Les avis 5 étoiles ne
+      passent jamais par cette boîte : ils sont redirigés directement vers
+      Google.)
     -->
     <div class="review-funnel" id="review-funnel" data-step="rate">
 
