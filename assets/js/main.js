@@ -180,18 +180,47 @@ function initReviewForm() {
 
   let currentNote = null;
 
-  funnel.querySelectorAll('.review-star').forEach((star) => {
+  const stars = Array.from(funnel.querySelectorAll('.review-star'));
+  const starsGroup = funnel.querySelector('.review-stars');
+
+  // Remplit l'étoile cliquée/survolée ET toutes celles qui la précèdent
+  // (ex : cliquer sur la 4e étoile allume aussi les 3 premières).
+  const paintStars = (value) => {
+    stars.forEach((star) => {
+      star.classList.toggle('is-active', Number(star.dataset.value) <= value);
+    });
+  };
+
+  stars.forEach((star) => {
+    const value = Number(star.dataset.value);
+    star.addEventListener('mouseenter', () => paintStars(value));
+    star.addEventListener('focus', () => paintStars(value));
+  });
+
+  if (starsGroup) {
+    starsGroup.addEventListener('mouseleave', () => paintStars(currentNote || 0));
+    starsGroup.addEventListener('focusout', (e) => {
+      if (!starsGroup.contains(e.relatedTarget)) paintStars(currentNote || 0);
+    });
+  }
+
+  stars.forEach((star) => {
     star.addEventListener('click', () => {
       currentNote = Number(star.dataset.value);
+      paintStars(currentNote);
 
-      // 5 étoiles = très satisfait -> on encourage l'avis public sur Google.
-      // 1 à 4 étoiles = insatisfaction -> on garde le retour en interne, jamais vers Google.
-      if (currentNote === 5) {
-        showPanel('thanks-google');
-      } else {
-        showPanel('comment');
-        form.nom.focus();
-      }
+      // Petite pause pour que le client voie bien les étoiles se remplir
+      // avant d'enchaîner sur l'étape suivante.
+      setTimeout(() => {
+        // 5 étoiles = très satisfait -> on encourage l'avis public sur Google.
+        // 1 à 4 étoiles = insatisfaction -> on garde le retour en interne, jamais vers Google.
+        if (currentNote === 5) {
+          showPanel('thanks-google');
+        } else {
+          showPanel('comment');
+          form.nom.focus();
+        }
+      }, 350);
     });
   });
 
