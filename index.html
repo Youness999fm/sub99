@@ -119,12 +119,23 @@
     <div class="hero__glow" aria-hidden="true"></div>
     <div class="hero__glow hero__glow--left" aria-hidden="true"></div>
     <div class="hero__inner">
+      <p class="hero__eyebrow">Pizzeria · Hénin-Beaumont · <span class="hero__eyebrow-counter" id="hero-year-counter-wrap">+<span id="year-counter">27</span> ans</span></p>
       <div class="hero__text">
-        <p class="hero__eyebrow">Pizzeria · Hénin-Beaumont · depuis 1999</p>
         <p class="hero__promo-badge">🍕 1 pizza achetée = 1 pizza offerte<span>À emporter, sur toutes les tailles</span></p>
-        <a href="avis.html" class="hero__rating">★★★★★ <span>5/5 sur nos avis clients</span></a>
         <h1 class="hero__title">L'art de la pizza,<br>servi avec <em>passion</em>.</h1>
-        <p class="hero__subtitle">Depuis 1999, Subito Pizza fait vivre à Hénin-Beaumont une tradition portée par la passion et le savoir-faire, pizza après pizza.</p>
+        <p class="hero__subtitle">Subito Pizza fait vivre une tradition portée par la passion et le savoir-faire, pizza après pizza.</p>
+        <div class="order-status" id="order-status">
+          <span class="order-status__dot" aria-hidden="true"></span>
+          <span class="order-status__body" aria-hidden="true">
+            <span class="order-status__label" id="order-status-label">Commandes ouvertes</span>
+            <span class="order-status__countdown">
+              <span id="order-status-verb">Ferment dans</span>
+              <span class="order-status__odo" id="order-status-hours"></span><span class="order-status__unit">h</span>
+              <span class="order-status__odo" id="order-status-minutes"></span><span class="order-status__unit">min</span>
+            </span>
+          </span>
+          <span class="visually-hidden" id="order-status-sr" role="status"></span>
+        </div>
         <div class="hero__actions">
           <a href="tel:0321200033" class="btn-solid">📞 03 21 20 00 33</a>
           <a href="menu.html" class="btn-outline">Découvrir le menu</a>
@@ -135,9 +146,9 @@
         </div>
       </div>
       <div class="hero__showcase">
-        <div class="hero__plate">
+        <a class="hero__plate" href="menu.html" aria-label="Voir le menu complet">
           <img id="hero-plate-img" src="assets/img/photos/photo-24.jpg" alt="La Pizza Subito, notre recette signature : sauce tomate, fromage, viande hachée, chorizo, oeuf, oignons" fetchpriority="high">
-        </div>
+        </a>
         <p class="hero__showcase-caption" id="hero-plate-caption">Notre signature, celle qui porte fièrement le nom de la maison : la <strong>Pizza Subito</strong></p>
       </div>
     </div>
@@ -179,7 +190,7 @@
     <p class="access-note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="17" cy="5" r="1.6" fill="currentColor" stroke="none"/><path d="M11 8h6M9.5 21l2.5-8-3-2 1-3.5L15 9l1.5 3H20"/><circle cx="10" cy="18" r="3.2"/></svg> Restaurant accessible aux personnes à mobilité réduite</p>
   </section>
 
-  <section class="delivery-section">
+  <section class="delivery-section" id="zone-livraison">
     <h2 class="section-title">Notre zone de livraison</h2>
     <p class="section-intro">Minimum de commande selon votre ville :</p>
     <div class="delivery-grid">
@@ -276,12 +287,28 @@
   </section>
 
   <section class="presentation-section">
+    <span class="presentation__year" id="presentation-year" aria-hidden="true">1999</span>
     <h2 class="section-title">Subito Pizza — Hénin-Beaumont</h2>
     <div class="presentation">
       <p class="presentation__lead">Une histoire de famille et de passion depuis 1999</p>
       <p>Depuis 1999, Subito Pizza fait partie du quotidien des habitants de Hénin-Beaumont. Ce qui a commencé comme une petite pizzeria de quartier est aujourd'hui devenu une véritable institution locale, portée par la même passion du métier et le goût du travail bien fait.</p>
       <p>Plus de vingt ans après son ouverture, Subito Pizza continue de séduire autant de clients qu'à ses débuts. La recette de ce succès ? Un savoir-faire transmis avec soin, une attention constante à la qualité, et surtout une équipe fidèle à ses valeurs : convivialité, générosité et régularité, service après service, année après année.</p>
       <p>À Hénin-Beaumont, Subito Pizza est devenu bien plus qu'une simple adresse où commander une pizza : c'est un rendez-vous gourmand que petits et grands ont pris l'habitude de partager, que ce soit en famille, entre amis ou après une longue journée de travail.</p>
+    </div>
+  </section>
+
+  <section class="finale" id="finale">
+    <span class="finale__year" aria-hidden="true">1999</span>
+    <div class="finale__content">
+      <p class="finale__date" id="finale-date">1ᵉʳ avril 1999</p>
+      <p class="finale__line" id="finale-line1">Une histoire commencée le 1ᵉʳ avril 1999.</p>
+      <p class="finale__days" id="finale-days">
+        <span class="finale__days-number" id="finale-days-number">9991</span>
+        <span class="finale__days-label">jours d'histoire, et ça continue</span>
+      </p>
+      <div class="finale__logo-wrap" id="finale-logo-wrap">
+        <img class="finale__logo" src="assets/img/logo.jpg" alt="Subito Pizza">
+      </div>
     </div>
   </section>
 
@@ -295,6 +322,7 @@
 <footer class="site-footer">
   <p>🍕 Subito Pizza — 📍 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — 📞 <a href="tel:0321200033">03 21 20 00 33</a></p>
   <p class="site-footer__legal">🥗 Pour votre santé, mangez au moins cinq fruits et légumes par jour. <a href="https://www.mangerbouger.fr" target="_blank" rel="noopener">www.mangerbouger.fr</a> — <a href="faq.html">FAQ</a> — <a href="mentions-legales.html">Mentions légales</a></p>
+  <p class="site-footer__signature"><strong>SUBITO PIZZA</strong> — depuis le 1ᵉʳ avril 1999</p>
 </footer>
 
 </body>

@@ -134,19 +134,26 @@
 </nav>
 
 <main id="main-content" tabindex="-1">
+  <p class="page-shortcut"><a href="#reclamation">Un souci dans votre commande ou un mécontentement ? Contactez-nous directement →</a></p>
+
   <section class="write-review-section" id="ecrire-avis">
-    <h1 class="section-title">Donnez votre avis</h1>
-    <p class="write-review__tagline">Votre satisfaction, notre priorité !</p>
+    <h1 class="section-title">Vous êtes déjà venu chez nous ?</h1>
+    <p class="write-review__tagline">Votre expérience compte énormément pour nous.</p>
     <!--
-      TODO IMPORTANT avant mise en ligne : le formulaire envoie les avis
-      1 à 4 étoiles à contact@subito-pizza-heninbeaumont.fr (adresse choisie
-      pour ne pas exposer la vraie boîte mail dans le code du site). Il faut
-      créer, dans l'espace client OVH (Emails > Redirections), une
-      redirection de contact@subito-pizza-heninbeaumont.fr vers
-      subito.pizza.hb@gmail.com, sinon les avis envoyés par les clients
-      seront perdus sans que personne ne le sache. (Les avis 5 étoiles ne
-      passent jamais par cette boîte : ils sont redirigés directement vers
-      Google.)
+      Parcours de notation par étoiles (voir initReviewForm() dans main.js) :
+      4-5 étoiles -> ouverture directe de la fiche Google en nouvel onglet.
+      1-3 étoiles -> défilement direct vers la section réclamation ci-dessous,
+      pour traiter concrètement le problème plutôt que de simplement noter.
+
+      IMPORTANT — conformité Google : le lien Google (id="google-review-link"
+      ci-dessous, et celui affiché en permanence dans la section réclamation
+      "#reclamation") ne doit JAMAIS être masqué ni retiré selon la note.
+      Google interdit explicitement le "review gating" (rediriger
+      sélectivement les avis positifs vers Google et détourner les avis
+      négatifs) — pratique activement sanctionnée depuis avril 2026
+      (suppression d'avis, suspension de fiche). Le choix fait ici est
+      d'orienter en priorité les notes basses vers une résolution concrète
+      (section réclamation), sans jamais leur retirer l'accès à Google.
     -->
     <div class="review-funnel" id="review-funnel" data-step="rate">
 
@@ -161,33 +168,70 @@
         </div>
       </div>
 
-      <form class="review-step review-step--comment" data-panel="comment" id="review-form" hidden>
-        <p class="review-step__title">Dites-nous ce que nous pouvons améliorer</p>
-        <label class="review-form__field">
-          Votre prénom
-          <input type="text" name="nom" required>
-        </label>
-        <label class="review-form__field">
-          Votre avis
-          <textarea name="avis" rows="4" maxlength="600" required placeholder="Votre commentaire…" aria-describedby="avis-note"></textarea>
-        </label>
-        <p class="review-form__note" id="avis-note">600 caractères maximum. Cet avis reste en interne, il n'est pas publié sur Google.</p>
-        <button type="submit" class="btn-solid">Envoyer mon avis</button>
-      </form>
-
-      <div class="review-step review-step--thanks" data-panel="thanks-internal" hidden>
+      <div class="review-step review-step--thanks" data-panel="thanks" hidden>
         <p class="review-step__icon" aria-hidden="true">🙏</p>
-        <p class="review-step__title">Merci pour votre retour.</p>
-        <p>Vos remarques nous aideront à améliorer notre service.</p>
+        <p class="review-step__title">Merci pour votre note !</p>
+        <p>Nous venons d'ouvrir Google dans un nouvel onglet pour vous. Si rien ne s'est ouvert, cliquez ci-dessous.</p>
+        <a class="btn-solid" id="google-review-link" href="https://www.google.com/maps/search/?api=1&amp;query=Subito+Pizza+333+rue+Elie+Gruyelle+H%C3%A9nin-Beaumont" target="_blank" rel="noopener">Partager mon expérience sur Google ↗</a>
       </div>
 
-      <div class="review-step review-step--thanks" data-panel="thanks-google" hidden>
-        <p class="review-step__icon" aria-hidden="true">⭐</p>
-        <p class="review-step__title">Merci beaucoup !</p>
-        <p>Nous sommes ravis que votre expérience vous ait plu. Votre avis sur Google nous aiderait énormément.</p>
-        <a class="btn-solid" href="https://www.google.com/maps/search/?api=1&amp;query=Subito+Pizza+333+rue+Elie+Gruyelle+H%C3%A9nin-Beaumont" target="_blank" rel="noopener">Laisser mon avis sur Google ↗</a>
+    </div>
+  </section>
+
+  <section class="complaint-section" id="reclamation">
+    <h2 class="section-title section-title--small">Un souci avec votre commande ?</h2>
+    <p class="complaint-section__intro">Quelque chose ne s'est pas passé comme prévu ? Dites-nous ce qui s'est passé, nous voulons comprendre et vous aider.</p>
+    <p class="complaint-section__google">Vous préférez plutôt partager votre expérience publiquement ? <a href="https://www.google.com/maps/search/?api=1&amp;query=Subito+Pizza+333+rue+Elie+Gruyelle+H%C3%A9nin-Beaumont" target="_blank" rel="noopener">Laissez un avis sur Google ↗</a></p>
+
+    <div class="review-choice" id="complaint-choice">
+      <div class="review-choice__option">
+        <p class="review-choice__label">📞 Appelez-nous</p>
+        <p class="review-choice__hint">Parlez directement à l'équipe Subito.</p>
+        <a class="btn-outline" href="tel:0321200033">03 21 20 00 33</a>
       </div>
 
+      <div class="review-choice__divider" aria-hidden="true"><span>ou</span></div>
+
+      <div class="review-choice__option review-choice__option--form">
+        <p class="review-choice__label">💬 Écrivez-nous</p>
+        <p class="review-choice__hint">Expliquez-nous simplement ce qui s'est passé.</p>
+
+        <form class="complaint-form" id="complaint-form">
+          <label class="review-form__field">
+            Votre prénom
+            <input type="text" name="nom" required>
+          </label>
+          <label class="review-form__field">
+            Votre téléphone <span class="complaint-form__optional">(facultatif, pour vous recontacter)</span>
+            <input type="tel" name="telephone" autocomplete="tel">
+          </label>
+          <label class="review-form__field">
+            Nature du problème
+            <select name="categorie" required>
+              <option value="">Choisissez…</option>
+              <option value="Commande incorrecte">Commande incorrecte</option>
+              <option value="Produit manquant">Produit manquant</option>
+              <option value="Retard de livraison">Retard de livraison</option>
+              <option value="Qualité du produit">Qualité du produit</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </label>
+          <label class="review-form__field">
+            Votre message
+            <textarea name="message" rows="4" maxlength="600" required placeholder="Décrivez ce qui s'est passé…" aria-describedby="complaint-note"></textarea>
+          </label>
+          <p class="review-form__note" id="complaint-note">600 caractères maximum.</p>
+          <button type="submit" class="btn-solid btn-solid--dark">Envoyer mon message</button>
+        </form>
+      </div>
+    </div>
+
+    <p class="complaint-section__note">Pensez à nous contacter le jour même de votre commande : cela nous permet de vérifier plus facilement la situation et de vous apporter la meilleure réponse possible.</p>
+
+    <div class="complaint-form__sent" id="complaint-sent" hidden>
+      <p class="review-step__icon" aria-hidden="true">✅</p>
+      <p class="review-step__title">Merci de nous avoir prévenus.</p>
+      <p>Votre message a bien été transmis à l'équipe Subito. Nous allons prendre connaissance de votre situation.</p>
     </div>
   </section>
 
@@ -285,6 +329,7 @@
   <p class="footer-promo">🍕 1 pizza achetée = 1 offerte, à emporter <span style="font-weight:400;">(ou 2ème à −50% en livraison)</span></p>
   <p>🍕 Subito Pizza — 📍 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — 📞 <a href="tel:0321200033">03 21 20 00 33</a></p>
   <p class="site-footer__legal">🥗 Pour votre santé, mangez au moins cinq fruits et légumes par jour. <a href="https://www.mangerbouger.fr" target="_blank" rel="noopener">www.mangerbouger.fr</a> — <a href="faq.html">FAQ</a> — <a href="mentions-legales.html">Mentions légales</a></p>
+  <p class="site-footer__signature"><strong>SUBITO PIZZA</strong> — depuis le 1ᵉʳ avril 1999</p>
 </footer>
 
 </body>
