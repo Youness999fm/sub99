@@ -533,25 +533,79 @@ function initScrollReveal() {
 // menu.html.
 function initMenuJumpActive() {
   const jump = document.querySelector('.menu-jump');
+  const quicknav = document.querySelector('.menu-quicknav');
   const sections = document.querySelectorAll('.menu-category[id]');
   if (!jump || !sections.length || !('IntersectionObserver' in window)) return;
 
-  const links = Array.from(jump.querySelectorAll('a[href^="#"]'));
+  // La grille (.menu-jump) et la barre fine (.menu-quicknav) partagent les
+  // mêmes ancres (#pizzas, #pates, ...) : les deux sont tenues à jour en
+  // même temps, pour que la catégorie active soit toujours cohérente entre
+  // les deux, quelle que soit celle que le client a sous les yeux.
+  const links = Array.from(jump.querySelectorAll('a[href^="#"]'))
+    .concat(quicknav ? Array.from(quicknav.querySelectorAll('a[href^="#"]')) : []);
   const linkFor = (id) => links.find((a) => a.getAttribute('href') === `#${id}`);
 
   const setActive = (id) => {
     links.forEach((a) => a.classList.toggle('is-active', a.getAttribute('href') === `#${id}`));
   };
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting && linkFor(entry.target.id)) {
-        setActive(entry.target.id);
-      }
-    });
-  }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+  let observer = null;
+  let stickyH = 16;
 
-  sections.forEach((section) => observer.observe(section));
+  // Reconstruit l'observateur avec une marge en pixels calée sur la
+  // hauteur réelle de la barre fine collante : avec un pourcentage fixe,
+  // la zone de détection se retrouvait cachée derrière elle, et la
+  // catégorie surlignée restait bloquée sur la précédente au lieu de
+  // suivre ce que le client voit réellement.
+  const rebuildObserver = () => {
+    if (observer) observer.disconnect();
+    observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && linkFor(entry.target.id)) {
+          setActive(entry.target.id);
+        }
+      });
+    }, { rootMargin: `-${stickyH + 20}px 0px -55% 0px`, threshold: 0 });
+    sections.forEach((section) => observer.observe(section));
+  };
+
+  rebuildObserver();
+
+  if (!quicknav) return;
+
+  // La barre fine reste masquée tant que la grille est encore à l'écran :
+  // elle n'apparaît qu'une fois qu'on a descendu la page au point où la
+  // grille sort du champ (relais naturel), ou immédiatement si le client
+  // clique sur une catégorie de la grille (pas besoin d'attendre la fin
+  // du défilement fluide pour que la barre soit prête).
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      quicknav.classList.toggle('is-visible', !entry.isIntersecting);
+    });
+  }, { threshold: 0 });
+  revealObserver.observe(jump);
+
+  jump.querySelectorAll('a[href^="#"]').forEach((a) => {
+    a.addEventListener('click', () => quicknav.classList.add('is-visible'));
+  });
+
+  // Hauteur de la barre fine mesurée en JS (sert à la fois à la marge de
+  // détection ci-dessus et au décalage de défilement des sections, pour
+  // que le titre de catégorie n'apparaisse jamais caché derrière elle).
+  const syncStickyOffsets = () => {
+    stickyH = quicknav.offsetHeight;
+    document.documentElement.style.setProperty('--menu-sticky-h', `${stickyH + 16}px`);
+    rebuildObserver();
+  };
+
+  syncStickyOffsets();
+  window.addEventListener('load', syncStickyOffsets);
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(syncStickyOffsets, 150);
+  });
 }
 
 function initIntroSplash() {
@@ -591,7 +645,7 @@ function initReviewForm() {
   const funnel = document.getElementById('review-funnel');
   if (!funnel) return;
 
-  const googleUrl = 'https://www.google.com/maps/search/?api=1&query=Subito+Pizza+333+rue+Elie+Gruyelle+H%C3%A9nin-Beaumont';
+  const googleUrl = 'https://www.google.com/maps?cid=9858007054937316298';
 
   const panels = funnel.querySelectorAll('[data-panel]');
   const showPanel = (name) => {

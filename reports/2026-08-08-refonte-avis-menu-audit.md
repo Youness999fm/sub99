@@ -46,9 +46,47 @@ Suite à la demande de mener un audit pré-production complet : le site n'ayant 
 
 Éléments identifiés comme nécessitant une validation externe (déjà connus, non re-testables sans les vraies données) : voir section suivante.
 
+## 5. Barre de navigation rapide sur une seule ligne (`menu.html`)
+
+Demande explicite : ne pas toucher à la grille de catégories (`.menu-jump`), mais ajouter une seconde barre, sur une seule ligne, qui apparaît une fois qu'on a commencé à naviguer dans les sections, avec la même mise en avant (vert foncé + liseré or) pour la catégorie affichée.
+
+**Implémenté** : nouvelle `<nav class="menu-quicknav">` juste après la grille, avec les 7 catégories (Pizzas → Boissons, sans "Composer" ni "Végétarien"). Techniquement, les deux barres sont "empilées" en sticky (la grille reste collante en haut sur mobile, la barre fine se colle juste en dessous, hauteur mesurée en JS avec `--menu-jump-h`/`--menu-sticky-h` recalculées au chargement et au redimensionnement). Un seul `IntersectionObserver` met à jour la catégorie active dans les deux barres à la fois.
+
+**Bug trouvé et corrigé en testant** : la marge de déclenchement de l'`IntersectionObserver` (`-40% 0px -55% 0px`, un pourcentage fixe hérité de l'ancienne implémentation) se retrouvait cachée derrière les deux barres collantes empilées (jusqu'à ~460px de haut sur petit écran), ce qui faisait que la catégorie surlignée restait bloquée sur la précédente au lieu de suivre le défilement réel. Corrigé en calculant la marge en pixels à partir de la hauteur réellement mesurée des barres collantes.
+
+**Ajustement demandé juste après** : la grille ne doit plus rester fixe en permanence — elle défile normalement avec la page (donc disparaît une fois qu'on descend), et c'est la barre fine qui prend le relais en devenant collante à ce moment-là. La barre fine reste masquée (`opacity:0`, `.is-visible` ajouté par JS) tant que la grille est encore à l'écran, et apparaît soit dès qu'on la dépasse en scrollant (détecté via `IntersectionObserver` sur la grille elle-même), soit immédiatement si le client clique sur une catégorie de la grille. Revérifié : masquée au chargement, apparaît au scroll, apparaît instantanément au clic, se recache si on remonte en haut — sur mobile (375px) et desktop (1280px), aucune erreur console.
+
+## 6. Nettoyage CSS et documentation (suite à un plan approuvé)
+
+Demande du client : raisonner en profondeur sur ce qu'il reste à faire, et optimiser. Après relecture directe du code (pas la mémoire, datée), un plan a été soumis et approuvé avant exécution.
+
+- **~110 lignes de CSS mort supprimées** dans `assets/css/style.css`, vérifiées une par une (recherche exhaustive dans les 10 pages HTML + `main.js`, zéro occurrence) : `.site-header__slogan`/`.site-header__location` (ancien header), bloc `.hours-banner*`/`.site-footer__hours` (remplacé par le widget `#order-status`), `.review-form` (conteneur de l'ancien formulaire d'avis interne, supprimé plus tôt cette session), `.legal-content__todo` (ancien encart "à compléter" sur les mentions légales, page maintenant remplie avec les vraies données), bloc `.menu-text*` (ancien accordéon texte du menu, redondant avec le contenu texte réel déjà présent dans la grille actuelle). Revérifié après coup : console propre sur `index.html`, `menu.html`, `avis.html`, `mentions-legales.html`, aucun changement visuel (rien de tout ça ne s'affichait plus).
+- **`README.md` réécrit intégralement** pour refléter l'état réel du site (10 pages au lieu de 5, adresse email de contact correcte, parcours avis actuel avec redirection Google/réclamation, statut réseaux sociaux, 8 photos galerie encore en attente).
+- **Performance vérifiée sans action nécessaire** : polices déjà chargées avec `preconnect`/`display=swap`, lazy-loading déjà en place sur toutes les images sous la ligne de flottaison, `aspect-ratio` CSS déjà utilisé pour éviter le décalage de mise en page (CLS) sans avoir besoin d'ajouter `width`/`height` sur une centaine de balises `<img>`. Minification CSS/JS délibérément écartée : casserait la promesse d'un site 100% modifiable à la main sans outil de build.
+
+## 7. Balayage final
+
+Après le nettoyage CSS, contrôle systématique pour s'assurer qu'il ne reste rien d'actionnable de mon côté :
+
+- Toutes les fonctions JS définies dans `main.js` (17 au total) sont bien appelées au moins une fois — aucune fonction morte.
+- Toutes les références `src="assets/..."` dans les 10 pages HTML pointent vers des fichiers réellement présents sur disque, **à l'exception** des 8 placeholders de galerie déjà connus et documentés (en attente des vraies photos du client) — aucune référence cassée nouvelle trouvée.
+- `manifest.json` vérifié : les 2 icônes référencées (`icon-192.png`, `icon-512.png`) existent bien, couleurs cohérentes avec la charte du site.
+- Console vérifiée une dernière fois sur les 10 pages (`index`, `menu`, `avis`, `composer`, `vegetarien`, `supplements`, `faq`, `mentions-legales`, `reseaux`, `404`) : aucune erreur.
+
+Au-delà de ce qui est listé dans la section suivante (bloqué côté client), il n'y a plus rien d'identifié qui soit à la fois réel et actionnable sans information ou accès supplémentaire du client.
+
+## 8. Lien Google Maps précisé (CID vérifié, sans accès au compte du client)
+
+L'un des points listés comme "bloqué côté client" était le Place ID Google (pour un lien direct vers la fiche, au lieu d'une recherche par adresse). En cherchant publiquement (aucun identifiant, aucun compte requis), j'ai trouvé et **vérifié deux fois** l'identifiant CID exact de la fiche Google Maps de "Pizza Subito Hénin Beaumont" (4,0 ★, 596 avis à ce jour) : `9858007054937316298`.
+
+Les 10 liens du site qui pointaient vers `google.com/maps/search/?...query=Subito+Pizza+333+rue...` (recherche par adresse, potentiellement ambiguë) ont été remplacés par `https://www.google.com/maps?cid=9858007054937316298` — un lien direct et sans ambiguïté vers cette fiche précise. Fichiers modifiés : `index.html` (2), `avis.html` (7), `assets/js/main.js` (1, utilisé pour l'ouverture automatique après une note de 4-5 étoiles). La carte intégrée et le bouton "itinéraire" de l'accueil n'ont pas été touchés (ils utilisent à juste titre une adresse, pas un CID, pour le calcul d'itinéraire).
+
+Revérifié : les deux liens ré-ouvrent bien la fiche "Pizza Subito Hénin Beaumont" (confirmé par le titre de page et le nombre d'avis affiché), console propre sur `avis.html` et `index.html`.
+
+**Ce que ça n'est pas** : un lien "écrire un avis" en un clic (ça demanderait le vrai Place ID au format `ChIJ...`, uniquement disponible depuis le compte Google Business Profile du client). C'est en revanche strictly plus fiable que l'ancienne recherche par adresse pour "voir notre fiche Google" — un utilisateur atterrit maintenant toujours exactement sur la bonne fiche, sans dépendre de l'algorithme de recherche Google.
+
 ## Reste en attente côté client (déjà documenté avant cette session, toujours valable)
 
 - Redirection OVH `contact@subito-pizza-heninbeaumont.fr` → `subito.pizza.hb@gmail.com` (à confirmer faite).
-- Place ID Google réel (les liens actuels utilisent une recherche Maps, pas un lien "écrire un avis" direct).
 - Photos galerie accueil (8 emplacements).
 - Liens réels Facebook / Instagram.
