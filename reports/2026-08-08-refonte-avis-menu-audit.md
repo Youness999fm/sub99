@@ -85,6 +85,17 @@ Revérifié : les deux liens ré-ouvrent bien la fiche "Pizza Subito Hénin Beau
 
 **Ce que ça n'est pas** : un lien "écrire un avis" en un clic (ça demanderait le vrai Place ID au format `ChIJ...`, uniquement disponible depuis le compte Google Business Profile du client). C'est en revanche strictly plus fiable que l'ancienne recherche par adresse pour "voir notre fiche Google" — un utilisateur atterrit maintenant toujours exactement sur la bonne fiche, sans dépendre de l'algorithme de recherche Google.
 
+## 9. Livraison offerte + SEO meta description (index.html, faq.html)
+
+Le client a confirmé : pas de frais de livraison, seul le montant minimum de commande déjà affiché s'applique. Ajouté clairement sur `index.html` (intro de la section "Notre zone de livraison") et `faq.html` (réponse visible + JSON-LD FAQPage, les deux mis à jour pour rester cohérents).
+
+Meta description (`index.html`, `<meta name="description">` + `og:description`) réécrite avec des faits réels et vérifiés : pizzeria depuis 1999, spécialité (pizza Subito), offre 1 pizza achetée = 1 offerte, livraison offerte. Ajout de `foundingDate: "1999-04-01"` dans les données structurées JSON-LD (`Restaurant`). Revérifié : JSON-LD valide sur les deux pages, console propre.
+
+**Demandes non exécutées, avec explication :**
+- *"Mettre notre logo" comme la petite icône dans le résultat Google* : la capture montre le site **actuellement en ligne** (l'ancien WordPress, puisque `sub99` n'est pas encore déployé) — aucune modification de code ici ne peut changer cette icône tant que le nouveau site n'est pas mis en ligne. Le favicon du nouveau site est déjà en place (`assets/img/icons/favicon.svg`), mais c'est volontairement une version simplifiée (un "S" stylisé) plutôt que le logo complet : le logo réel (`logo.jpg`, 520×215 px) est un bandeau rectangulaire avec texte, illisible une fois réduit à 16-32 px. C'est la pratique standard (créer une version simplifiée pour l'icône). Si vous voulez un favicon différent, dites-le précisément et je l'ajuste — mais le logo texte complet ne fonctionnera pas tel quel à cette taille.
+- *"Top 3 pizzas dans le Nord-Pas-de-Calais" comme description Google* : ce texte ("Subito Pizza vous propose des pizzas, pâtes...") vu dans la capture est la **description de votre fiche Google Business Profile**, pas une donnée du site web — elle se modifie uniquement depuis votre compte Google (business.google.com), auquel je n'ai pas accès. Et même s'il s'agissait d'un texte du site, je n'invente pas de classement non vérifié ("top 3 du Nord-Pas-de-Calais") : c'est le genre d'affirmation qui peut se retourner contre vous (avis Google, pratiques commerciales trompeuses) si elle n'est pas vraie et vérifiable.
+- *"Ajouter du gras"* : Google ne permet pas de mettre du texte en gras dans une description de site ou de fiche — c'est Google qui met automatiquement en gras les mots qui correspondent à la recherche de l'utilisateur, pas quelque chose qu'on contrôle depuis le code.
+
 ## Reste en attente côté client (déjà documenté avant cette session, toujours valable)
 
 - Redirection OVH `contact@subito-pizza-heninbeaumont.fr` → `subito.pizza.hb@gmail.com` (à confirmer faite).
