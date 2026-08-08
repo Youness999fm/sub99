@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initOrderStatus();
   initDaysCounter();
   initMenuJumpActive();
+  initPizzaBaseNav();
 });
 
 // Nombre de jours complets depuis l'ouverture (1er avril 1999), calculé
@@ -546,7 +547,18 @@ function initMenuJumpActive() {
   const linkFor = (id) => links.find((a) => a.getAttribute('href') === `#${id}`);
 
   const setActive = (id) => {
-    links.forEach((a) => a.classList.toggle('is-active', a.getAttribute('href') === `#${id}`));
+    let activeInQuicknav = null;
+    links.forEach((a) => {
+      const match = a.getAttribute('href') === `#${id}`;
+      a.classList.toggle('is-active', match);
+      if (match && quicknav && quicknav.contains(a)) activeInQuicknav = a;
+    });
+    // Fait glisser la barre fine horizontalement pour garder l'onglet actif
+    // visible, sans quoi sur mobile la catégorie surlignée peut se
+    // retrouver hors champ après plusieurs clics ou un long défilement.
+    if (activeInQuicknav) {
+      activeInQuicknav.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
   };
 
   let observer = null;
@@ -605,6 +617,60 @@ function initMenuJumpActive() {
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(syncStickyOffsets, 150);
+  });
+}
+
+// Sous-navigation "Base tomate / Base crème / Base spéciale" à l'intérieur
+// de la section Pizzas (menu.html) : surligne le groupe actuellement
+// affiché, sur le même principe que initMenuJumpActive() ci-dessus.
+function initPizzaBaseNav() {
+  const nav = document.querySelector('.pizza-base-nav');
+  const groups = document.querySelectorAll('.pizza-base-group[id]');
+  if (!nav || !groups.length || !('IntersectionObserver' in window)) return;
+
+  const indicator = nav.querySelector('.pizza-base-nav__indicator');
+  const links = Array.from(nav.querySelectorAll('a[href^="#"]'));
+  const linkFor = (id) => links.find((a) => a.getAttribute('href') === `#${id}`);
+
+  // Glisse la pastille jusqu'au lien actif (largeur + position mesurées en
+  // JS plutôt que supposées en CSS, pour rester exact quelle que soit la
+  // longueur du texte de chaque onglet).
+  const moveIndicator = (link) => {
+    if (!indicator || !link) return;
+    indicator.style.width = `${link.offsetWidth}px`;
+    indicator.style.transform = `translateX(${link.offsetLeft}px)`;
+    indicator.classList.add('is-ready');
+  };
+
+  const setActive = (id) => {
+    let activeLink = null;
+    links.forEach((a) => {
+      const match = a.getAttribute('href') === `#${id}`;
+      a.classList.toggle('is-active', match);
+      if (match) activeLink = a;
+    });
+    moveIndicator(activeLink);
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting && linkFor(entry.target.id)) {
+        setActive(entry.target.id);
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+
+  groups.forEach((group) => observer.observe(group));
+
+  // Repositionne la pastille sur le lien actuellement actif après un
+  // redimensionnement (les largeurs de texte peuvent changer de ligne).
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const current = links.find((a) => a.classList.contains('is-active'));
+      if (current) moveIndicator(current);
+    }, 150);
   });
 }
 

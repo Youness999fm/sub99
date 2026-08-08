@@ -2465,6 +2465,131 @@ section { padding: 32px 20px; }
   font-size: 0.9rem;
 }
 
+/* ---------- Sous-navigation "base" des pizzas ---------- */
+
+.pizza-base-nav {
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: var(--max-width);
+  margin: 0 auto 32px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 4px 2px;
+}
+
+.pizza-base-nav::-webkit-scrollbar { display: none; }
+
+/*
+  Pastille qui glisse d'un onglet à l'autre au lieu d'un simple changement
+  de couleur instantané (positionnée/dimensionnée en JS dans
+  initPizzaBaseNav(), voir main.js). Portée par un élément séparé plutôt
+  que par le lien actif lui-même : le glissement reste fluide même quand
+  le lien de destination est encore hors champ dans le défilement mobile.
+*/
+.pizza-base-nav__indicator {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green-dark);
+  border: 1.5px solid var(--gold-bright);
+  box-shadow: 0 14px 26px -12px rgba(9, 42, 27, 0.6), 0 0 0 3px rgba(255, 209, 102, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1), width 0.4s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.25s ease;
+}
+
+.pizza-base-nav__indicator.is-ready { opacity: 1; }
+
+.pizza-base-nav a {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  text-decoration: none;
+  background: #fff;
+  color: var(--green);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  padding: 11px 22px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pizza-base-nav a:hover,
+.pizza-base-nav a:focus-visible {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px -12px rgba(14, 59, 39, 0.5);
+}
+
+.pizza-base-nav a:active {
+  transform: translateY(-2px) scale(0.95);
+}
+
+.pizza-base-nav a.is-active {
+  background: transparent;
+  color: #fff;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+@media (max-width: 480px) {
+  .pizza-base-nav {
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pizza-base-nav__indicator { transition: opacity 0.15s linear; }
+  .pizza-base-nav a:active { transform: none; }
+}
+
+.pizza-base-group {
+  scroll-margin-top: var(--menu-sticky-h, 16px);
+}
+
+.pizza-base-group__title {
+  position: relative;
+  max-width: var(--max-width);
+  margin: 36px auto 22px;
+  padding-bottom: 12px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--dark);
+  text-align: center;
+}
+
+.pizza-base-group__title::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--red);
+}
+
+.pizza-base-group:first-of-type .pizza-base-group__title {
+  margin-top: 0;
+}
+
 .size-chart {
   max-width: var(--max-width);
   margin: 0 auto 24px;
@@ -2526,7 +2651,7 @@ section { padding: 32px 20px; }
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transition: transform 0.35s cubic-bezier(0.22, 0.75, 0.2, 1), box-shadow 0.35s ease;
 }
 
 .menu-item__badge {
@@ -2537,6 +2662,7 @@ section { padding: 32px 20px; }
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  overflow: hidden;
   background: var(--red);
   color: #fff;
   font-size: 0.72rem;
@@ -2547,13 +2673,36 @@ section { padding: 32px 20px; }
   box-shadow: 0 6px 14px -6px rgba(214, 40, 40, 0.6);
 }
 
-.menu-item:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 34px -16px rgba(28, 27, 25, 0.28);
+/* Léger reflet qui balaie le badge "signature" toutes les quelques
+   secondes — un clin d'oeil discret plutôt qu'une animation permanente
+   voyante (une seule pizza porte ce badge). */
+.menu-item__badge::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: badge-shine 4.5s ease-in-out infinite;
 }
 
-.menu-item > img { transition: transform 0.4s ease; }
-.menu-item:hover > img { transform: scale(1.06); }
+@keyframes badge-shine {
+  0%, 40% { left: -60%; }
+  60%, 100% { left: 130%; }
+}
+
+.menu-item:hover {
+  transform: translateY(-6px) scale(1.015);
+  box-shadow: 0 22px 38px -16px rgba(28, 20, 18, 0.32);
+}
+
+.menu-item > img { transition: transform 0.5s cubic-bezier(0.22, 0.75, 0.2, 1); }
+.menu-item:hover > img { transform: scale(1.07); }
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-item__badge::after { animation: none; display: none; }
+}
 
 .menu-item .img-placeholder,
 .menu-item > img {

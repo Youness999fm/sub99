@@ -9,11 +9,12 @@
 <meta property="og:site_name" content="Subito Pizza">
 <meta property="og:title" content="Menu — Subito Pizza Hénin-Beaumont">
 <meta property="og:description" content="Le menu complet de Subito Pizza à Hénin-Beaumont : pizzas, pâtes, subitowichs, tex-mex, salades, desserts et boissons.">
-<meta property="og:image" content="https://subito-pizza-heninbeaumont.fr/assets/img/logo.jpg">
-<meta property="og:url" content="https://subito-pizza-heninbeaumont.fr/menu.html">
+<meta property="og:image" content="https://www.subito-pizza-heninbeaumont.fr/assets/img/logo.jpg">
+<meta property="og:url" content="https://www.subito-pizza-heninbeaumont.fr/menu.html">
 <meta property="og:locale" content="fr_FR">
-<link rel="canonical" href="https://subito-pizza-heninbeaumont.fr/menu.html">
+<link rel="canonical" href="https://www.subito-pizza-heninbeaumont.fr/menu.html">
 <meta name="twitter:card" content="summary">
+<link rel="shortcut icon" href="/favicon.ico">
 <link rel="icon" href="assets/img/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="assets/img/icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
@@ -28,8 +29,8 @@
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://subito-pizza-heninbeaumont.fr/index.html" },
-    { "@type": "ListItem", "position": 2, "name": "Menu", "item": "https://subito-pizza-heninbeaumont.fr/menu.html" }
+    { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://www.subito-pizza-heninbeaumont.fr/index.html" },
+    { "@type": "ListItem", "position": 2, "name": "Menu", "item": "https://www.subito-pizza-heninbeaumont.fr/menu.html" }
   ]
 }
 </script>
@@ -38,7 +39,7 @@
   "@context": "https://schema.org",
   "@type": "Restaurant",
   "name": "Subito Pizza",
-  "image": "https://subito-pizza-heninbeaumont.fr/assets/img/logo.jpg",
+  "image": "https://www.subito-pizza-heninbeaumont.fr/assets/img/logo.jpg",
   "telephone": "+33321200033",
   "address": {
     "@type": "PostalAddress",
@@ -47,7 +48,16 @@
     "addressLocality": "Hénin-Beaumont",
     "addressCountry": "FR"
   },
-  "url": "https://subito-pizza-heninbeaumont.fr/menu.html"
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 50.4212916,
+    "longitude": 2.9535869
+  },
+  "sameAs": [
+    "https://www.snapchat.com/add/subito_henin",
+    "https://www.tiktok.com/@subitopizzaoriginal"
+  ],
+  "url": "https://www.subito-pizza-heninbeaumont.fr/menu.html"
 }
 </script>
 </head>
@@ -131,7 +141,7 @@
       </div>
       <div class="size-chart__item">
         <span class="size-chart__name">Duo</span>
-        <span class="size-chart__cm">33 cm</span>
+        <span class="size-chart__cm">31,5 cm</span>
         <span class="size-chart__price">16,00 €</span>
       </div>
       <div class="size-chart__item">
@@ -152,7 +162,16 @@
       <a href="supplements.html" class="btn-outline">Voir les suppléments et leurs prix</a>
     </div>
 
-    <div class="menu-grid">
+    <nav class="pizza-base-nav" aria-label="Filtrer les pizzas par base">
+      <span class="pizza-base-nav__indicator" aria-hidden="true"></span>
+      <a href="#base-tomate"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a7 7 0 0 0 7-7c0-3-2-4.5-3-7-.6 1.6-1.6 2-2 .5-.4 2-2 2.3-2-.5-1 2.5-3 4-3 7a7 7 0 0 0 3 7Z"/><path d="M12 7c0-2 1-3.5 2.5-4"/></svg> Base tomate</a>
+      <a href="#base-creme"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6l.8 3.5a6 6 0 0 1-1.3 5.2c-1 1.2-1.5 2-1.5 3.8V21a1 1 0 0 1-1 1 1 1 0 0 1-1-1v-6.5c0-1.8-.5-2.6-1.5-3.8A6 6 0 0 1 8.2 5.5Z"/><path d="M9.5 8h5"/></svg> Base crème</a>
+      <a href="#base-speciale"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 1.8 5.5H19l-4.4 3.4L16.4 16 12 12.8 7.6 16l1.8-5.1L5 7.5h5.2Z"/></svg> Base spéciale</a>
+    </nav>
+
+    <div class="pizza-base-group" id="base-tomate">
+      <h3 class="pizza-base-group__title">Base tomate</h3>
+      <div class="menu-grid">
 
       <article class="menu-item">
         <img loading="lazy" decoding="async" src="assets/img/photos/photo-07.jpg" alt="Pizza Végétarienne">
@@ -299,6 +318,13 @@
         </div>
       </article>
 
+      </div>
+    </div>
+
+    <div class="pizza-base-group" id="base-creme">
+      <h3 class="pizza-base-group__title">Base crème</h3>
+      <div class="menu-grid">
+
       <article class="menu-item">
         <img loading="lazy" decoding="async" src="assets/img/photos/photo-19.jpg" alt="Pizza Venezia">
         <div class="menu-item__body">
@@ -379,6 +405,13 @@
         </div>
       </article>
 
+      </div>
+    </div>
+
+    <div class="pizza-base-group" id="base-speciale">
+      <h3 class="pizza-base-group__title">Base spéciale</h3>
+      <div class="menu-grid">
+
       <article class="menu-item">
         <img loading="lazy" decoding="async" src="assets/img/photos/photo-14.jpg" alt="Pizza Indienne">
         <div class="menu-item__body">
@@ -395,6 +428,7 @@
         </div>
       </article>
 
+      </div>
     </div>
 
     <div class="compose-pizza" style="text-align:center;">
