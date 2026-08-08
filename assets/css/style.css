@@ -2331,16 +2331,20 @@ section { padding: 32px 20px; }
 }
 
 @media (max-width: 759px) {
+  /*
+    Toutes les catégories doivent être visibles d'un seul coup d'oeil, sans
+    que le client ait besoin de deviner qu'il peut faire défiler pour voir
+    la suite : on affiche donc la grille complète (comme sur desktop),
+    plutôt qu'une seule ligne qui défile horizontalement.
+  */
   .menu-jump {
     position: sticky;
     top: 0;
     z-index: 20;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    justify-content: flex-start;
-    padding: 10px 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 16px;
     margin: 0 0 28px;
     background: rgba(255, 255, 255, 0.92);
     -webkit-backdrop-filter: blur(6px);
@@ -2348,12 +2352,16 @@ section { padding: 32px 20px; }
     box-shadow: 0 6px 16px -10px rgba(28, 27, 25, 0.25);
   }
 
-  .menu-jump::-webkit-scrollbar { display: none; }
-
   .menu-jump a {
-    flex-shrink: 0;
-    padding: 9px 16px;
-    font-size: 0.9rem;
+    padding: 11px 18px;
+    font-size: 0.92rem;
+    border-width: 2px;
+  }
+
+  .menu-jump a svg { width: 22px; height: 22px; }
+
+  .menu-jump a.is-active {
+    transform: scale(1.08);
   }
 }
 
@@ -2400,10 +2408,10 @@ section { padding: 32px 20px; }
 }
 
 .menu-jump a.is-active {
-  background: var(--green);
+  background: var(--green-dark);
   color: #fff;
-  border-color: var(--green);
-  box-shadow: 0 12px 22px -12px rgba(14, 59, 39, 0.5);
+  border-color: var(--gold-bright);
+  box-shadow: 0 14px 26px -12px rgba(9, 42, 27, 0.6), 0 0 0 3px rgba(255, 209, 102, 0.3);
 }
 
 /* ---------- Modificateurs de mise en page ---------- */
