@@ -1,1 +1,13 @@
 ErrorDocument 404 /404.html
+
+# Redirections depuis les anciennes URLs WordPress (encore indexées par
+# Google au moment de la bascule vers ce site statique) vers les sections
+# équivalentes du menu actuel — évite de perdre le référencement déjà
+# acquis sur ces pages et évite un 404 aux visiteurs qui cliquent depuis
+# un ancien résultat de recherche.
+Redirect 301 /pizzas/ /menu.html#pizzas
+Redirect 301 /pates/ /menu.html#pates
+Redirect 301 /subitowich/ /menu.html#subitowichs
+Redirect 301 /salades/ /menu.html#salades
+Redirect 301 /boissons/ /menu.html#boissons
+Redirect 301 /glaces/ /menu.html#desserts

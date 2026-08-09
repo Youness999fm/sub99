@@ -179,6 +179,19 @@ Si la zone de livraison s'étend un jour réellement vers Lens/Douai/etc., ce se
 
 **Impact élevé / effort élevé, hors de portée de ce site statique** : obtenir de vrais avis Google, obtenir des mentions locales (presse locale, annuaires sérieux type PagesJaunes, partenariats avec commerçants voisins) — nécessite une démarche humaine, pas du code.
 
+## 15. SEO — round 2 : marque, redirections, H1, WebSite
+
+### Nouveau, réellement trouvé et exécuté
+
+- **URLs mortes indexées par Google, corrigées** : recherche réelle (`site:subito-pizza-heninbeaumont.fr` + requête sur "Subito Pizza Hénin-Beaumont") révèle que Google a encore indexé plusieurs URLs de l'ancien site WordPress (`/pizzas/`, `/boissons/`, `/salades/`, `/glaces/`, et probablement `/pates/` et `/subitowich/` d'après le résumé de recherche). Vérifié en direct : `https://www.subito-pizza-heninbeaumont.fr/pizzas/` renvoie bien la page 404. Corrigé via `.htaccess` : redirections 301 de ces 6 anciennes URLs vers les ancres correspondantes du menu actuel (`/glaces/` → section Desserts, la plus proche puisque le nouveau menu n'a plus de catégorie glaces séparée). Objectif : ne pas perdre le référencement déjà acquis sur ces URLs et éviter un 404 aux visiteurs qui cliquent depuis un ancien résultat Google. **Non vérifiable en local** (le serveur de dev n'est pas Apache, `.htaccess` n'y est pas interprété) — à vérifier en ligne une fois synchronisé (`git status` confirme que le fichier est en attente de synchronisation automatique au moment de la rédaction de ce rapport).
+- **H1 de la page d'accueil ne contenait aucun signal de marque** : c'était "L'art de la pizza, servi avec passion." — zéro occurrence de "Subito Pizza" dans le titre le plus important de la page pilier pour exactement la requête que vous voulez dominer. Corrigé a minima, sans toucher au texte existant : "**Subito Pizza** : l'art de la pizza, servi avec passion." — la formulation d'origine reste intacte à 100%, seul le nom de marque est ajouté en préfixe naturel.
+- **Schema `WebSite` ajouté** sur la page d'accueil (nom, URL, langue, éditeur) — signal d'entité supplémentaire, absent jusqu'ici.
+- **Vérification H1 sur tout le site** : les autres pages ont chacune un H1 clair et unique (Menu, FAQ, Mentions légales, etc.) — pas de problème trouvé ailleurs. (Deux fausses alertes en cours de route : "Composeta pizza" et "pizza,servi" ressemblaient à des fautes de frappe mais n'étaient qu'un artefact de ma recherche en ligne de commande qui supprimait les balises `<br>` sans les remplacer par un espace — le vrai code utilise `<br>` intentionnellement pour la mise en page du titre, aucune faute réelle.)
+
+### Recherche concurrentielle réelle (via recherche web)
+
+Les résultats actuels pour "Subito Pizza Hénin-Beaumont" sont dominés par des agrégateurs tiers (Justacote, Restaurantguru, Yelp, Uber Eats, LaCarte.menu, Wheree, l'annuaire officiel des entreprises) plutôt que par un concurrent direct usurpant la marque — c'est plutôt bon signe : personne d'autre ne revendique le nom "Subito Pizza". Le vrai enjeu n'est donc pas de battre un concurrent sur ce mot-clé de marque, mais de faire remonter le site officiel au-dessus de ces fiches tierces, ce que les corrections ci-dessus (URLs mortes, cohérence www, données structurées, H1) visent directement.
+
 ## Reste en attente côté client (déjà documenté avant cette session, toujours valable)
 
 - Redirection OVH `contact@subito-pizza-heninbeaumont.fr` → `subito.pizza.hb@gmail.com` (à confirmer faite).
