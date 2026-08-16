@@ -113,7 +113,7 @@ function initDaysCounter() {
   if (isMilestoneWindow && badgeEl) badgeEl.hidden = false;
 
   const pad = (n) => String(n).padStart(width, '0');
-  const setFinal = () => setOdometer(numberBtn, pad(target), reduceMotion);
+  const setFinal = () => setOdometer(numberBtn, pad(target), reduceMotion, true);
   numberBtn.setAttribute('aria-label', `${target} jours depuis l'ouverture — appuyer pour rejouer l'animation`);
 
   // Quelques braises chaudes montent depuis le chiffre — pas des
@@ -176,7 +176,7 @@ function initDaysCounter() {
     const step = (now) => {
       const progress = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, power);
-      setOdometer(numberBtn, pad(Math.round(eased * target)), false);
+      setOdometer(numberBtn, pad(Math.round(eased * target)), false, true);
       if (progress < 1) {
         window.requestAnimationFrame(step);
       } else {
@@ -203,12 +203,12 @@ function initDaysCounter() {
     window.setTimeout(() => { labelEl.textContent = defaultLabel; }, 3200);
     if (!reduceMotion) {
       let n = Math.max(0, target - 40);
-      setOdometer(numberBtn, pad(n), false);
+      setOdometer(numberBtn, pad(n), false, true);
       const start = performance.now();
       const step = (now) => {
         const progress = Math.min((now - start) / 700, 1);
         const eased = 1 - Math.pow(1 - progress, 3);
-        setOdometer(numberBtn, pad(Math.round(n + eased * (target - n))), false);
+        setOdometer(numberBtn, pad(Math.round(n + eased * (target - n))), false, true);
         if (progress < 1) window.requestAnimationFrame(step);
       };
       window.requestAnimationFrame(step);
@@ -317,7 +317,7 @@ function initOrderStatus() {
 // Petit "odomètre" : chaque chiffre glisse verticalement vers sa nouvelle
 // valeur au lieu d'être simplement remplacé. Ne touche le DOM que si la
 // valeur affichée a réellement changé.
-function setOdometer(container, valueStr, reduceMotion) {
+function setOdometer(container, valueStr, reduceMotion, instant) {
   const prev = container.dataset.value;
   if (prev === valueStr) return;
   const rebuild = !prev || prev.length !== valueStr.length;
@@ -330,7 +330,7 @@ function setOdometer(container, valueStr, reduceMotion) {
       slot.className = 'order-status__odo-digit';
       const track = document.createElement('span');
       track.className = 'order-status__odo-track';
-      if (reduceMotion) track.style.transition = 'none';
+      if (reduceMotion || instant) track.style.transition = 'none';
       for (let d = 0; d <= 9; d++) {
         const digitEl = document.createElement('span');
         digitEl.textContent = String(d);
