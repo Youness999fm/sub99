@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMenuJumpActive();
   initPizzaBaseNav();
   initContestCountdown();
+  initContestPresence();
 });
 
 // Nombre de jours complets depuis l'ouverture (1er avril 1999), calculé
@@ -53,6 +54,43 @@ function daysUntilContestDraw() {
   const now = new Date();
   const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.floor((drawUTC - todayUTC) / 86400000);
+}
+
+// Pilote les points de contact du concours ajoutés en dehors de la carte
+// détaillée (bandeau global, teaser accueil, pastille menu, ligne de pied
+// de page) : même règle que initContestCountdown() ci-dessus — calculé
+// depuis la vraie date du tirage, masqué proprement une fois le tirage
+// passé, sans jamais nécessiter de retrait manuel le 31 août.
+function initContestPresence() {
+  const days = daysUntilContestDraw();
+  const isOpen = days >= 0;
+  const daysLabel = days === 0 ? 'dernier jour !' : days === 1 ? "plus qu'1 jour" : `plus que ${days} jours`;
+
+  const ribbon = document.getElementById('event-ribbon');
+  if (ribbon) {
+    if (!isOpen) {
+      ribbon.hidden = true;
+    } else {
+      const daysEl = document.getElementById('event-ribbon-days');
+      if (daysEl) daysEl.textContent = daysLabel;
+    }
+  }
+
+  const teaser = document.getElementById('contest-teaser');
+  if (teaser && !isOpen) teaser.hidden = true;
+
+  const pill = document.getElementById('menu-contest-pill');
+  if (pill && !isOpen) pill.hidden = true;
+
+  const footerLine = document.getElementById('footer-contest-line');
+  if (footerLine) {
+    if (!isOpen) {
+      footerLine.hidden = true;
+    } else {
+      const footerDaysEl = document.getElementById('footer-contest-days');
+      if (footerDaysEl) footerDaysEl.textContent = days;
+    }
+  }
 }
 
 function initContestCountdown() {
@@ -1128,7 +1166,19 @@ function initComplaintForm() {
   const note = document.querySelector('.complaint-section__note');
   if (!form || !sent) return;
 
-  const ownerEmail = 'contact@subito-pizza-heninbeaumont.fr';
+  // Numéro perso du gérant — jamais affiché comme texte sur la page,
+  // utilisé uniquement comme destinataire du SMS ouvert par le
+  // navigateur du client. Le client le voit dans SA propre appli SMS au
+  // moment d'envoyer (comportement natif de tout lien "sms:", impossible
+  // à masquer côté site), mais il n'apparaît nulle part dans le contenu
+  // visible ni dans le code visité de la page.
+  const ownerSmsNumber = '+33765299386';
+  // Séparateur avant "body=" dans un lien sms: — iOS attend "&", les
+  // autres plateformes (Android, desktop) attendent "?". Sans cette
+  // distinction, le message n'est pas pré-rempli sur la moitié des
+  // téléphones.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const smsSeparator = isIOS ? '&' : '?';
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -1141,21 +1191,15 @@ function initComplaintForm() {
     if (!categorie) { form.categorie.focus(); return; }
     if (!message) { form.message.focus(); return; }
 
-    const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
-
-    const subject = `[Réclamation] ${categorie} — ${nom}`;
     const body =
-      `Réclamation reçue depuis le site Subito Pizza\n` +
-      `-----------------------------------------\n` +
+      `Réclamation Subito Pizza\n` +
       `Catégorie : ${categorie}\n` +
-      `Prénom    : ${nom}\n` +
-      `Téléphone : ${telephone || 'non communiqué'}\n` +
-      `Date      : ${date}\n` +
-      `-----------------------------------------\n\n` +
-      `Message du client :\n${message}`;
-    const mailtoUrl = `mailto:${ownerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      `Prénom : ${nom}\n` +
+      `Tél : ${telephone || 'non communiqué'}\n` +
+      `Message : ${message}`;
+    const smsUrl = `sms:${ownerSmsNumber}${smsSeparator}body=${encodeURIComponent(body)}`;
 
-    window.location.href = mailtoUrl;
+    window.location.href = smsUrl;
     if (choice) choice.hidden = true;
     if (note) note.hidden = true;
     sent.hidden = false;

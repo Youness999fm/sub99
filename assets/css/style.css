@@ -2004,6 +2004,301 @@ section { padding: 32px 20px; }
   color: var(--green);
 }
 
+/* ---------- Concours — présence multi-points (bandeau, teaser accueil,
+   pastille menu, ligne de pied de page) ---------- */
+
+/* Bandeau événementiel, tout en haut de chaque page (avant même le
+   header) : le point de contact le plus fiable, présent partout,
+   toujours la première chose vue. Se masque automatiquement après le
+   tirage (voir initContestPresence() dans main.js) — rien à retirer
+   manuellement le 31 août. */
+.event-ribbon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+  padding: 9px 16px;
+  padding-top: calc(9px + env(safe-area-inset-top));
+  background: linear-gradient(120deg, var(--gold) 0%, var(--gold-bright) 100%);
+  color: var(--dark);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.3;
+  animation: event-ribbon-in 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.event-ribbon[hidden] { display: none; }
+
+.event-ribbon:hover,
+.event-ribbon:focus-visible {
+  filter: brightness(0.96);
+}
+
+.event-ribbon__days {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(28, 27, 25, 0.12);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.event-ribbon__arrow { opacity: 0.65; }
+
+@keyframes event-ribbon-in {
+  0% { transform: translateY(-100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-ribbon { animation: none; }
+}
+
+@media (max-width: 480px) {
+  .event-ribbon { font-size: 0.74rem; gap: 6px 10px; }
+}
+
+/* Carte "teaser" en haut de l'accueil — juste après le bouton d'appel,
+   pour ne jamais faire passer la commande après le concours. Reprend le
+   langage visuel de .contest-card (vert profond, filigrane doré) pour
+   rester cohérent avec la scène finale, sans dupliquer tout son contenu :
+   ici on donne l'ampleur du lot + l'urgence, le détail est sur
+   concours.html. */
+.contest-teaser {
+  position: relative;
+  overflow: hidden;
+  max-width: var(--max-width);
+  margin: 0 auto 32px;
+  background: linear-gradient(160deg, var(--green) 0%, var(--green-dark) 100%);
+  color: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 24px 50px -22px rgba(9, 42, 27, 0.6);
+  padding: 36px 22px;
+  text-align: center;
+}
+
+.contest-teaser[hidden] { display: none; }
+
+.contest-teaser__year {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(5rem, 28vw, 11rem);
+  line-height: 1;
+  color: #fff;
+  opacity: 0.04;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+.contest-teaser__eyebrow {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 18px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+}
+
+.contest-teaser__hero {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 22px;
+}
+
+.contest-teaser__figure {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(4.8rem, 26vw, 8rem);
+  line-height: 0.85;
+  background: linear-gradient(180deg, #fff 0%, rgba(255, 255, 255, 0.5) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.contest-teaser__prize {
+  position: relative;
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 4.4vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.contest-teaser__prize small {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  opacity: 0.85;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.contest-teaser__prize small strong { color: var(--gold-bright); font-weight: 700; }
+
+.contest-teaser .contest-countdown { margin-bottom: 24px; }
+
+.contest-teaser__cta {
+  position: relative;
+  z-index: 1;
+  background: var(--gold-bright);
+  color: var(--dark);
+  border-color: var(--gold-bright);
+}
+
+.contest-teaser__cta:hover,
+.contest-teaser__cta:focus-visible {
+  background: #fff;
+  border-color: #fff;
+}
+
+/* Pastille de rappel contextuel sur le menu, juste sous le tableau des
+   tailles : le visiteur regarde la XXL à 50 cm, on lui rappelle qu'il
+   peut en gagner 30. */
+.menu-contest-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: var(--max-width);
+  margin: 14px auto 28px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, rgba(212, 175, 100, 0.14) 0%, rgba(255, 209, 102, 0.14) 100%);
+  border: 1px solid var(--gold);
+  color: var(--green-dark);
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.menu-contest-pill[hidden] { display: none; }
+
+.menu-contest-pill:hover,
+.menu-contest-pill:focus-visible {
+  background: rgba(255, 209, 102, 0.24);
+}
+
+.menu-contest-pill strong { color: var(--red); }
+
+/* Dernière relance, en pied de page. */
+.site-footer__contest-line {
+  margin: 0 0 6px;
+}
+
+.site-footer__contest-line[hidden] { display: none; }
+
+.site-footer__contest-line a {
+  color: var(--gold-bright);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .contest-teaser { padding: 30px 18px; }
+  .menu-contest-pill { font-size: 0.8rem; padding: 10px 14px; }
+}
+
+/* ---------- Page concours.html ---------- */
+
+.concours-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  max-width: var(--max-width);
+  margin: 0 auto 32px;
+}
+
+.concours-fact {
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--green-tint);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.concours-fact__label {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--gray);
+  margin-bottom: 6px;
+}
+
+.concours-fact__value {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--green-dark);
+  line-height: 1.35;
+}
+
+/* Comparatif d'échelle des tailles réelles du menu (26 / 31,5 / 40 /
+   50 cm) — cercles proportionnels en CSS pur, pas d'image inventée. */
+.size-scale {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 18px;
+  max-width: var(--max-width);
+  margin: 0 auto 36px;
+  padding: 24px 16px 8px;
+}
+
+.size-scale__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.size-scale__circle {
+  border-radius: 50%;
+  background: linear-gradient(160deg, var(--red) 0%, var(--red-dark) 100%);
+  box-shadow: 0 8px 18px -8px rgba(168, 30, 30, 0.5);
+}
+
+.size-scale__item--xxl .size-scale__circle {
+  background: linear-gradient(160deg, var(--gold) 0%, var(--gold-bright) 100%);
+  box-shadow: 0 10px 24px -8px rgba(212, 175, 100, 0.6);
+}
+
+.size-scale__name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--dark);
+}
+
+.size-scale__cm {
+  font-size: 0.68rem;
+  color: var(--gray);
+}
+
+.size-scale__item--xxl .size-scale__name { color: var(--red); }
+
+@media (max-width: 480px) {
+  .size-scale { gap: 10px; }
+  .size-scale__name { font-size: 0.64rem; }
+  .size-scale__cm { font-size: 0.6rem; }
+}
+
 /* ---------- Grille des réseaux sociaux ---------- */
 
 .social-grid {
@@ -3324,7 +3619,7 @@ section { padding: 32px 20px; }
 
 .site-footer {
   text-align: center;
-  padding: 28px 20px calc(34px + env(safe-area-inset-bottom));
+  padding: 28px 20px calc(70px + env(safe-area-inset-bottom));
   margin-top: 12px;
   background: var(--green);
   color: rgba(255, 255, 255, 0.75);
