@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initHeroMilestone();
   initOrderStatus();
   initDaysCounter();
+  initFinaleEmbers();
   initMenuJumpActive();
   initPizzaBaseNav();
   initContestCountdown();
@@ -31,6 +32,17 @@ function daysSinceOpening() {
   const now = new Date();
   const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.floor((todayUTC - openingUTC) / 86400000);
+}
+
+// Nombre de samedis compris entre l'ouverture (jour 0) et le jour `target`
+// inclus, calculé par formule (pas par boucle) à partir du vrai jour de la
+// semaine du 1ᵉʳ avril 1999. Sert à l'équivalence "samedis soir" de la
+// scène finale — une vraie donnée calendaire, jamais une estimation.
+function saturdaysSinceOpening(target) {
+  const openingWeekday = new Date(Date.UTC(1999, 3, 1)).getUTCDay(); // 0 = dimanche … 6 = samedi
+  const firstSaturdayOffset = (6 - openingWeekday + 7) % 7;
+  if (target < firstSaturdayOffset) return 0;
+  return Math.floor((target - firstSaturdayOffset) / 7) + 1;
 }
 
 // Nombre de jours restants avant le tirage au sort du concours (vidéo
@@ -99,6 +111,11 @@ function initDaysCounter() {
   const glowEl = document.getElementById('finale-days-glow');
   const yearEl = document.getElementById('finale-year');
   const finaleEl = document.getElementById('finale');
+  const milestoneDateEl = document.getElementById('finale-milestone-date');
+  const equivalencesEl = document.getElementById('finale-equivalences');
+  const eqYearsEl = document.getElementById('finale-eq-years');
+  const eqWeeksEl = document.getElementById('finale-eq-weeks');
+  const eqSaturdaysEl = document.getElementById('finale-eq-saturdays');
   if (!numberBtn || !wrapEl || !labelEl) return;
 
   const target = daysSinceOpening();
@@ -112,9 +129,45 @@ function initDaysCounter() {
 
   if (isMilestoneWindow && badgeEl) badgeEl.hidden = false;
 
+  // Plaque datée, réelle : uniquement visible pendant la vraie fenêtre des
+  // 10 000 jours, avec la date du jour telle qu'elle est — pas une mise en
+  // scène figée à l'avance.
+  if (isMilestoneWindow && milestoneDateEl) {
+    const today = new Date();
+    const formatted = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(today);
+    milestoneDateEl.textContent = `Constaté aujourd'hui, ${formatted}`;
+    milestoneDateEl.hidden = false;
+  }
+
+  // Équivalences humaines, calculées en vrai à partir de la même date
+  // d'ouverture (jamais des chiffres inventés) : transforment un nombre
+  // abstrait en quelque chose de concret.
+  if (eqYearsEl) eqYearsEl.textContent = String(yearsSinceOpening());
+  if (eqWeeksEl) eqWeeksEl.textContent = Math.floor(target / 7).toLocaleString('fr-FR');
+  if (eqSaturdaysEl) eqSaturdaysEl.textContent = saturdaysSinceOpening(target).toLocaleString('fr-FR');
+  const revealEquivalences = () => { if (equivalencesEl) equivalencesEl.classList.add('is-revealed'); };
+  if (reduceMotion) revealEquivalences();
+
   const pad = (n) => String(n).padStart(width, '0');
   const setFinal = () => setOdometer(numberBtn, pad(target), reduceMotion, true);
   numberBtn.setAttribute('aria-label', `${target} jours depuis l'ouverture — appuyer pour rejouer l'animation`);
+
+  // "Prend du poids" à mesure qu'il approche sa valeur réelle — un chiffre
+  // qui arrive avec de la masse plutôt qu'un simple défilement. Uniquement
+  // transform (compositor), jamais de propriété qui redéclenche une mise
+  // en page.
+  const setWeight = (progress) => { numberBtn.style.transform = `scale(${0.92 + 0.08 * progress})`; };
+
+  // Léger rebond d'arrivée une fois la valeur finale posée — le moment où
+  // le chiffre "atterrit". Une seule fois par appel, nettoyé ensuite pour
+  // pouvoir être rejoué à l'identique.
+  const settle = () => {
+    numberBtn.style.transform = '';
+    numberBtn.classList.remove('is-settling');
+    void numberBtn.offsetWidth;
+    numberBtn.classList.add('is-settling');
+    window.setTimeout(() => numberBtn.classList.remove('is-settling'), 520);
+  };
 
   // Quelques braises chaudes montent depuis le chiffre — pas des
   // confettis multicolores. Nettoyées du DOM après leur animation, pour
@@ -177,10 +230,13 @@ function initDaysCounter() {
       const progress = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, power);
       setOdometer(numberBtn, pad(Math.round(eased * target)), false, true);
+      setWeight(eased);
       if (progress < 1) {
         window.requestAnimationFrame(step);
       } else {
         setFinal();
+        settle();
+        window.setTimeout(revealEquivalences, 200);
         if (milestoneRoll) window.setTimeout(() => celebrate(false), 350);
       }
     };
@@ -209,7 +265,12 @@ function initDaysCounter() {
         const progress = Math.min((now - start) / 700, 1);
         const eased = 1 - Math.pow(1 - progress, 3);
         setOdometer(numberBtn, pad(Math.round(n + eased * (target - n))), false, true);
-        if (progress < 1) window.requestAnimationFrame(step);
+        setWeight(eased);
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        } else {
+          settle();
+        }
       };
       window.requestAnimationFrame(step);
     }
@@ -232,6 +293,132 @@ function initDaysCounter() {
   }, { threshold: 0.3 });
 
   observer.observe(wrapEl);
+}
+
+// Braises ambiantes derrière le chiffre des "10 000 jours" — un nuage
+// discret de particules chaudes en canvas (clin d'oeil au four à bois,
+// pas des confettis), qui donne une sensation de masse/temps accumulé
+// sans jamais coûter cher en performance : ne tourne que pendant que la
+// section est réellement visible, se met en pause si l'onglet passe en
+// arrière-plan, et ne se lance pas du tout sous réduction de mouvement.
+function initFinaleEmbers() {
+  const canvas = document.getElementById('finale-embers-canvas');
+  const finaleEl = document.getElementById('finale');
+  if (!canvas || !finaleEl) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const isMilestoneWindow = () => {
+    const days = daysSinceOpening();
+    return days >= MILESTONE_DAY && days <= MILESTONE_WINDOW_END;
+  };
+
+  let particles = [];
+  let rafId = null;
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+
+  const maxParticles = () => (window.innerWidth < 600 ? 16 : 34);
+
+  const resize = () => {
+    const rect = finaleEl.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = rect.width;
+    height = rect.height;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
+  const spawn = () => {
+    if (particles.length >= maxParticles()) return;
+    particles.push({
+      x: width * (0.15 + Math.random() * 0.7),
+      y: height * (0.55 + Math.random() * 0.35),
+      r: 1 + Math.random() * 1.8,
+      speed: 8 + Math.random() * 14, // px/s vers le haut
+      drift: (Math.random() - 0.5) * 10, // px/s latéral
+      life: 0,
+      maxLife: 3.2 + Math.random() * 2.6,
+      warm: isMilestoneWindow(),
+    });
+  };
+
+  let lastSpawn = 0;
+  let lastFrame = 0;
+
+  const step = (now) => {
+    if (!lastFrame) lastFrame = now;
+    const dt = Math.min((now - lastFrame) / 1000, 0.05);
+    lastFrame = now;
+
+    if (now - lastSpawn > 220) {
+      spawn();
+      lastSpawn = now;
+    }
+
+    ctx.clearRect(0, 0, width, height);
+    particles = particles.filter((p) => p.life < p.maxLife);
+    particles.forEach((p) => {
+      p.life += dt;
+      p.y -= p.speed * dt;
+      p.x += p.drift * dt;
+      const lifeRatio = p.life / p.maxLife;
+      const opacity = lifeRatio < 0.15
+        ? lifeRatio / 0.15
+        : Math.max(0, 1 - (lifeRatio - 0.15) / 0.85);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.warm
+        ? `rgba(255, 209, 102, ${0.75 * opacity})`
+        : `rgba(212, 175, 100, ${0.5 * opacity})`;
+      ctx.fill();
+    });
+
+    rafId = window.requestAnimationFrame(step);
+  };
+
+  const start = () => {
+    if (rafId) return;
+    resize();
+    lastFrame = 0;
+    rafId = window.requestAnimationFrame(step);
+  };
+
+  const stop = () => {
+    if (!rafId) return;
+    window.cancelAnimationFrame(rafId);
+    rafId = null;
+    particles = [];
+    ctx.clearRect(0, 0, width, height);
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stop();
+    else if (finaleEl.getBoundingClientRect().top < window.innerHeight && finaleEl.getBoundingClientRect().bottom > 0) start();
+  });
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (!rafId) return;
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(resize, 150);
+  });
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) start();
+      else stop();
+    });
+  }, { threshold: 0 });
+
+  observer.observe(finaleEl);
 }
 
 // Statut "commandes ouvertes/fermées" en temps réel, avec effet odomètre

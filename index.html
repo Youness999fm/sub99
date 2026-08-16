@@ -335,15 +335,23 @@
 
   <section class="finale" id="finale">
     <span class="finale__year" id="finale-year" aria-hidden="true">1999</span>
+    <canvas class="finale__embers-canvas" id="finale-embers-canvas" aria-hidden="true"></canvas>
     <div class="finale__content">
       <p class="finale__date" id="finale-date">1ᵉʳ avril 1999</p>
       <p class="finale__line" id="finale-line1">Une histoire commencée le 1ᵉʳ avril 1999.</p>
       <p class="finale__days" id="finale-days">
         <span class="finale__days-glow" id="finale-days-glow" aria-hidden="true"></span>
-        <button type="button" class="finale__days-number" id="finale-days-number" aria-label="Nombre de jours depuis l'ouverture — appuyer pour rejouer l'animation">9991</button>
+        <button type="button" class="finale__days-number" id="finale-days-number" aria-label="Nombre de jours depuis l'ouverture — appuyer pour rejouer l'animation">10000</button>
         <span class="finale__days-label" id="finale-days-label">jours d'histoire, et ça continue</span>
         <span class="finale__milestone-badge" id="finale-milestone-badge" hidden>✦ 10&nbsp;000 JOURS ✦</span>
+        <span class="finale__milestone-date" id="finale-milestone-date" hidden></span>
+        <span class="finale__replay-hint" aria-hidden="true">↺ toucher le chiffre pour revivre l'instant</span>
       </p>
+      <ul class="finale__equivalences" id="finale-equivalences" aria-label="Ce que représentent ces jours">
+        <li><strong id="finale-eq-years">27</strong><span>ans</span></li>
+        <li><strong id="finale-eq-weeks">1428</strong><span>semaines</span></li>
+        <li><strong id="finale-eq-saturdays">1429</strong><span>samedis soir</span></li>
+      </ul>
       <div class="finale__logo-wrap" id="finale-logo-wrap">
         <img class="finale__logo" src="assets/img/logo.jpg" alt="Subito Pizza">
       </div>
