@@ -321,6 +321,55 @@ a { color: inherit; }
   .hero__eyebrow-counter.is-done { animation: none; }
 }
 
+/*
+  Signal du 10 000e jour dès le premier écran : sans lui, seule la scène
+  finale (tout en bas de la page) parle de l'événement, ce qui veut dire
+  qu'un visiteur pressé peut ne jamais la voir. Affiché uniquement pendant
+  la fenêtre de l'événement (voir MILESTONE_DAY / initHeroMilestone() dans
+  main.js), lien réel vers la scène complète en bas de page.
+*/
+.hero__milestone-pill[hidden] { display: none; }
+
+.hero__milestone-pill {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 10px auto 0;
+  padding: 8px 20px;
+  border: 1px solid var(--gold-bright);
+  border-radius: 999px;
+  background: rgba(255, 209, 102, 0.1);
+  color: var(--gold-bright);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-decoration: none;
+  text-align: center;
+  order: -2;
+  animation: hero-milestone-breathe 2.6s ease-in-out infinite;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.hero__milestone-pill:hover,
+.hero__milestone-pill:focus-visible {
+  background: var(--gold-bright);
+  color: var(--green-dark);
+  transform: translateY(-1px);
+}
+
+@keyframes hero-milestone-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 209, 102, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 209, 102, 0); }
+}
+
+@media (min-width: 760px) {
+  .hero__milestone-pill { order: -1; grid-column: 1 / -1; margin: 4px auto 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__milestone-pill { animation: none; }
+}
+
 .hero__title {
   margin: 0 0 18px;
   font-family: var(--font-display);
@@ -1036,6 +1085,14 @@ section { padding: 32px 20px; }
   color: var(--dark);
 }
 
+.delivery-section__note {
+  max-width: var(--max-width);
+  margin: 20px auto 0;
+  text-align: center;
+  font-weight: 700;
+  color: var(--red);
+}
+
 /* ---------- Moyens de paiement ---------- */
 
 .payment-badges {
@@ -1448,12 +1505,26 @@ section { padding: 32px 20px; }
 }
 
 .finale__days {
+  position: relative;
   margin: 26px 0 30px;
   line-height: 1;
 }
 
+/*
+  Le nombre de jours est un vrai <button> (pour le rejouer au clic/tap et
+  au clavier, sans code de gestion de touches maison) mais doit rester
+  visuellement identique à l'ancien <span> : reset complet des styles de
+  bouton natifs.
+*/
 .finale__days-number {
   display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: clamp(3.4rem, 13vw, 6.4rem);
@@ -1461,7 +1532,21 @@ section { padding: 32px 20px; }
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   position: relative;
+  z-index: 1;
 }
+
+.finale__days-number:focus-visible {
+  outline: 3px solid var(--gold-bright);
+  outline-offset: 6px;
+  border-radius: 8px;
+}
+
+/* Chiffres à rouleau (mécanique d'odomètre) : réutilise exactement les
+   classes .order-status__odo-digit / __odo-track déjà construites pour le
+   compteur "commandes ouvertes/fermées" — les unités em s'adaptent
+   automatiquement à la taille de police de .finale__days-number. */
+.finale__days-number .order-status__odo-digit { height: 1em; }
+.finale__days-number .order-status__odo-track > span { height: 1em; line-height: 1; }
 
 .finale__days-label {
   display: block;
@@ -1471,22 +1556,87 @@ section { padding: 32px 20px; }
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--gold);
+  transition: opacity 0.3s ease;
 }
 
 .finale__days.is-milestone .finale__days-number {
   color: var(--gold-bright);
 }
 
-.finale__days.is-milestone .finale__days-number::after {
-  content: "";
+/* Lueur chaude ("le four qui s'allume") derrière le chiffre au moment du
+   passage à 10 000 — un seul passage, pas une boucle. */
+.finale__days-glow {
   position: absolute;
-  left: 50%;
-  bottom: -10px;
-  transform: translateX(-50%);
-  width: 46px;
-  height: 2px;
+  inset: -30% -10%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 209, 102, 0.55) 0%, rgba(255, 209, 102, 0.15) 45%, transparent 72%);
+  opacity: 0;
+}
+
+.finale__days-glow.is-active {
+  animation: finale-glow-pulse 2.4s ease;
+}
+
+@keyframes finale-glow-pulse {
+  0% { opacity: 0; transform: scale(0.75); }
+  35% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* Petites braises chaudes plutôt que des confettis multicolores — clin
+   d'oeil au four, pas à un anniversaire d'enfant. */
+.finale__ember {
+  position: absolute;
+  bottom: 10%;
+  z-index: 1;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   background: var(--gold-bright);
-  border-radius: 2px;
+  box-shadow: 0 0 6px 1px rgba(255, 209, 102, 0.7);
+  opacity: 0;
+  pointer-events: none;
+  animation: finale-ember-rise 1.8s ease-out forwards;
+}
+
+@keyframes finale-ember-rise {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--ember-drift, 0px), -90px) scale(1); }
+}
+
+.finale__milestone-badge[hidden] { display: none; }
+
+.finale__milestone-badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 5px 14px;
+  border: 1px solid var(--gold-bright);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--gold-bright);
+}
+
+/* Le grand "1999" en filigrane derrière la scène devient brièvement
+   "10 000" au moment exact du passage — même motif visuel déjà en place,
+   pas un nouvel élément inventé pour l'occasion. */
+.finale__year {
+  transition: opacity 1.8s ease, color 1.2s ease;
+}
+
+.finale__year.is-climax {
+  opacity: 0.32 !important;
+  color: var(--gold-bright);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finale__days-glow,
+  .finale__days-glow.is-active { animation: none; opacity: 0; }
+  .finale__ember { display: none; }
+  .finale__year { transition: none; }
 }
 
 .finale__logo-wrap {
@@ -1701,11 +1851,38 @@ section { padding: 32px 20px; }
 .contest-card__draw {
   position: relative;
   z-index: 1;
-  margin: 0 0 26px;
+  margin: 0 0 14px;
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.3px;
   color: var(--gold-bright);
+}
+
+.contest-countdown {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 26px;
+  padding: 10px 26px;
+  border: 1.5px solid var(--gold-bright);
+  border-radius: var(--radius);
+  background: rgba(255, 209, 102, 0.08);
+}
+
+.contest-countdown__number {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.contest-countdown__label {
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .contest-card__actions {

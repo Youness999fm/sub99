@@ -15,10 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
   initParallax();
   initHeroCarousel();
   initYearCounter();
+  initHeroMilestone();
   initOrderStatus();
   initDaysCounter();
   initMenuJumpActive();
   initPizzaBaseNav();
+  initContestCountdown();
 });
 
 // Nombre de jours complets depuis l'ouverture (1er avril 1999), calculé
@@ -31,39 +33,189 @@ function daysSinceOpening() {
   return Math.floor((todayUTC - openingUTC) / 86400000);
 }
 
+// Nombre de jours restants avant le tirage au sort du concours (vidéo
+// TikTok, 30 août), même logique de date civile (sans heure) que
+// daysSinceOpening() ci-dessus.
+function daysUntilContestDraw() {
+  const drawUTC = Date.UTC(2026, 7, 30); // 30 août 2026 (mois 0-indexé)
+  const now = new Date();
+  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor((drawUTC - todayUTC) / 86400000);
+}
+
+function initContestCountdown() {
+  const wrap = document.getElementById('contest-countdown');
+  const numberEl = document.getElementById('contest-countdown-number');
+  const labelEl = document.getElementById('contest-countdown-label');
+  if (!wrap || !numberEl || !labelEl) return;
+
+  const days = daysUntilContestDraw();
+
+  if (days < 0) {
+    // Le tirage est déjà passé : un compte à rebours négatif n'aurait
+    // aucun sens, on masque le bloc plutôt que d'afficher un chiffre faux.
+    wrap.hidden = true;
+    return;
+  }
+
+  if (days === 0) {
+    numberEl.textContent = "🎉";
+    labelEl.textContent = "C'est aujourd'hui !";
+    return;
+  }
+
+  numberEl.textContent = days;
+  labelEl.textContent = days === 1 ? 'jour avant le tirage au sort' : 'jours avant le tirage au sort';
+}
+
+// Fenêtre "10 000 jours" : le jour exact où le seuil est franchi, plus
+// une marge (2 semaines, choix assumé) pendant laquelle la petite
+// signature "✦ 10 000 JOURS ✦" reste visible. Calculée depuis la vraie
+// date d'ouverture, jamais une valeur ou une date codée en dur.
+const MILESTONE_DAY = 10000;
+const MILESTONE_WINDOW_END = MILESTONE_DAY + 13;
+
+// Signal du 10 000e jour dès le premier écran (voir commentaire CSS
+// .hero__milestone-pill) : sans lui, seule la scène finale — tout en bas
+// de la page — parle de l'événement, ratée par tout visiteur qui ne
+// descend pas jusque-là.
+function initHeroMilestone() {
+  const pill = document.getElementById('hero-milestone-pill');
+  if (!pill) return;
+  const days = daysSinceOpening();
+  if (days >= MILESTONE_DAY && days <= MILESTONE_WINDOW_END) pill.hidden = false;
+}
+
 // Fait apparaître le nombre de jours écoulés depuis 1999 en le comptant
-// jusqu'à sa valeur réelle (jamais figée), dans la scène finale. Ajoute
-// un accent visuel discret si le site a franchi les 10 000 jours.
+// jusqu'à sa valeur réelle (jamais figée), dans la scène finale, sous
+// forme d'un vrai compteur à rouleaux (réutilise setOdometer()). Au
+// passage exact des 10 000 jours, déclenche une courte célébration ;
+// rejouable en cliquant/appuyant sur le chiffre.
 function initDaysCounter() {
-  const numberEl = document.getElementById('finale-days-number');
+  const numberBtn = document.getElementById('finale-days-number');
   const wrapEl = document.getElementById('finale-days');
-  if (!numberEl || !wrapEl) return;
+  const labelEl = document.getElementById('finale-days-label');
+  const badgeEl = document.getElementById('finale-milestone-badge');
+  const glowEl = document.getElementById('finale-days-glow');
+  const yearEl = document.getElementById('finale-year');
+  const finaleEl = document.getElementById('finale');
+  if (!numberBtn || !wrapEl || !labelEl) return;
 
   const target = daysSinceOpening();
+  const width = String(target).length;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const fmt = (n) => n.toLocaleString('fr-FR');
+  const isMilestoneWindow = target >= MILESTONE_DAY && target <= MILESTONE_WINDOW_END;
+  const defaultLabel = labelEl.textContent;
+  const celebrationLine = "Depuis le 1ᵉʳ avril 1999. Et toujours le four allumé. 🔥🍕";
 
-  if (target >= 10000) wrapEl.classList.add('is-milestone');
+  if (target >= MILESTONE_DAY) wrapEl.classList.add('is-milestone');
 
-  const setFinal = () => { numberEl.textContent = fmt(target); };
+  if (isMilestoneWindow && badgeEl) badgeEl.hidden = false;
 
-  if (reduceMotion) { setFinal(); return; }
+  const pad = (n) => String(n).padStart(width, '0');
+  const setFinal = () => setOdometer(numberBtn, pad(target), reduceMotion);
+  numberBtn.setAttribute('aria-label', `${target} jours depuis l'ouverture — appuyer pour rejouer l'animation`);
+
+  // Quelques braises chaudes montent depuis le chiffre — pas des
+  // confettis multicolores. Nettoyées du DOM après leur animation, pour
+  // pouvoir être rejouées sans s'accumuler.
+  const spawnEmbers = () => {
+    for (let i = 0; i < 10; i++) {
+      const ember = document.createElement('span');
+      ember.className = 'finale__ember';
+      ember.style.left = `${20 + Math.random() * 60}%`;
+      ember.style.setProperty('--ember-drift', `${(Math.random() - 0.5) * 60}px`);
+      ember.style.animationDelay = `${Math.random() * 300}ms`;
+      wrapEl.appendChild(ember);
+      window.setTimeout(() => ember.remove(), 2400);
+    }
+  };
+
+  const celebrate = (fromUserGesture) => {
+    sessionStorage.setItem('subito10kPlayed', '1');
+    // Les navigateurs bloquent (et journalisent une erreur) tout appel à
+    // navigator.vibrate() hors d'un vrai geste utilisateur — donc jamais
+    // lors du déclenchement automatique au scroll, seulement au clic/tap.
+    if (fromUserGesture && navigator.vibrate) {
+      try { navigator.vibrate(25); } catch (e) { /* vibration indisponible, tant pis */ }
+    }
+    if (reduceMotion) return; // le badge statique + le libellé permanent (ci-dessous) suffisent déjà
+
+    if (glowEl) {
+      glowEl.classList.remove('is-active');
+      void glowEl.offsetWidth; // relance l'animation CSS si déjà jouée
+      glowEl.classList.add('is-active');
+    }
+    spawnEmbers();
+    if (yearEl) {
+      yearEl.textContent = '10 000';
+      yearEl.classList.add('is-climax');
+      window.setTimeout(() => {
+        yearEl.classList.remove('is-climax');
+        yearEl.textContent = '1999';
+      }, 3200);
+    }
+    labelEl.textContent = celebrationLine;
+    window.setTimeout(() => { labelEl.textContent = defaultLabel; }, 5200);
+  };
+
+  // Sous réduction de mouvement, l'information reste entièrement
+  // disponible sans dépendre d'une animation temporisée : le libellé
+  // reste en permanence sur la phrase de célébration pendant la fenêtre,
+  // plutôt que d'apparaître puis de disparaître.
+  if (reduceMotion) {
+    setFinal();
+    if (isMilestoneWindow) labelEl.textContent = celebrationLine;
+  }
 
   const animate = () => {
-    const duration = 1400;
+    const milestoneRoll = isMilestoneWindow && sessionStorage.getItem('subito10kPlayed') !== '1';
+    const duration = milestoneRoll ? 2600 : 1400;
+    const power = milestoneRoll ? 5 : 3; // courbe plus posée le jour J : tension → ralenti → bascule
     const start = performance.now();
     const step = (now) => {
       const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-      numberEl.textContent = fmt(Math.round(eased * target));
+      const eased = 1 - Math.pow(1 - progress, power);
+      setOdometer(numberBtn, pad(Math.round(eased * target)), false);
       if (progress < 1) {
         window.requestAnimationFrame(step);
       } else {
         setFinal();
+        if (milestoneRoll) window.setTimeout(() => celebrate(false), 350);
       }
     };
     window.requestAnimationFrame(step);
   };
+
+  // Rejeu volontaire au clic/tap/clavier (vrai <button>, activable au
+  // clavier sans code de gestion de touches). Pendant la fenêtre : la
+  // célébration complète. En dehors : un petit clin d'oeil honnête vers
+  // la prochaine étape, calculé en vrai, pas inventé.
+  numberBtn.addEventListener('click', () => {
+    if (isMilestoneWindow) {
+      celebrate(true);
+      return;
+    }
+    const daysTo20k = 20000 - target;
+    labelEl.textContent = daysTo20k > 0
+      ? `✦ Prochaine étape : dans ${daysTo20k.toLocaleString('fr-FR')} jours, les 20 000 ✦`
+      : defaultLabel;
+    window.setTimeout(() => { labelEl.textContent = defaultLabel; }, 3200);
+    if (!reduceMotion) {
+      let n = Math.max(0, target - 40);
+      setOdometer(numberBtn, pad(n), false);
+      const start = performance.now();
+      const step = (now) => {
+        const progress = Math.min((now - start) / 700, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setOdometer(numberBtn, pad(Math.round(n + eased * (target - n))), false);
+        if (progress < 1) window.requestAnimationFrame(step);
+      };
+      window.requestAnimationFrame(step);
+    }
+  });
+
+  if (reduceMotion) return;
 
   if (!('IntersectionObserver' in window)) { animate(); return; }
 
