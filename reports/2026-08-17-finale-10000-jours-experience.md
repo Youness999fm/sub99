@@ -54,3 +54,13 @@ Navigateur réel utilisé (pas de simulation) :
 ## Reste à vérifier par l'utilisateur
 - Rendu visuel desktop réel (capture non obtenue dans cette session, cause outil).
 - Ressenti "WOW" subjectif — à confirmer en conditions réelles sur téléphone/ordinateur.
+
+## Suite — retours utilisateur du 17/08/2026 (même journée)
+
+**Retour 1** : "le chiffre 10000 est dans un rectangle flou". Cause : le halo `.finale__days-glow` ("four qui s'allume", déclenché par `celebrate()` le jour du seuil) rendait comme un rectangle flou plutôt qu'une lueur, à cause de sa boîte très haute (`inset: -30% -10%`) mal proportionnée pour le dégradé radial. **Retiré entièrement** (HTML, JS, CSS) plutôt que corrigé — demande explicite de l'utilisateur.
+
+**Retour 2** : "améliore le chiffre 10000 qui charge" → précisé par question de clarification : "pas assez impressionnant" + "saccadé". Diagnostic : le mécanisme de comptage par frame (`requestAnimationFrame` + `setOdometer` appelé ~60×/s avec `instant=true`) éliminait bien le conflit de transition CSS (bug précédent) mais, en contrepartie, chaque chiffre "sautait" sans aucune interpolation visuelle — mécanique mais pas fluide, et la courbe d'accélération concentrait l'essentiel du mouvement dans le premier tiers du temps, rendant la fin de l'animation statique et peu spectaculaire.
+
+**Refonte complète du mécanisme** (`initDaysCounter` → nouvelle fonction `spin()`) : chaque chiffre tourne désormais sur lui-même à travers plusieurs cycles complets (0-9 répété, 1 à 3 tours selon le contexte) avant de se figer sur sa valeur réelle, en cascade de gauche à droite, chaque chiffre piloté par **une seule transition CSS** (`transform`, easing `cubic-bezier(0.16, 1, 0.3, 1)`) — plus aucune mise à jour par frame en JavaScript. Le rebond d'arrivée et l'effet de "poids" (`scale` progressif) sont conservés mais recalés sur ce nouveau mécanisme. Le clic de rejeu (pendant et hors fenêtre du seuil) réutilise la même fonction pour un rendu cohérent partout.
+
+Vérifié en navigateur réel : capture mi-animation montrant un chiffre effectivement en train de "tourner" (glyphe transitoire visible), capture de l'état final propre et net, aucune erreur console liée au changement (seule une alerte `navigator.vibrate` bloquée est apparue, attendue et déjà gérée : elle vient du clic synthétique déclenché par le test, pas d'un vrai geste utilisateur).

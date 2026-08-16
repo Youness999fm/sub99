@@ -148,20 +148,13 @@ function initDaysCounter() {
   if (reduceMotion) revealEquivalences();
 
   const pad = (n) => String(n).padStart(width, '0');
-  const setFinal = () => setOdometer(numberBtn, pad(target), reduceMotion, true);
+  const finalValueStr = pad(target);
   numberBtn.setAttribute('aria-label', `${target} jours depuis l'ouverture — appuyer pour rejouer l'animation`);
-
-  // "Prend du poids" à mesure qu'il approche sa valeur réelle — un chiffre
-  // qui arrive avec de la masse plutôt qu'un simple défilement. Uniquement
-  // transform (compositor), jamais de propriété qui redéclenche une mise
-  // en page.
-  const setWeight = (progress) => { numberBtn.style.transform = `scale(${0.92 + 0.08 * progress})`; };
 
   // Léger rebond d'arrivée une fois la valeur finale posée — le moment où
   // le chiffre "atterrit". Une seule fois par appel, nettoyé ensuite pour
   // pouvoir être rejoué à l'identique.
   const settle = () => {
-    numberBtn.style.transform = '';
     numberBtn.classList.remove('is-settling');
     void numberBtn.offsetWidth;
     numberBtn.classList.add('is-settling');
@@ -211,39 +204,70 @@ function initDaysCounter() {
   // reste en permanence sur la phrase de célébration pendant la fenêtre,
   // plutôt que d'apparaître puis de disparaître.
   if (reduceMotion) {
-    setFinal();
+    setOdometer(numberBtn, finalValueStr, true, true);
     if (isMilestoneWindow) labelEl.textContent = celebrationLine;
   }
 
-  const animate = () => {
-    const milestoneRoll = isMilestoneWindow && sessionStorage.getItem('subito10kPlayed') !== '1';
-    const duration = milestoneRoll ? 2600 : 1400;
-    const power = milestoneRoll ? 5 : 3; // courbe plus posée le jour J : tension → ralenti → bascule
-    const start = performance.now();
-    const step = (now) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, power);
-      setOdometer(numberBtn, pad(Math.round(eased * target)), false, true);
-      setWeight(eased);
-      if (progress < 1) {
-        window.requestAnimationFrame(step);
-      } else {
-        setFinal();
-        settle();
-        window.setTimeout(revealEquivalences, 200);
-        if (milestoneRoll) window.setTimeout(() => celebrate(false), 350);
+  // Révélation façon "rouleau" : chaque chiffre tourne sur lui-même
+  // (plusieurs tours complets à travers 0-9) avant de se figer sur sa
+  // valeur réelle, en cascade de gauche à droite — un vrai mouvement
+  // mécanique plutôt qu'un défilement de valeurs. Une seule transition
+  // CSS par chiffre, posée une fois pour toutes : jamais de mise à jour
+  // par frame, donc jamais de saccade, quel que soit l'appareil.
+  const spin = (dramatic, onDone) => {
+    const extraCycles = dramatic ? 3 : 1;
+    const baseDuration = dramatic ? 1300 : 800;
+    const stepDuration = dramatic ? 170 : 90;
+    const stepDelay = dramatic ? 110 : 60;
+
+    numberBtn.innerHTML = '';
+    numberBtn.dataset.value = finalValueStr;
+    let maxTotal = 0;
+
+    numberBtn.classList.remove('is-growing');
+    void numberBtn.offsetWidth;
+    numberBtn.style.setProperty('--finale-grow-duration', `${baseDuration + (finalValueStr.length - 1) * stepDuration}ms`);
+    numberBtn.classList.add('is-growing');
+
+    for (let i = 0; i < finalValueStr.length; i++) {
+      const digit = Number(finalValueStr[i]);
+      const totalSlots = extraCycles * 10 + digit + 1;
+      const slot = document.createElement('span');
+      slot.className = 'order-status__odo-digit';
+      const track = document.createElement('span');
+      track.className = 'order-status__odo-track';
+      for (let s = 0; s < totalSlots; s++) {
+        const d = document.createElement('span');
+        d.textContent = String(s % 10);
+        track.appendChild(d);
       }
-    };
-    window.requestAnimationFrame(step);
+      slot.appendChild(track);
+      numberBtn.appendChild(slot);
+
+      const delay = i * stepDelay;
+      const duration = baseDuration + i * stepDuration;
+      maxTotal = Math.max(maxTotal, delay + duration);
+      track.style.transform = 'translateY(0)';
+      void track.offsetWidth; // fige le départ avant de lancer la transition
+      track.style.transition = `transform ${duration}ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`;
+      track.style.transform = `translateY(-${totalSlots - 1}em)`;
+    }
+
+    window.setTimeout(() => {
+      settle();
+      revealEquivalences();
+      if (onDone) onDone();
+    }, maxTotal);
   };
 
   // Rejeu volontaire au clic/tap/clavier (vrai <button>, activable au
-  // clavier sans code de gestion de touches). Pendant la fenêtre : la
-  // célébration complète. En dehors : un petit clin d'oeil honnête vers
-  // la prochaine étape, calculé en vrai, pas inventé.
+  // clavier sans code de gestion de touches). Pendant la fenêtre : le
+  // chiffre retourne et la célébration complète rejoue. En dehors : un
+  // petit clin d'oeil honnête vers la prochaine étape, calculé en vrai.
   numberBtn.addEventListener('click', () => {
     if (isMilestoneWindow) {
-      celebrate(true);
+      if (!reduceMotion) spin(true, () => celebrate(true));
+      else celebrate(true);
       return;
     }
     const daysTo20k = 20000 - target;
@@ -251,28 +275,12 @@ function initDaysCounter() {
       ? `✦ Prochaine étape : dans ${daysTo20k.toLocaleString('fr-FR')} jours, les 20 000 ✦`
       : defaultLabel;
     window.setTimeout(() => { labelEl.textContent = defaultLabel; }, 3200);
-    if (!reduceMotion) {
-      let n = Math.max(0, target - 40);
-      setOdometer(numberBtn, pad(n), false, true);
-      const start = performance.now();
-      const step = (now) => {
-        const progress = Math.min((now - start) / 700, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setOdometer(numberBtn, pad(Math.round(n + eased * (target - n))), false, true);
-        setWeight(eased);
-        if (progress < 1) {
-          window.requestAnimationFrame(step);
-        } else {
-          settle();
-        }
-      };
-      window.requestAnimationFrame(step);
-    }
+    if (!reduceMotion) spin(false);
   });
 
   if (reduceMotion) return;
 
-  if (!('IntersectionObserver' in window)) { animate(); return; }
+  if (!('IntersectionObserver' in window)) { spin(isMilestoneWindow, isMilestoneWindow ? () => celebrate(false) : undefined); return; }
 
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
@@ -280,7 +288,10 @@ function initDaysCounter() {
         // Synchronisé avec le temps d'arrivée de ce bloc dans la mise en
         // scène de la section finale (transition-delay CSS de 0.95s +
         // le temps que le fondu devienne perceptible).
-        window.setTimeout(animate, 1250);
+        window.setTimeout(() => {
+          const dramatic = isMilestoneWindow && sessionStorage.getItem('subito10kPlayed') !== '1';
+          spin(dramatic, dramatic ? () => celebrate(false) : undefined);
+        }, 1250);
         observer.unobserve(entry.target);
       }
     });
