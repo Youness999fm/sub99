@@ -1609,27 +1609,6 @@ section { padding: 32px 20px; }
   color: rgba(255, 255, 255, 0.32);
 }
 
-/* Lueur chaude ("le four qui s'allume") derrière le chiffre au moment du
-   passage à 10 000 — un seul passage, pas une boucle. */
-.finale__days-glow {
-  position: absolute;
-  inset: -30% -10%;
-  z-index: 0;
-  pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 209, 102, 0.55) 0%, rgba(255, 209, 102, 0.15) 45%, transparent 72%);
-  opacity: 0;
-}
-
-.finale__days-glow.is-active {
-  animation: finale-glow-pulse 2.4s ease;
-}
-
-@keyframes finale-glow-pulse {
-  0% { opacity: 0; transform: scale(0.75); }
-  35% { opacity: 1; transform: scale(1.15); }
-  100% { opacity: 0; transform: scale(1); }
-}
-
 /* Petites braises chaudes plutôt que des confettis multicolores — clin
    d'oeil au four, pas à un anniversaire d'enfant. */
 .finale__ember {
@@ -1679,8 +1658,6 @@ section { padding: 32px 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .finale__days-glow,
-  .finale__days-glow.is-active { animation: none; opacity: 0; }
   .finale__ember { display: none; }
   .finale__year { transition: none; }
 }

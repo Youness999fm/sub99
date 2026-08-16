@@ -108,7 +108,6 @@ function initDaysCounter() {
   const wrapEl = document.getElementById('finale-days');
   const labelEl = document.getElementById('finale-days-label');
   const badgeEl = document.getElementById('finale-milestone-badge');
-  const glowEl = document.getElementById('finale-days-glow');
   const yearEl = document.getElementById('finale-year');
   const finaleEl = document.getElementById('finale');
   const milestoneDateEl = document.getElementById('finale-milestone-date');
@@ -194,11 +193,6 @@ function initDaysCounter() {
     }
     if (reduceMotion) return; // le badge statique + le libellé permanent (ci-dessous) suffisent déjà
 
-    if (glowEl) {
-      glowEl.classList.remove('is-active');
-      void glowEl.offsetWidth; // relance l'animation CSS si déjà jouée
-      glowEl.classList.add('is-active');
-    }
     spawnEmbers();
     if (yearEl) {
       yearEl.textContent = '10 000';
