@@ -95,8 +95,18 @@ a { color: inherit; }
   transform: translateY(0);
 }
 
+/* Sections "moment fort" : légèrement plus de présence à l'arrivée que le
+   reste des sections (translate + scale au lieu du simple fondu). */
+.reveal--feature {
+  transform: translateY(28px) scale(0.97);
+}
+
+.reveal--feature.is-visible {
+  transform: translateY(0) scale(1);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .reveal { opacity: 1; transform: none; transition: none; }
+  .reveal, .reveal--feature { opacity: 1; transform: none; transition: none; }
 }
 
 .container {
@@ -169,7 +179,10 @@ a { color: inherit; }
   color: var(--green);
   flex: 0 1 112px;
   min-width: 0;
+  transition: transform 0.15s ease;
 }
+
+.site-header__badge:active { transform: scale(0.95); }
 
 .site-header__badge-icon {
   display: flex;
@@ -355,6 +368,10 @@ a { color: inherit; }
   background: var(--gold-bright);
   color: var(--green-dark);
   transform: translateY(-1px);
+}
+
+.hero__milestone-pill:active {
+  transform: translateY(0) scale(0.96);
 }
 
 @keyframes hero-milestone-breathe {
@@ -944,6 +961,15 @@ section { padding: 32px 20px; }
   height: 3px;
   border-radius: 2px;
   background: var(--red);
+  transition: transform 0.6s cubic-bezier(0.22, 0.75, 0.2, 1) 0.15s;
+}
+
+/* Tant que la section n'est pas encore entrée dans le viewport (classe
+   .reveal posée par initScrollReveal), le trait sous le titre part de zéro
+   et se dessine à l'arrivée. Sans JS ou sans support IntersectionObserver,
+   .reveal n'est jamais posée : le trait reste visible tout de suite. */
+.reveal:not(.is-visible) .section-title::after {
+  transform: translateX(-50%) scaleX(0);
 }
 
 /* ---------- Carte Google Maps ---------- */
@@ -1168,6 +1194,12 @@ section { padding: 32px 20px; }
 .gallery-grid__item:focus-visible {
   box-shadow: 0 16px 32px -14px rgba(28, 27, 25, 0.3);
 }
+
+.gallery-grid__item:active {
+  box-shadow: 0 10px 20px -12px rgba(28, 27, 25, 0.32);
+}
+
+.gallery-grid__item:active img { transform: scale(1.05); }
 
 .gallery-grid__item:focus-visible {
   outline: 3px solid var(--red);
@@ -2035,6 +2067,10 @@ section { padding: 32px 20px; }
 .event-ribbon:hover,
 .event-ribbon:focus-visible {
   filter: brightness(0.96);
+}
+
+.event-ribbon:active {
+  transform: scale(0.99);
 }
 
 .event-ribbon__days {
@@ -3266,6 +3302,13 @@ section { padding: 32px 20px; }
 .menu-item:hover {
   transform: translateY(-6px) scale(1.015);
   box-shadow: 0 22px 38px -16px rgba(28, 20, 18, 0.32);
+}
+
+/* Retour tactile au tap (mobile n'a pas de survol) : la carte "s'enfonce"
+   légèrement plutôt que de rester inerte au toucher. */
+.menu-item:active {
+  transform: translateY(-2px) scale(0.98);
+  box-shadow: 0 14px 26px -14px rgba(28, 20, 18, 0.28);
 }
 
 .menu-item > img { transition: transform 0.5s cubic-bezier(0.22, 0.75, 0.2, 1); }

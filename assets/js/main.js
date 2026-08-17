@@ -892,6 +892,12 @@ function initScrollReveal() {
     observer.observe(el);
   });
 
+  // Sections "moment fort" : un peu plus de présence à l'arrivée (translate +
+  // scale via .reveal--feature) que le simple fondu appliqué aux autres.
+  document.querySelectorAll('.promo-highlight, .contest-teaser, .presentation-section').forEach((el) => {
+    el.classList.add('reveal--feature');
+  });
+
   // Petite apparition en cascade pour les grilles de cartes (galerie, avis,
   // zone de livraison) — délai local au groupe, plafonné pour rester rapide
   // même quand il y a beaucoup d'éléments.
