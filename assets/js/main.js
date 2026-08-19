@@ -894,7 +894,7 @@ function initScrollReveal() {
 
   // Sections "moment fort" : un peu plus de présence à l'arrivée (translate +
   // scale via .reveal--feature) que le simple fondu appliqué aux autres.
-  document.querySelectorAll('.promo-highlight, .contest-teaser, .presentation-section').forEach((el) => {
+  document.querySelectorAll('.promo-highlight, .contest-teaser, .presentation-section, .panuzo-teaser').forEach((el) => {
     el.classList.add('reveal--feature');
   });
 
