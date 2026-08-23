@@ -4081,19 +4081,58 @@ html.no-js .intro-splash {
     text-align: left;
     gap: 48px;
   }
-  .panuzo-teaser__cta { grid-column: 1 / -1; justify-self: start; }
+  .panuzo-teaser__ribbons,
+  .panuzo-teaser__steps,
+  .panuzo-teaser__final { grid-column: 1 / -1; }
 }
 
 .panuzo-teaser__intro { display: flex; flex-direction: column; align-items: center; }
 @media (min-width: 780px) { .panuzo-teaser__intro { align-items: flex-start; } }
+
+.panuzo-teaser__brandrow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
 
 .panuzo-teaser__logo {
   width: 108px;
   height: auto;
   border-radius: 8px;
   box-shadow: 0 0 0 1px rgba(212, 175, 100, 0.4), 0 14px 26px -14px rgba(0, 0, 0, 0.7);
-  margin-bottom: 18px;
+  margin: 0;
 }
+
+/* Sceau/médaillon "L'Italie dans chaque bouchée", écho du tampon doré en
+   haut du flyer officiel. Légèrement de travers, comme un vrai cachet. */
+.panuzo-teaser__seal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  transform: rotate(-11deg);
+  background: radial-gradient(circle at 34% 30%, #e6c67a, var(--gold) 70%);
+  border: 2px dashed rgba(28, 27, 25, 0.35);
+  box-shadow: 0 0 0 3px rgba(212, 175, 100, 0.18), 0 10px 18px -10px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  line-height: 1.15;
+}
+
+.panuzo-teaser__seal span {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--dark);
+}
+
+.panuzo-teaser__seal span:nth-child(2) { font-size: 0.56rem; }
 
 .panuzo-teaser__eyebrow {
   margin: 0 0 6px;
@@ -4121,40 +4160,14 @@ html.no-js .intro-splash {
 }
 
 .panuzo-teaser__subtitle {
-  margin: 0;
+  margin: 14px 0 0;
   font-family: var(--font-display);
   font-style: italic;
   font-size: clamp(1.05rem, 3vw, 1.35rem);
   color: rgba(255, 255, 255, 0.82);
 }
 
-.panuzo-teaser__soon {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  margin: 20px 0 0;
-  font-size: 0.86rem;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.panuzo-teaser__soon-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--red);
-  box-shadow: 0 0 0 0 rgba(214, 40, 40, 0.55);
-  animation: panuzoSoonPulse 2.2s ease-in-out infinite;
-  flex-shrink: 0;
-}
-
-@keyframes panuzoSoonPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(214, 40, 40, 0.5); }
-  50% { box-shadow: 0 0 0 6px rgba(214, 40, 40, 0); }
-}
-
-.panuzo-teaser__flag { display: inline-flex; gap: 5px; margin-top: 22px; }
+.panuzo-teaser__flag { display: inline-flex; gap: 5px; margin-top: 16px; }
 .panuzo-teaser__flag i { width: 24px; height: 4px; border-radius: 2px; display: block; }
 .panuzo-teaser__flag i:nth-child(1) { background: var(--green); }
 .panuzo-teaser__flag i:nth-child(2) { background: rgba(255, 255, 255, 0.85); }
@@ -4162,9 +4175,11 @@ html.no-js .intro-splash {
 
 .panuzo-teaser__showcase { display: flex; flex-direction: column; align-items: center; gap: 26px; }
 
+.panuzo-teaser__plate-frame { position: relative; width: min(300px, 78vw); }
+
 .panuzo-teaser__plate {
   position: relative;
-  width: min(300px, 78vw);
+  width: 100%;
   aspect-ratio: 1;
   border-radius: 50%;
   overflow: hidden;
@@ -4241,6 +4256,56 @@ html.no-js .intro-splash {
   to { transform: translateX(-50%); }
 }
 
+/* Badge "rendez-vous", écho du tampon doré du flyer qui pointait vers le
+   produit. Affiché sur le cadre du plat plutôt qu'avec une flèche séparée
+   (plus sobre, tient sur mobile) : la deuxième révélation après le titre. */
+.panuzo-teaser__badge {
+  position: absolute;
+  top: -6%;
+  right: -9%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 104px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: rotate(-11deg);
+  background: var(--dark);
+  border: 2px solid var(--gold-bright);
+  box-shadow: 0 0 0 4px rgba(28, 27, 25, 0.9), 0 14px 26px -10px rgba(0, 0, 0, 0.7);
+  text-align: center;
+}
+
+.panuzo-teaser__badge-line1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.92rem;
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.panuzo-teaser__badge-line2 {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--gold-bright);
+  color: var(--dark);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .panuzo-teaser__badge { width: 84px; top: -4%; right: -4%; }
+  .panuzo-teaser__badge-line1 { font-size: 0.76rem; }
+  .panuzo-teaser__badge-line2 { font-size: 0.5rem; }
+}
+
 .panuzo-teaser__ingredients {
   list-style: none;
   margin: 0;
@@ -4272,6 +4337,133 @@ html.no-js .intro-splash {
   line-height: 1.25;
 }
 
+/* Double bandeau "twist" — le levier narratif du flyer : Subito propose,
+   le client décide. Deux rubans en biais opposés, façon coup de pinceau,
+   plutôt que deux cartes identiques. */
+.panuzo-teaser__ribbons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.panuzo-teaser__ribbon {
+  margin: 0;
+  padding: 16px 22px;
+  border-radius: 6px;
+  font-family: var(--font-display);
+  font-size: clamp(0.98rem, 2.6vw, 1.2rem);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.panuzo-teaser__ribbon--dark {
+  transform: rotate(-1deg);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.panuzo-teaser__ribbon--dark strong { color: var(--gold-bright); }
+
+.panuzo-teaser__ribbon--gold {
+  transform: rotate(1deg);
+  background: linear-gradient(120deg, var(--gold) 0%, var(--gold-bright) 100%);
+  color: var(--dark);
+}
+
+.panuzo-teaser__ribbon--gold strong { color: var(--green); }
+
+/* Les 3 blocs du flyer : explication → action → conséquence. Traités
+   comme une progression (numérotée, reliée par une flèche en desktop),
+   pas comme trois cartes interchangeables. */
+.panuzo-teaser__steps {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: panuzo-step;
+}
+
+@media (min-width: 780px) {
+  .panuzo-teaser__steps { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+}
+
+.panuzo-teaser__step {
+  position: relative;
+  counter-increment: panuzo-step;
+  padding: 22px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.04);
+  text-align: center;
+}
+
+.panuzo-teaser__step::before {
+  content: counter(panuzo-step);
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+@media (min-width: 780px) {
+  .panuzo-teaser__step:not(:last-child)::after {
+    content: '→';
+    position: absolute;
+    top: 50%;
+    right: -19px;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 1.1rem;
+  }
+}
+
+.panuzo-teaser__step svg {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 10px;
+  color: var(--gold-bright);
+}
+
+.panuzo-teaser__step h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: #fff;
+}
+
+.panuzo-teaser__step p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.panuzo-teaser__step p strong { color: var(--gold-bright); }
+
+.panuzo-teaser__final {
+  text-align: center;
+  margin-top: 6px;
+}
+
+.panuzo-teaser__final-text {
+  margin: 0 0 18px;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 3.4vw, 1.55rem);
+  font-weight: 700;
+  line-height: 1.35;
+  color: #fff;
+}
+
+.panuzo-teaser__final-text em { display: block; margin-top: 4px; font-style: italic; color: var(--gold-bright); font-size: 0.86em; }
+
 .panuzo-teaser__cta {
   display: inline-flex;
   align-items: center;
@@ -4284,22 +4476,9 @@ html.no-js .intro-splash {
   font-size: 0.9rem;
   letter-spacing: 0.3px;
   border-bottom: 1px solid rgba(212, 175, 100, 0.4);
-  opacity: 0;
-  transform: translateY(18px);
-  /* Deux familles de transition sur le même élément : l'entrée (opacity/
-     transform, délai posé par .is-visible ci-dessous) et le survol (gap/
-     couleur, jamais délayé) — des propriétés longhand distinctes évitent
-     qu'un "transition" raccourci écrase l'autre. */
-  transition-property: opacity, transform, gap, border-color, color;
-  transition-duration: 0.75s, 0.75s, 0.25s, 0.25s, 0.25s;
-  transition-timing-function: cubic-bezier(0.22, 0.75, 0.2, 1), cubic-bezier(0.22, 0.75, 0.2, 1), ease, ease, ease;
-  transition-delay: 0s, 0s, 0s, 0s, 0s;
-}
-
-.panuzo-teaser.is-visible .panuzo-teaser__cta {
-  opacity: 1;
-  transform: translateY(0);
-  transition-delay: 0.75s, 0.75s, 0s, 0s, 0s;
+  /* L'entrée est portée par le parent .panuzo-teaser__final (voir plus
+     bas) : ce lien ne garde que la transition de survol. */
+  transition: gap 0.25s ease, border-color 0.25s ease, color 0.25s ease;
 }
 
 .panuzo-teaser__cta:hover,
@@ -4313,14 +4492,17 @@ html.no-js .intro-splash {
 
 /* ---- Entrée séquencée : chaque élément a son propre délai, calé sur
    .panuzo-teaser.is-visible posée par initScrollReveal (même mécanique
-   que la scène #finale). ---- */
-.panuzo-teaser__logo,
+   que la scène #finale). L'ordre suit le funnel du flyer : marque → titre
+   → produit → badge rendez-vous → twist → mécanique → CTA. ---- */
+.panuzo-teaser__brandrow,
 .panuzo-teaser__eyebrow,
 .panuzo-teaser__title,
-.panuzo-teaser__subtitle,
-.panuzo-teaser__soon,
 .panuzo-teaser__flag,
-.panuzo-teaser__showcase {
+.panuzo-teaser__subtitle,
+.panuzo-teaser__showcase,
+.panuzo-teaser__ribbons,
+.panuzo-teaser__steps,
+.panuzo-teaser__final {
   opacity: 0;
   transform: translateY(18px);
   transition: opacity 0.75s cubic-bezier(0.22, 0.75, 0.2, 1), transform 0.75s cubic-bezier(0.22, 0.75, 0.2, 1);
@@ -4328,20 +4510,33 @@ html.no-js .intro-splash {
 
 .panuzo-teaser__showcase { transform: translateY(26px) scale(0.96); }
 
-.panuzo-teaser.is-visible .panuzo-teaser__logo { transition-delay: 0.05s; }
+/* Le badge "rendez-vous" arrive comme un vrai tampon qu'on abat : léger
+   sur-pivot puis retour, plutôt qu'un simple fondu comme le reste. */
+.panuzo-teaser__badge {
+  opacity: 0;
+  transform: rotate(24deg) scale(0.4);
+  transition: opacity 0.5s ease, transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.panuzo-teaser.is-visible .panuzo-teaser__brandrow { transition-delay: 0.05s; }
 .panuzo-teaser.is-visible .panuzo-teaser__eyebrow { transition-delay: 0.16s; }
 .panuzo-teaser.is-visible .panuzo-teaser__title { transition-delay: 0.28s; }
-.panuzo-teaser.is-visible .panuzo-teaser__subtitle { transition-delay: 0.44s; }
-.panuzo-teaser.is-visible .panuzo-teaser__soon { transition-delay: 0.56s; }
-.panuzo-teaser.is-visible .panuzo-teaser__flag { transition-delay: 0.64s; }
+.panuzo-teaser.is-visible .panuzo-teaser__flag { transition-delay: 0.4s; }
+.panuzo-teaser.is-visible .panuzo-teaser__subtitle { transition-delay: 0.5s; }
 .panuzo-teaser.is-visible .panuzo-teaser__showcase { transition-delay: 0.38s; }
+.panuzo-teaser.is-visible .panuzo-teaser__badge { transition-delay: 0.85s; }
+.panuzo-teaser.is-visible .panuzo-teaser__ribbons { transition-delay: 0.62s; }
+.panuzo-teaser.is-visible .panuzo-teaser__steps { transition-delay: 0.74s; }
+.panuzo-teaser.is-visible .panuzo-teaser__final { transition-delay: 0.86s; }
 
-.panuzo-teaser.is-visible .panuzo-teaser__logo,
+.panuzo-teaser.is-visible .panuzo-teaser__brandrow,
 .panuzo-teaser.is-visible .panuzo-teaser__eyebrow,
 .panuzo-teaser.is-visible .panuzo-teaser__title,
+.panuzo-teaser.is-visible .panuzo-teaser__flag,
 .panuzo-teaser.is-visible .panuzo-teaser__subtitle,
-.panuzo-teaser.is-visible .panuzo-teaser__soon,
-.panuzo-teaser.is-visible .panuzo-teaser__flag {
+.panuzo-teaser.is-visible .panuzo-teaser__ribbons,
+.panuzo-teaser.is-visible .panuzo-teaser__steps,
+.panuzo-teaser.is-visible .panuzo-teaser__final {
   opacity: 1;
   transform: translateY(0);
 }
@@ -4351,13 +4546,18 @@ html.no-js .intro-splash {
   transform: translateY(0) scale(1);
 }
 
+.panuzo-teaser.is-visible .panuzo-teaser__badge {
+  opacity: 1;
+  transform: rotate(-11deg) scale(1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .panuzo-teaser__sprig,
   .panuzo-teaser__plate,
-  .panuzo-teaser__soon-dot,
   .panuzo-teaser__band-track {
     animation: none;
   }
+  .panuzo-teaser__badge { transform: rotate(-11deg) scale(1); }
 }
 
 @media (max-width: 480px) {
