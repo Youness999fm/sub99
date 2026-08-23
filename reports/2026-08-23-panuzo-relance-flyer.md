@@ -65,3 +65,13 @@ Implémenté en pur JS (aucune dépendance, aucun backend) : clic sur le nouveau
 - Événement d'1h (19h–20h) avec une alarme intégrée 30 min avant (`VALARM`, déclenche une notification native sur le téléphone une fois importé dans le calendrier).
 - Heure "flottante" dans le fichier (sans fuseau horaire encodé) : l'appareil qui l'ouvre l'interprète dans son heure locale, adapté à une clientèle locale à Hénin-Beaumont.
 - Testé en navigateur réel : date affichée vérifiée correcte (dimanche → "lundi 24 août"), clic déclenché sans erreur console, aucun débordement à 375px.
+- Suite à une demande de simplification, le CTA "Je veux le tester" a été retiré du bloc final (ne reste que le bouton de rappel) — CSS `.panuzo-teaser__cta` devenue orpheline supprimée (plus aucune page ne l'utilisait).
+
+## Suite — sceau "Depuis 1999" dans le header, sur les 11 pages (carte blanche élargie)
+Demande : mettre à profit la carte blanche pour asserter davantage l'ancienneté de l'enseigne (depuis 1999). Constat avant d'agir : le site portait déjà cette information à plusieurs endroits (bandeau d'intro, eyebrow du hero "+27 ans", eyebrow "Depuis 1999" en haut de plusieurs pages, signature du footer sur les 11 pages, et la scène `#finale` déjà très aboutie — filigrane, compteur de jours en rouleau, célébration du 10 000ᵉ jour, braises animées). Plutôt que d'ajouter encore des effets à une scène déjà à son maximum de sophistication, le vrai manque identifié : rien dans le **header**, présent sur *chaque* page, ne portait cette information — seul le footer (en bas, petit) le faisait sitewide.
+
+Ajouté : un médaillon "Depuis 1999" accroché au coin du logo dans le header, sur les **11 pages** du site (même motif visuel que le sceau Panuzo — cohérence de marque entre les deux, vert/or plutôt que le doré du Panuzo pour rester distinct). Taille fixe, ne bouge pas avec le logo au scroll, comme un vrai sceau apposé sur une étiquette.
+
+**Découverte importante en testant** : le logo lui-même (`assets/img/logo.jpg`, l'image utilisée partout sur le site) affiche en petit texte **"ORIGINAL DEPUIS 1989"**, alors que tout le reste du site (footer, hero, finale, et maintenant ce sceau) affirme **1999**. Les deux textes se retrouvent maintenant côte à côte dans le header, rendant la contradiction visible. Point à trancher avec le client : quelle est la vraie date (le logo a peut-être été conçu pour une autre enseigne/enseigne mère, ou 1989 est une erreur de conception du logo) — non corrigé ici, aucune décision prise à la place de l'utilisateur sur un fait commercial.
+
+Vérifié en navigateur réel (`index.html`, `menu.html`, mobile 375px) : aucun débordement, aucune erreur console, sceau bien positionné sans être rogné (le header n'a pas d'`overflow: hidden`).
