@@ -75,3 +75,14 @@ Ajouté : un médaillon "Depuis 1999" accroché au coin du logo dans le header, 
 **Découverte importante en testant** : le logo lui-même (`assets/img/logo.jpg`, l'image utilisée partout sur le site) affiche en petit texte **"ORIGINAL DEPUIS 1989"**, alors que tout le reste du site (footer, hero, finale, et maintenant ce sceau) affirme **1999**. Les deux textes se retrouvent maintenant côte à côte dans le header, rendant la contradiction visible. Point à trancher avec le client : quelle est la vraie date (le logo a peut-être été conçu pour une autre enseigne/enseigne mère, ou 1989 est une erreur de conception du logo) — non corrigé ici, aucune décision prise à la place de l'utilisateur sur un fait commercial.
 
 Vérifié en navigateur réel (`index.html`, `menu.html`, mobile 375px) : aucun débordement, aucune erreur console, sceau bien positionné sans être rogné (le header n'a pas d'`overflow: hidden`).
+
+**Retour utilisateur** : le sceau "ne plaît pas" — retiré des 11 pages, CSS `.site-header__heritage` supprimée (redevenue orpheline).
+
+## Suite — "Panuzo" comme vraie catégorie du menu (carte blanche)
+Demande : ajouter une section Panuzo parmi les différentes sections du menu (`menu.html`), qui n'en avait jusque-là qu'une pastille au-dessus de Subitowichs.
+
+Contrainte respectée : le Panuzo n'a ni prix ni disponibilité confirmée (encore en pré-lancement partout ailleurs sur le site) — impossible d'en faire une fiche produit classique façon `.menu-item` sans inventer un prix. Choix : une vraie catégorie (ancre `#panuzo`, présente dans `.menu-jump` et `.menu-quicknav`, repérée automatiquement par le scroll-spy existant qui scanne `.menu-category[id]` — aucun JS à modifier), positionnée juste après Subitowichs, mais dont le contenu reprend la palette charbon/or de `.panuzo-card` plutôt qu'une grille blanche classique — signale visuellement "à part" sans mentir sur sa disponibilité. Contenu : photo, tag "Tous les lundis · En éphémère", ingrédients réels (mozzarella, roquette, charcuterie de bœuf, pesto), une phrase honnête ("pas encore de prix ni de commande en ligne"), CTA vers `index.html#panuzo-teaser`.
+
+L'ancienne pastille au-dessus de Subitowichs est retirée (remplacée par cette section dédiée, CSS `.menu-panuzo-pill` devenue orpheline supprimée).
+
+Vérifié en navigateur réel : nav de catégorie fonctionnelle (mise en évidence automatique au scroll), aucun débordement à 375px et 1100px, layout 2 colonnes en desktop / empilé en mobile, aucune erreur console.
