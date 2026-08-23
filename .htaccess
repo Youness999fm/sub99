@@ -1,5 +1,38 @@
 ErrorDocument 404 /404.html
 
+# ---------- Compression (réduit le poids transféré de HTML/CSS/JS/SVG) ----------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml application/xml
+  AddOutputFilterByType DEFLATE application/javascript text/javascript application/json
+  AddOutputFilterByType DEFLATE image/svg+xml application/manifest+json
+</IfModule>
+
+# ---------- Cache navigateur ----------
+# Les images/fonts/icônes ont un nom stable (pas de hash de build) : cache
+# long mais raisonnable, pas "immutable" pour rester capable de les
+# remplacer (ex. nouvelle photo) sans devoir renommer le fichier.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
+  ExpiresByType text/javascript "access plus 1 week"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/x-icon "access plus 1 month"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType application/manifest+json "access plus 1 week"
+</IfModule>
+
+# ---------- En-têtes de sécurité (site statique, sans backend : gratuits,
+# sans risque de régression fonctionnelle) ----------
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "geolocation=(), camera=(), microphone=()"
+  Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
 # Redirections depuis les anciennes URLs WordPress (encore indexées par
 # Google au moment de la bascule vers ce site statique) vers les sections
 # équivalentes du menu actuel — évite de perdre le référencement déjà

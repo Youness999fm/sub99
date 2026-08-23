@@ -1143,25 +1143,34 @@ function initIntroSplash() {
     return;
   }
 
-  document.documentElement.classList.add('intro-lock');
-  document.body.classList.add('intro-lock');
+  // Volontairement PAS de verrou de scroll ici : la vraie page se construit
+  // et reste utilisable en dessous pendant que ce voile décoratif joue.
+  // Un audit perf a montré qu'un verrou (overflow hidden + position fixed)
+  // pendant 2,6s forçait une attente artificielle avant tout accès au
+  // contenu réel à chaque première visite — contraire à l'objectif de
+  // vitesse perçue. Le voile se dissipe de lui-même vite, et toute
+  // intention d'interagir (clic, touche, scroll, molette, toucher) le
+  // fait disparaître immédiatement.
   let dismissed = false;
 
   const dismiss = () => {
     if (dismissed) return;
     dismissed = true;
     splash.classList.add('is-hiding');
-    document.documentElement.classList.remove('intro-lock');
-    document.body.classList.remove('intro-lock');
     try { sessionStorage.setItem('subitoIntroSeen', '1'); } catch (e) { /* tant pis, l'intro rejouera */ }
-    window.removeEventListener('keydown', dismiss);
-    splash.removeEventListener('click', dismiss);
+    dismissEvents.forEach(([target, type]) => target.removeEventListener(type, dismiss));
     setTimeout(() => splash.remove(), 950);
   };
 
-  window.addEventListener('keydown', dismiss, { once: true });
-  splash.addEventListener('click', dismiss, { once: true });
-  setTimeout(dismiss, 2600);
+  const dismissEvents = [
+    [window, 'keydown'],
+    [splash, 'click'],
+    [window, 'wheel'],
+    [window, 'touchstart'],
+    [window, 'scroll'],
+  ];
+  dismissEvents.forEach(([target, type]) => target.addEventListener(type, dismiss, { once: true, passive: true }));
+  setTimeout(dismiss, 1200);
 }
 
 function initReviewForm() {
