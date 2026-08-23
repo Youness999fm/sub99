@@ -2309,12 +2309,24 @@ section { padding: 32px 20px; }
 }
 
 .panuzo-card__title {
-  margin: 0 0 10px;
+  margin: 0 0 14px;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: clamp(2.2rem, 8vw, 2.8rem);
   text-transform: uppercase;
   letter-spacing: -0.01em;
+}
+
+.panuzo-card__tag {
+  display: inline-block;
+  margin: 0 0 16px;
+  padding: 6px 16px;
+  border: 1px solid var(--gold-bright);
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--gold-bright);
 }
 
 .panuzo-card__text {
@@ -4463,6 +4475,36 @@ html.no-js .intro-splash {
 }
 
 .panuzo-teaser__final-text em { display: block; margin-top: 4px; font-style: italic; color: var(--gold-bright); font-size: 0.86em; }
+
+.panuzo-teaser__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+@media (min-width: 560px) {
+  .panuzo-teaser__actions { flex-direction: row; justify-content: center; gap: 28px; }
+}
+
+/* Bouton "rappel calendrier" — réutilise .btn-outline (défini pour fond
+   clair) avec les couleurs du thème sombre du teaser, comme .panuzo-card__cta. */
+.panuzo-teaser__remind {
+  appearance: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+}
+
+.panuzo-teaser__remind svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.panuzo-teaser__remind:hover,
+.panuzo-teaser__remind:focus-visible {
+  background: var(--gold-bright);
+  color: var(--dark);
+}
 
 .panuzo-teaser__cta {
   display: inline-flex;

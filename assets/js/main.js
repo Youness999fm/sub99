@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPizzaBaseNav();
   initContestCountdown();
   initContestPresence();
+  initPanuzoReminder();
 });
 
 // Nombre de jours complets depuis l'ouverture (1er avril 1999), calculé
@@ -91,6 +92,74 @@ function initContestPresence() {
       if (footerDaysEl) footerDaysEl.textContent = days;
     }
   }
+}
+
+// Bouton "rappel calendrier" du teaser Panuzo (index.html) : génère un
+// fichier .ics à la volée, sans backend ni dépendance. Le lundi ciblé
+// n'est jamais figé en dur : recalculé au chargement (pour l'affichage)
+// et à nouveau au clic (pour le fichier), toujours "le prochain lundi
+// 19h" à partir de maintenant. Format .ics en heure "flottante" (sans
+// suffixe Z ni VTIMEZONE) : l'appareil qui l'ouvre l'interprète dans son
+// propre fuseau local, ce qui convient à une clientèle locale.
+function initPanuzoReminder() {
+  const btn = document.getElementById('panuzo-remind-btn');
+  if (!btn) return;
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  function nextMondayAt19h() {
+    const now = new Date();
+    let daysUntilMonday = (1 - now.getDay() + 7) % 7;
+    if (daysUntilMonday === 0 && now.getHours() >= 19) daysUntilMonday = 7;
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilMonday, 19, 0, 0);
+  }
+
+  function toIcsLocal(d) {
+    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  }
+
+  function toIcsUtcStamp(d) {
+    return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+  }
+
+  const dateEl = document.getElementById('panuzo-remind-date');
+  if (dateEl) dateEl.textContent = nextMondayAt19h().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  btn.addEventListener('click', () => {
+    const start = nextMondayAt19h();
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Subito Pizza//Panuzo//FR',
+      'BEGIN:VEVENT',
+      `UID:panuzo-${start.getTime()}@subito-pizza-heninbeaumont.fr`,
+      `DTSTAMP:${toIcsUtcStamp(new Date())}`,
+      `DTSTART:${toIcsLocal(start)}`,
+      `DTEND:${toIcsLocal(end)}`,
+      'SUMMARY:Le Panuzo arrive chez Subito Pizza',
+      'DESCRIPTION:Tous les lundis\\, en édition éphémère — chez Subito Pizza\\, 333 rue Elie Gruyelle\\, Hénin-Beaumont.',
+      'LOCATION:Subito Pizza\\, 333 rue Elie Gruyelle\\, 62110 Hénin-Beaumont',
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Le Panuzo arrive chez Subito Pizza ce soir !',
+      'TRIGGER:-PT30M',
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'panuzo-subito-pizza.ics';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
 }
 
 function initContestCountdown() {

@@ -47,4 +47,21 @@ Le sceau a d'abord été prototypé avec du texte arqué (SVG `textPath` le long
 
 ## Reste à faire / pour l'utilisateur
 - Si une date de lancement officielle est fixée, un compte à rebours réel peut être ajouté (même mécanisme que celui du concours) — non fait, aucune date fournie ni dans le flyer ni par l'utilisateur.
-- Les points de contact secondaires (pastille `menu.html`, carte `reseaux.html`, lignes de pied de page) n'ont pas été retouchés : ils restent cohérents avec "Panuzo" mais ne reprennent pas encore le langage "tous les lundis / éphémère". À faire si souhaité, en mission séparée pour ne pas faire dériver le périmètre de celle-ci.
+
+## Suite — propagation du message à tous les points de contact (même journée)
+Demande de l'utilisateur : le nouveau langage "tous les lundis / en éphémère" n'était pas repris ailleurs que sur la nouvelle section `index.html`. Mis à jour :
+- **`reseaux.html`** : nouvelle pastille "Tous les lundis · En éphémère" sur `.panuzo-card`, texte réécrit pour reprendre le twist (éphémère → carte si ça plaît).
+- **`menu.html`** : pastille au-dessus des Subitowichs reformulée ("le Panuzo, tous les lundis en éphémère →").
+- **9 lignes de pied de page** (`index`, `menu`, `reseaux`, `avis`, `composer`, `vegetarien`, `supplements`, `faq`, `concours`) : "arrive bientôt" → "tous les lundis en éphémère".
+
+Vérifié en navigateur réel à 320px sur `menu.html` et `reseaux.html` : aucun débordement horizontal introduit par le texte plus long (la pastille menu passe sur 2 lignes proprement), aucune erreur console. Un débordement de 5px pré-existant sur `menu.html` a été identifié comme non lié à ce changement (scroller horizontal volontaire de la nav de catégories, `overflow-x: auto` déjà en place avant cette mission).
+
+## Suite — bouton "rappel calendrier" (même journée)
+Demande : un bouton pour que le client ajoute un rappel dans son calendrier de téléphone pour "le lundi qui arrive, Panuzo Subito, 19h".
+
+Implémenté en pur JS (aucune dépendance, aucun backend) : clic sur le nouveau bouton `#panuzo-remind-btn` (dans `.panuzo-teaser__final`, sous le CTA principal) → génère un fichier `.ics` standard à la volée (`Blob` + téléchargement déclenché par un `<a download>` temporaire) et le propose au téléchargement. Compatible Apple Calendar / Google Calendar / Outlook (format `.ics` universel).
+
+- La date ciblée ("le prochain lundi 19h") **n'est jamais figée en dur** : recalculée à chaque chargement de page (pour l'affichage "Me rappeler lundi 24 août à 19h") et à nouveau au clic (pour le fichier). Si on est déjà lundi après 19h, elle saute automatiquement au lundi suivant.
+- Événement d'1h (19h–20h) avec une alarme intégrée 30 min avant (`VALARM`, déclenche une notification native sur le téléphone une fois importé dans le calendrier).
+- Heure "flottante" dans le fichier (sans fuseau horaire encodé) : l'appareil qui l'ouvre l'interprète dans son heure locale, adapté à une clientèle locale à Hénin-Beaumont.
+- Testé en navigateur réel : date affichée vérifiée correcte (dimanche → "lundi 24 août"), clic déclenché sans erreur console, aucun débordement à 375px.
