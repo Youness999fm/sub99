@@ -912,6 +912,32 @@ function initHeroCarousel() {
   const img = document.getElementById('hero-plate-img');
   const caption = document.getElementById('hero-plate-caption');
   if (!img || !caption) return;
+
+  const plate = img.closest('.hero__plate');
+
+  // Lundi = jour du Panuzo (getPanuzoStatus(), même source que le reste du
+  // site — aucune date codée ici). La toute première image vue par le
+  // visiteur devient le Panuzo plutôt que d'attendre son tour dans la
+  // rotation : appliqué AVANT le retour anticipé "reduced motion"
+  // ci-dessous, pour que ce premier message touche aussi les visiteurs qui
+  // ne verront jamais tourner le reste du carrousel. Mardi à dimanche,
+  // panuzoSlide n'est jamais utilisé : le carrousel reste identique à
+  // aujourd'hui, au caractère près.
+  const panuzoSlide = {
+    name: PANUZO_CONFIG.name,
+    src: 'assets/img/photos/panuzo.jpg',
+    caption: `🔥 <strong>Panuzo</strong> — aujourd'hui seulement, ${PANUZO_CONFIG.price}<br>🍕 À retrouver sur notre carte`,
+    href: 'menu.html#panuzo',
+  };
+  const isPanuzoDay = getPanuzoStatus().isToday;
+
+  if (isPanuzoDay) {
+    img.src = panuzoSlide.src;
+    img.alt = `${panuzoSlide.name}, à retrouver sur notre carte`;
+    caption.innerHTML = panuzoSlide.caption;
+    if (plate) { plate.href = panuzoSlide.href; plate.classList.add('is-panuzo'); }
+  }
+
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   // La carte complète, mélangée exprès (pizza, pâte, tex-mex...) plutôt
@@ -965,6 +991,8 @@ function initHeroCarousel() {
     { name: 'Pizza Carolina', src: 'assets/img/photos/carolina.jpg' }
   ];
 
+  if (isPanuzoDay) menuItems.unshift(panuzoSlide);
+
   const preloadAt = (i) => {
     const next = new Image();
     next.src = menuItems[(i + 1) % menuItems.length].src;
@@ -983,6 +1011,7 @@ function initHeroCarousel() {
       img.src = p.src;
       img.alt = `${p.name}, à retrouver sur notre carte`;
       caption.innerHTML = p.caption || `🍕 À retrouver sur notre carte : <strong>${p.name}</strong>`;
+      if (plate) { plate.href = p.href || 'menu.html'; plate.classList.toggle('is-panuzo', p === panuzoSlide); }
       img.classList.remove('is-swapping');
       caption.classList.remove('is-swapping');
     }, 380);
@@ -1337,19 +1366,22 @@ function initIntroSplash() {
     return;
   }
 
-  // Volontairement PAS de verrou de scroll ici : la vraie page se construit
-  // et reste utilisable en dessous pendant que ce voile décoratif joue.
-  // Un audit perf a montré qu'un verrou (overflow hidden + position fixed)
-  // pendant 2,6s forçait une attente artificielle avant tout accès au
-  // contenu réel à chaque première visite — contraire à l'objectif de
-  // vitesse perçue. Le voile se dissipe de lui-même vite, et toute
-  // intention d'interagir (clic, touche, scroll, molette, toucher) le
-  // fait disparaître immédiatement.
+  // Le voile lui-même reste non bloquant pour l'INTERACTION (voir plus bas :
+  // n'importe quel geste le fait disparaître tout de suite, jamais d'attente
+  // forcée — c'est ce qu'un audit perf précédent a corrigé). Le défilement
+  // du document est en revanche verrouillé pendant qu'il joue : purement
+  // défensif, pour qu'un défilement "sous le capot" ne repositionne pas la
+  // page pendant que le voile est affiché. Débloqué immédiatement dans
+  // dismiss() ci-dessous, jamais après le fondu — donc un geste de scroll
+  // fait toujours défiler la page tout de suite, comme avant.
+  document.body.style.overflow = 'hidden';
+
   let dismissed = false;
 
   const dismiss = () => {
     if (dismissed) return;
     dismissed = true;
+    document.body.style.overflow = '';
     splash.classList.add('is-hiding');
     try { sessionStorage.setItem('subitoIntroSeen', '1'); } catch (e) { /* tant pis, l'intro rejouera */ }
     dismissEvents.forEach(([target, type]) => target.removeEventListener(type, dismiss));

@@ -688,6 +688,15 @@ a { color: inherit; }
   opacity: 1;
 }
 
+/* Lundi = jour du Panuzo (voir initHeroCarousel() dans main.js) : réutilise
+   le même halo doré que l'effet de transition ci-dessus, simplement
+   maintenu visible tant que le Panuzo est à l'écran plutôt qu'un nouveau
+   style. Retiré automatiquement dès que le carrousel passe au produit
+   suivant. */
+.hero__plate.is-panuzo::after {
+  opacity: 1;
+}
+
 .hero__showcase-caption {
   /* Léger retard sur l'image : le texte suit d'un cran, pour une
      impression de profondeur plutôt qu'un fondu synchrone plat. */
@@ -4070,11 +4079,17 @@ section { padding: 32px 20px; }
    en dessous pendant qu'il joue (voir initIntroSplash() dans main.js). */
 
 .intro-splash {
+  /* Couverture plein cadre garantie par top/right/bottom/left à 0 (inset)
+     seuls — sans largeur/hauteur explicite en plus. Un position:fixed avec
+     top:0 + bottom:0 ET une hauteur fixée (100vh/100dvh) est "sur-contraint" :
+     la spec CSS fait alors gagner la hauteur sur le bas, donc le moindre
+     écart entre 100dvh et la vraie fenêtre visible (barre d'adresse mobile
+     qui se rétracte après le premier rendu, arrondi, etc.) laissait un
+     espace en bas où la page d'accueil apparaissait. inset seul se
+     recalcule à chaque repositionnement du viewport, sans dépendre d'une
+     unité vh/dvh figée au moment du rendu. */
   position: fixed;
   inset: 0;
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
   z-index: 3000;
   display: flex;
   flex-direction: column;
