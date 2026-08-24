@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initPizzaBaseNav();
   initContestCountdown();
   initContestPresence();
+  initContestModal();
+  initPanuzoStatus();
   initPanuzoReminder();
 });
 
@@ -92,6 +94,96 @@ function initContestPresence() {
       if (footerDaysEl) footerDaysEl.textContent = days;
     }
   }
+}
+
+// ---------- Panuzo : configuration centrale ----------
+// Le Panuzo est une offre éphémère du lundi. Le prix, le nom et les
+// ingrédients se modifient UNIQUEMENT ici : chaque point de contact du
+// site (accueil, menu, réseaux, pied de page sur toutes les pages) lit
+// cette même source via getPanuzoStatus() plutôt que d'avoir son propre
+// texte figé — impossible qu'une section dise "aujourd'hui" pendant
+// qu'une autre dit "lundi prochain" ou affiche un autre prix.
+const PANUZO_CONFIG = {
+  name: 'Panuzo',
+  price: '9,90 €',
+  weekday: 1, // jour de disponibilité : 0 = dimanche … 1 = lundi … 6 = samedi (comme Date#getDay())
+  ingredients: ['Pesto', 'Salade fraîche', 'Charcuterie de bœuf', 'Burrata', "Huile d'olive"],
+};
+
+// Jour de la semaine actuel au restaurant (Hénin-Beaumont), jamais celui
+// de l'appareil du visiteur : un client connecté depuis l'étranger doit
+// voir exactement la même chose qu'un client sur place. Intl gère
+// nativement le passage heure d'été/hiver via la base de fuseaux IANA —
+// aucune librairie de dates nécessaire pour ça. Retourne 0 (dimanche) à
+// 6 (samedi), même convention que Date#getDay().
+function getParisWeekday() {
+  const short = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Paris', weekday: 'short' }).format(new Date());
+  return { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[short];
+}
+
+// Source unique de vérité pour tout ce que le site raconte sur le Panuzo
+// à l'instant présent. Chaque composant (accueil, menu, réseaux, pied de
+// page) appelle cette même fonction dans applyPanuzoStatus() ci-dessous.
+function getPanuzoStatus() {
+  const isToday = getParisWeekday() === PANUZO_CONFIG.weekday;
+  const marqueePhrase = isToday
+    ? `🔥 C'EST AUJOURD'HUI ✦ ${PANUZO_CONFIG.price} ✦`
+    : 'TOUS LES LUNDIS ✦ EN ÉPHÉMÈRE ✦';
+  return {
+    isToday,
+    name: PANUZO_CONFIG.name,
+    price: PANUZO_CONFIG.price,
+    ingredientsText: PANUZO_CONFIG.ingredients.join(', '),
+    tag: isToday ? "🔥 C'est aujourd'hui !" : 'Tous les lundis · En éphémère',
+    priceLine: isToday ? `Aujourd'hui seulement — ${PANUZO_CONFIG.price}` : `${PANUZO_CONFIG.price} le lundi`,
+    badgeLine1Html: isToday ? "C'est<br>aujourd'hui" : 'Tous les<br>lundis',
+    badgeLine2: isToday ? `${PANUZO_CONFIG.price} !` : 'En éphémère !',
+    marqueePhrase,
+    marqueeText: `${marqueePhrase} ${marqueePhrase}`,
+    footerHtml: isToday
+      ? `🔥 Aujourd'hui : le <strong>${PANUZO_CONFIG.name}</strong>, ${PANUZO_CONFIG.price} !`
+      : `🥖 Nouveau : le <strong>${PANUZO_CONFIG.name}</strong>, tous les lundis en éphémère`,
+  };
+}
+
+// Applique le statut du jour à tous les points de contact présents sur la
+// page courante — chaque page n'en a qu'une partie (guard clause par
+// élément), rien ne casse sur les pages qui n'en ont aucun.
+function applyPanuzoStatus(status) {
+  document.querySelectorAll('[data-panuzo="marquee"]').forEach((el) => { el.textContent = status.marqueeText; });
+
+  const badgeLine1 = document.getElementById('panuzo-badge-line1');
+  const badgeLine2 = document.getElementById('panuzo-badge-line2');
+  if (badgeLine1) badgeLine1.innerHTML = status.badgeLine1Html;
+  if (badgeLine2) badgeLine2.textContent = status.badgeLine2;
+
+  document.querySelectorAll('[data-panuzo="tag"]').forEach((el) => { el.textContent = status.tag; });
+  document.querySelectorAll('[data-panuzo="price-line"]').forEach((el) => { el.textContent = status.priceLine; });
+
+  const footerText = document.getElementById('footer-panuzo-text');
+  if (footerText) footerText.innerHTML = status.footerHtml;
+
+  // Accroche visuelle "jour spécial" (voir .is-panuzo-today dans le CSS) —
+  // posée sur les conteneurs racines des 3 composants Panuzo réutilisables.
+  document.querySelectorAll('[data-panuzo-root]').forEach((el) => { el.classList.toggle('is-panuzo-today', status.isToday); });
+}
+
+// Affiche le bon statut au chargement, puis le tient à jour tout seul si
+// l'onglet reste ouvert jusqu'au changement de jour (ex. lundi soir ->
+// mardi minuit) : une vérification légère toutes les minutes suffit très
+// largement ici, pas besoin d'un minuteur précis à la seconde près pour
+// un changement de jour. La comparaison avec le dernier statut connu
+// évite de réécrire le DOM 1440 fois par jour pour rien.
+function initPanuzoStatus() {
+  let lastIsToday = null;
+  const render = () => {
+    const status = getPanuzoStatus();
+    if (status.isToday === lastIsToday) return;
+    lastIsToday = status.isToday;
+    applyPanuzoStatus(status);
+  };
+  render();
+  window.setInterval(render, 60000);
 }
 
 // Bouton "rappel calendrier" du teaser Panuzo (index.html) : génère un
@@ -185,6 +277,103 @@ function initContestCountdown() {
 
   numberEl.textContent = days;
   labelEl.textContent = days === 1 ? 'jour avant le tirage au sort' : 'jours avant le tirage au sort';
+}
+
+// Pop-up "derniers jours" du jeu concours, affichée à l'arrivée sur le
+// site. Réutilise daysUntilContestDraw() — jamais de deuxième date codée
+// en dur : modifier la fin du concours se fait à un seul endroit, tout en
+// haut de ce fichier. Une seule apparition par session pour une même
+// urgence (clé sessionStorage ci-dessous, comparée au nombre de jours
+// restants) : si le visiteur revient un autre jour — donc dans une
+// nouvelle session la plupart du temps — le compte a changé et la pop-up
+// peut réapparaître, sans logique de fréquence plus compliquée que ça.
+function initContestModal() {
+  const modal = document.getElementById('contest-modal');
+  if (!modal) return;
+
+  const days = daysUntilContestDraw();
+  if (days < 0) return; // tirage déjà passé : jamais affichée après la fin
+
+  let alreadySeenForThisUrgency = false;
+  try {
+    alreadySeenForThisUrgency = sessionStorage.getItem('subitoContestModalSeen') === String(days);
+  } catch (e) { /* stockage indisponible : la pop-up pourra réapparaître à chaque visite, tant pis */ }
+  if (alreadySeenForThisUrgency) return;
+
+  const backdrop = modal.querySelector('.contest-modal__backdrop');
+  const panel = modal.querySelector('.contest-modal__panel');
+  const closeBtn = document.getElementById('contest-modal-close');
+  const cta = document.getElementById('contest-modal-cta');
+  const badgeEl = document.getElementById('contest-modal-badge');
+  const countWrapEl = document.getElementById('contest-modal-count-wrap');
+  const countEl = document.getElementById('contest-modal-count');
+  const countLabelEl = document.getElementById('contest-modal-count-label');
+  const titleEl = document.getElementById('contest-modal-title');
+  if (!panel || !closeBtn) return;
+
+  // Formulation adaptée à l'urgence réelle — jamais "0 jour restant" :
+  // le dernier jour a sa propre phrase, sans le gros chiffre.
+  if (days === 0) {
+    if (badgeEl) badgeEl.textContent = '🎉 Dernier jour — jeu concours';
+    if (countWrapEl) countWrapEl.hidden = true;
+    if (titleEl) titleEl.textContent = "Dernière chance : c'est aujourd'hui !";
+  } else {
+    if (badgeEl) badgeEl.textContent = '🎉 Derniers jours — jeu concours';
+    if (countWrapEl) countWrapEl.hidden = false;
+    if (countEl) countEl.textContent = String(days);
+    if (countLabelEl) countLabelEl.textContent = days === 1 ? 'jour' : 'jours';
+    if (titleEl) {
+      titleEl.textContent = days === 1
+        ? "Plus qu'1 jour pour participer !"
+        : `Plus que ${days} jours pour participer !`;
+    }
+  }
+
+  let lastFocused = null;
+
+  const getFocusable = () => Array.from(modal.querySelectorAll('a[href], button:not([disabled])'));
+
+  const onKeydown = (e) => {
+    if (e.key === 'Escape') { closeModal(); return; }
+    if (e.key !== 'Tab') return;
+    const focusable = getFocusable();
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+
+  function closeModal() {
+    if (!modal.classList.contains('is-open')) return;
+    modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onKeydown);
+    if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+  }
+
+  function openModal() {
+    lastFocused = document.activeElement;
+    modal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    try { sessionStorage.setItem('subitoContestModalSeen', String(days)); } catch (e) { /* tant pis */ }
+    closeBtn.focus();
+    document.addEventListener('keydown', onKeydown);
+  }
+
+  closeBtn.addEventListener('click', closeModal);
+  if (backdrop) backdrop.addEventListener('click', closeModal);
+  if (cta) cta.addEventListener('click', closeModal); // navigation normale ensuite, aucun preventDefault
+
+  const introSplash = document.getElementById('intro-splash');
+  if (introSplash) {
+    // L'accueil a déjà son propre voile de bienvenue au chargement : on
+    // attend qu'il se dissipe avant de superposer la pop-up, pour ne
+    // jamais empiler deux écrans plein cadre en même temps.
+    window.addEventListener('subito:introDismissed', () => window.setTimeout(openModal, 400), { once: true });
+  } else {
+    window.setTimeout(openModal, 600);
+  }
 }
 
 // Fenêtre "10 000 jours" : le jour exact où le seuil est franchi, plus
@@ -1140,6 +1329,11 @@ function initIntroSplash() {
 
   if (alreadySeen || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     splash.remove();
+    // Même signal que le chemin interactif ci-dessous : la pop-up concours
+    // (initContestModal) attend cet événement avant de s'afficher sur
+    // l'accueil, pour ne jamais superposer deux écrans plein cadre — donc
+    // il doit aussi être émis quand le voile ne joue pas du tout.
+    window.dispatchEvent(new CustomEvent('subito:introDismissed'));
     return;
   }
 
@@ -1159,6 +1353,7 @@ function initIntroSplash() {
     splash.classList.add('is-hiding');
     try { sessionStorage.setItem('subitoIntroSeen', '1'); } catch (e) { /* tant pis, l'intro rejouera */ }
     dismissEvents.forEach(([target, type]) => target.removeEventListener(type, dismiss));
+    window.dispatchEvent(new CustomEvent('subito:introDismissed'));
     setTimeout(() => splash.remove(), 950);
   };
 

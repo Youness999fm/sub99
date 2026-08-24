@@ -2254,6 +2254,166 @@ section { padding: 32px 20px; }
   text-decoration: underline;
 }
 
+/* ---------- Pop-up "derniers jours" (jeu concours) ----------
+   Au-dessus de tout le reste du site, y compris le voile d'intro de
+   l'accueil (z-index 3000, voir plus haut) : voir initContestModal() dans
+   main.js pour le calcul des jours (même source que le reste des points
+   de contact concours ci-dessus) et la règle d'affichage. Reprend
+   volontairement le langage visuel de .contest-card (dégradé vert, cadre
+   or, gros chiffre) pour que la pop-up se sente comme une vraie extension
+   du site plutôt qu'une bannière publicitaire ajoutée après coup. */
+.contest-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 3600;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  padding-top: calc(20px + env(safe-area-inset-top));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+
+.contest-modal.is-open { display: flex; }
+
+.contest-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  /* Vert très sombre plutôt que noir pur : assez présent pour concentrer
+     l'attention, sans donner l'impression que le site est cassé. */
+  background: rgba(7, 29, 19, 0.72);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.contest-modal.is-open .contest-modal__backdrop { opacity: 1; }
+
+.contest-modal__panel {
+  position: relative;
+  width: min(94vw, 420px);
+  max-height: min(88vh, 640px);
+  overflow-y: auto;
+  background: linear-gradient(160deg, var(--green) 0%, var(--green-dark) 100%);
+  border: 2px solid var(--gold);
+  border-radius: var(--radius);
+  box-shadow: 0 30px 70px -20px rgba(5, 15, 10, 0.65);
+  padding: 42px 26px 30px;
+  text-align: center;
+  color: #fff;
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+  transition: opacity 0.32s cubic-bezier(0.22, 0.75, 0.2, 1), transform 0.32s cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+.contest-modal.is-open .contest-modal__panel {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.contest-modal__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.contest-modal__close:hover { background: rgba(255, 255, 255, 0.26); }
+
+.contest-modal__close:focus-visible {
+  background: rgba(255, 255, 255, 0.26);
+  outline: 3px solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.contest-modal__badge {
+  margin: 0 0 18px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+}
+
+.contest-modal__count-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 14px;
+}
+
+.contest-modal__count-wrap[hidden] { display: none; }
+
+.contest-modal__count {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(3.4rem, 20vw, 4.4rem);
+  line-height: 0.9;
+  background: linear-gradient(180deg, #fff 0%, rgba(255, 255, 255, 0.55) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.contest-modal__count-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.contest-modal__title {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 5vw, 1.4rem);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.contest-modal__desc {
+  margin: 0 0 24px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.contest-modal__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 8px;
+  font-size: 1.02rem;
+  padding: 15px 24px;
+  animation: contest-modal-cta-pulse 2.4s ease-in-out infinite;
+}
+
+.contest-modal__cta:focus-visible {
+  outline: 3px solid var(--gold-bright);
+  outline-offset: 3px;
+}
+
+@keyframes contest-modal-cta-pulse {
+  0%, 100% { box-shadow: 0 8px 20px -10px rgba(214, 40, 40, 0.55); }
+  50% { box-shadow: 0 10px 28px -6px rgba(214, 40, 40, 0.85); }
+}
+
+@media (min-width: 760px) {
+  .contest-modal__cta { width: auto; min-width: 220px; }
+}
+
 /* Carte teaser Panuzo (reseaux.html) — même famille que .contest-card,
    palette charbon/or pour rester distincte du vert du concours. */
 .panuzo-card {
@@ -2299,6 +2459,24 @@ section { padding: 32px 20px; }
   color: var(--gold-bright);
 }
 
+.panuzo-card__price {
+  margin: 0 0 14px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.3rem;
+  color: #fff;
+}
+
+/* Jour de disponibilité (voir initPanuzoStatus() dans main.js) : accent
+   discret plutôt qu'un habillage complet — le badge et le prix suffisent
+   à faire sentir "aujourd'hui c'est le jour du Panuzo" sans transformer
+   la carte en publicité. */
+.panuzo-card.is-panuzo-today {
+  box-shadow: 0 0 0 2px var(--gold-bright), 0 24px 50px -22px rgba(0, 0, 0, 0.55);
+}
+
+.panuzo-card.is-panuzo-today .panuzo-card__price { color: var(--gold-bright); }
+
 .panuzo-card__text {
   margin: 0 auto 20px;
   max-width: 46ch;
@@ -2320,8 +2498,9 @@ section { padding: 32px 20px; }
 /* Section "Panuzo" du menu (menu.html) — une vraie catégorie au même
    titre que les autres (présente dans .menu-jump / .menu-quicknav), mais
    dont le contenu reprend la palette charbon/or de .panuzo-card plutôt
-   qu'une grille .menu-item classique : le produit n'a ni prix ni
-   disponibilité confirmée, donc pas de fiche produit comme les autres. */
+   qu'une grille .menu-item classique : offre éphémère du lundi, pas une
+   fiche produit comme les autres (prix et statut pilotés par
+   initPanuzoStatus() dans main.js, voir .is-panuzo-today plus bas). */
 .menu-category--panuzo .menu-category__title { color: var(--gold-bright); }
 
 .panuzo-menu-feature {
@@ -2378,6 +2557,20 @@ section { padding: 32px 20px; }
   font-size: 1.8rem;
   text-transform: uppercase;
 }
+
+.panuzo-menu-feature__price {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: #fff;
+}
+
+.panuzo-menu-feature.is-panuzo-today {
+  box-shadow: 0 0 0 2px var(--gold-bright), 0 24px 50px -22px rgba(0, 0, 0, 0.55);
+}
+
+.panuzo-menu-feature.is-panuzo-today .panuzo-menu-feature__price { color: var(--gold-bright); }
 
 .panuzo-menu-feature__ingredients {
   margin: 0 0 10px;
@@ -4390,6 +4583,13 @@ html.no-js .intro-splash {
   max-width: 360px;
 }
 
+/* 5 ingrédients sur une grille à 2 colonnes : le dernier occupe la ligne
+   entière, centré, plutôt que de laisser une case vide à côté de lui. */
+.panuzo-teaser__ingredients li:last-child {
+  grid-column: 1 / -1;
+  justify-content: center;
+}
+
 .panuzo-teaser__ingredients li {
   display: flex;
   align-items: center;
@@ -4408,6 +4608,30 @@ html.no-js .intro-splash {
   letter-spacing: 0.2px;
   color: rgba(255, 255, 255, 0.88);
   line-height: 1.25;
+}
+
+/* Prix, piloté par initPanuzoStatus() (main.js) : "Aujourd'hui seulement
+   — 9,90 €" le lundi, "9,90 € le lundi" le reste de la semaine — jamais
+   figé en dur ici. */
+.panuzo-teaser__price {
+  margin: 14px 0 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.3rem;
+  color: var(--gold-bright);
+}
+
+/* Jour de disponibilité : lueur dorée pulsée très discrète sur le badge
+   du plat, seul accent "aujourd'hui" du composant — la règle globale
+   prefers-reduced-motion (tout en haut du fichier) neutralise déjà cette
+   animation pour les visiteurs qui la refusent. */
+.panuzo-teaser.is-panuzo-today .panuzo-teaser__badge {
+  animation: panuzoTodayPulse 2.6s ease-in-out infinite;
+}
+
+@keyframes panuzoTodayPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(28, 27, 25, 0.9), 0 14px 26px -10px rgba(0, 0, 0, 0.7); }
+  50% { box-shadow: 0 0 0 4px rgba(28, 27, 25, 0.9), 0 14px 26px -10px rgba(0, 0, 0, 0.7), 0 0 0 9px rgba(255, 209, 102, 0.28); }
 }
 
 /* Double bandeau "twist" — le levier narratif du flyer : Subito propose,
