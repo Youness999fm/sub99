@@ -1349,6 +1349,39 @@ function initPizzaBaseNav() {
   });
 }
 
+// Filet de sécurité iOS Safari pour l'écran d'intro plein cadre : le CSS
+// (position:fixed + inset:0, sans hauteur explicite) suffit sur la quasi-
+// totalité des navigateurs, mais Safari iOS a un historique connu de
+// désynchronisation entre le viewport "de mise en page" (utilisé par
+// position:fixed) et la zone RÉELLEMENT visible à l'écran, notamment juste
+// après le premier rendu quand sa barre d'outils se réduit toute seule.
+// La Visual Viewport API (native, aucune dépendance, supportée par Safari
+// iOS depuis 2020) donne la taille et la position réellement affichées à
+// l'instant présent, et se met à jour à chaque changement — rotation,
+// redimensionnement, barre d'outils qui apparaît/disparaît, clavier
+// virtuel. Fixer explicitement width/height/top/left avec ces valeurs
+// prime sur inset:0 (résolution CSS standard d'une boîte sur-contrainte)
+// et colle le voile au pixel près sur ce que l'utilisateur voit vraiment.
+function syncSplashToVisualViewport(splash) {
+  const vv = window.visualViewport;
+  if (!vv) return () => {}; // API absente : le CSS seul (déjà correct) reste actif
+
+  const apply = () => {
+    splash.style.width = `${vv.width}px`;
+    splash.style.height = `${vv.height}px`;
+    splash.style.left = `${vv.offsetLeft}px`;
+    splash.style.top = `${vv.offsetTop}px`;
+  };
+  apply();
+  vv.addEventListener('resize', apply);
+  vv.addEventListener('scroll', apply);
+
+  return () => {
+    vv.removeEventListener('resize', apply);
+    vv.removeEventListener('scroll', apply);
+  };
+}
+
 function initIntroSplash() {
   const splash = document.getElementById('intro-splash');
   if (!splash) return;
@@ -1375,6 +1408,7 @@ function initIntroSplash() {
   // dismiss() ci-dessous, jamais après le fondu — donc un geste de scroll
   // fait toujours défiler la page tout de suite, comme avant.
   document.body.style.overflow = 'hidden';
+  const stopSyncingViewport = syncSplashToVisualViewport(splash);
 
   let dismissed = false;
 
@@ -1382,6 +1416,7 @@ function initIntroSplash() {
     if (dismissed) return;
     dismissed = true;
     document.body.style.overflow = '';
+    stopSyncingViewport();
     splash.classList.add('is-hiding');
     try { sessionStorage.setItem('subitoIntroSeen', '1'); } catch (e) { /* tant pis, l'intro rejouera */ }
     dismissEvents.forEach(([target, type]) => target.removeEventListener(type, dismiss));
