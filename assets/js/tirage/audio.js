@@ -3,16 +3,22 @@
 // un contrôle total du timing (synchronisation fine avec les animations)
 // et un poids réseau nul.
 //
-// Règles non négociables : son coupé par défaut (aucun autoplay agressif),
-// activable par un geste explicite de l'utilisateur, préférence mémorisée.
-
+// Règle non négociable : jamais d'autoplay avant un vrai geste utilisateur
+// (impossible techniquement de toute façon — Chrome/Safari/TikTok in-app
+// bloquent l'audio sans interaction). Le son est actif "par préférence" dès
+// le départ (pas de bouton "cliquez pour activer" séparé) : le vrai
+// démarrage se fait au moment du geste déjà obligatoire pour voir le show —
+// tirer le levier (voir ensureContext(), appelé depuis activateMachine()
+// dans main.js). Le bouton en haut de page ne sert qu'à couper le son si on
+// le souhaite, jamais à mentir sur un état "activé" qui ne jouerait rien.
 const STORAGE_KEY = 'subitoTirageSoundOn';
 
 export class SoundEngine {
   constructor() {
     this.ctx = null;
     this.master = null;
-    this.enabled = localStorage.getItem(STORAGE_KEY) === '1';
+    const stored = localStorage.getItem(STORAGE_KEY);
+    this.enabled = stored === null ? true : stored === '1';
     this._activeLoops = new Set();
   }
 

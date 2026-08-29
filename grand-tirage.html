@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Le Grand Tirage — les 30 gagnants du concours — Subito Pizza Hénin-Beaumont</title>
 <meta name="description" content="Découvrez en direct les 30 gagnants du concours Subito Pizza : 15 gagnants de 2 pizzas XXL et 15 gagnants d'un tiramisu. Cherchez votre pseudo !">
+<meta name="robots" content="noindex, nofollow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Subito Pizza">
 <meta property="og:title" content="Le Grand Tirage — les 30 gagnants du concours Subito">
 <meta property="og:description" content="15 gagnants de 2 pizzas XXL + 15 gagnants d'un tiramisu. Découvrez le show et cherchez votre pseudo.">
 <meta property="og:image" content="https://www.subito-pizza-heninbeaumont.fr/assets/img/logo.jpg">
-<meta property="og:url" content="https://www.subito-pizza-heninbeaumont.fr/grand-tirage.html">
+<meta property="og:url" content="https://www.subito-pizza-heninbeaumont.fr/tirage-au-sort">
 <meta property="og:locale" content="fr_FR">
-<link rel="canonical" href="https://www.subito-pizza-heninbeaumont.fr/grand-tirage.html">
+<link rel="canonical" href="https://www.subito-pizza-heninbeaumont.fr/tirage-au-sort">
 <meta name="twitter:card" content="summary">
 <link rel="shortcut icon" href="/favicon.ico">
 <link rel="icon" href="assets/img/icons/favicon-32.png" sizes="32x32" type="image/png">
@@ -78,18 +79,42 @@
 
   <div id="tirage-announcer" class="visually-hidden" aria-live="polite"></div>
 
-  <button type="button" id="tirage-sound-toggle" class="tirage-sound-toggle" aria-pressed="false">🔇 Son coupé</button>
+  <button type="button" id="tirage-sound-toggle" class="tirage-sound-toggle" aria-pressed="true">🔊 Son</button>
 
   <section class="tirage-stage-wrapper" id="tirage-stage-wrapper" aria-hidden="false">
     <canvas id="tirage-canvas" aria-hidden="true"></canvas>
 
     <div class="tirage-hero" id="tirage-hero">
-      <p class="tirage-hero__eyebrow">Subito Pizza — édition spéciale concours</p>
+      <img class="tirage-hero__logo" src="assets/img/logo.jpg" alt="Subito Pizza — Original depuis 1999">
+
+      <p class="tirage-hero__eyebrow">Subito Pizza · Hénin-Beaumont</p>
+
+      <p class="tirage-heritage-pill">🍕 Depuis 1999 · <span id="tirage-heritage-years">27</span> ans de fidélité</p>
+
       <h1 class="tirage-hero__title">Le Grand Tirage</h1>
-      <div class="tirage-hero__stats" aria-hidden="true">
-        <span>250 participants</span>
-        <span>30 gagnants</span>
-        <span>45 cadeaux</span>
+      <p class="tirage-hero__tagline">Depuis 1999, c'est vous qui nous faites tourner.<br>Aujourd'hui, Subito vous dit merci — en grand.</p>
+
+      <div class="tirage-stats" aria-label="Chiffres du concours">
+        <div class="tirage-stat">
+          <span class="tirage-stat__icon" aria-hidden="true">👥</span>
+          <span class="tirage-stat__number" id="tirage-stat-participants" data-count-to="250">0</span>
+          <span class="tirage-stat__label">participants</span>
+        </div>
+        <div class="tirage-stat">
+          <span class="tirage-stat__icon" aria-hidden="true">🏆</span>
+          <span class="tirage-stat__number" id="tirage-stat-winners" data-count-to="30">0</span>
+          <span class="tirage-stat__label">gagnants</span>
+        </div>
+        <div class="tirage-stat">
+          <span class="tirage-stat__icon" aria-hidden="true">🎁</span>
+          <span class="tirage-stat__number" id="tirage-stat-gifts" data-count-to="45">0</span>
+          <span class="tirage-stat__label">cadeaux</span>
+        </div>
+      </div>
+
+      <div class="tirage-prizes-chips">
+        <span class="tirage-prize-chip">🍕🍕 2 Pizzas XXL</span>
+        <span class="tirage-prize-chip tirage-prize-chip--tiramisu">🍰 1 Tiramisu</span>
       </div>
 
       <button type="button" id="tirage-lever" class="tirage-lever" aria-label="Activer la machine et découvrir les gagnants">
@@ -100,10 +125,14 @@
         <span class="tirage-lever__label">Tirer le levier</span>
       </button>
 
+      <p class="tirage-hero__trust">🍕 Jeu organisé par Subito Pizza — 333 rue Elie Gruyelle, Hénin-Beaumont</p>
+
       <a href="#tirage-resultats" id="tirage-skip" class="tirage-skip">Passer directement aux résultats →</a>
     </div>
 
     <div id="tirage-stage"></div>
+
+    <div class="tirage-live-list" id="tirage-live-list" aria-hidden="true" hidden></div>
 
     <div class="tirage-counter" id="tirage-counter" hidden aria-hidden="true">
       <span class="tirage-counter__number" id="tirage-counter-number">250</span>

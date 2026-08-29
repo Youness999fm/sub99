@@ -60,6 +60,13 @@
   align-items: center;
   justify-content: center;
   isolation: isolate;
+  /* Décor de scène : un halo chaud façon projecteur au centre, qui se
+     fond dans le vert profond de la marque sur les bords — la base "grand
+     événement" sur laquelle le canvas de particules vient se superposer. */
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 32%, rgba(255, 209, 102, 0.16) 0%, rgba(255, 209, 102, 0) 70%),
+    radial-gradient(ellipse 120% 80% at 50% 100%, rgba(214, 40, 40, 0.1) 0%, rgba(214, 40, 40, 0) 60%),
+    var(--green-dark);
 }
 
 #tirage-canvas {
@@ -107,38 +114,127 @@
   position: absolute;
 }
 
+.tirage-hero__logo {
+  display: block;
+  height: 64px;
+  width: auto;
+  margin: 0 auto 18px;
+  border-radius: 8px;
+  box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.55);
+}
+
 .tirage-hero__eyebrow {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--gold-bright);
   font-size: 0.78rem;
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
+
+/* Pastille "depuis 1999" — la marque a une vraie histoire, ça doit se
+   voir dès le premier écran, pas seulement dans le pied de page. */
+.tirage-heritage-pill {
+  display: inline-block;
+  margin: 0 0 18px;
+  padding: 7px 16px;
+  border: 1px solid rgba(212, 175, 100, 0.5);
+  border-radius: 999px;
+  background: rgba(255, 209, 102, 0.08);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(244, 239, 228, 0.9);
+}
+
+.tirage-heritage-pill span { font-variant-numeric: tabular-nums; }
 
 .tirage-hero__title {
   font-family: var(--font-display);
   font-size: clamp(2.4rem, 8vw, 4.2rem);
   line-height: 1.05;
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   color: #fdf6e3;
   text-shadow: 0 0 40px rgba(255, 209, 102, 0.25);
 }
 
-.tirage-hero__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  margin: 0 0 40px;
-  font-size: 0.95rem;
+.tirage-hero__tagline {
+  margin: 0 0 30px;
+  font-size: 1rem;
+  line-height: 1.5;
   color: rgba(244, 239, 228, 0.85);
 }
 
-.tirage-hero__stats span {
-  border: 1px solid rgba(212, 175, 100, 0.4);
+/* Cartes stats : vrai contenu accessible (plus de aria-hidden), chiffre
+   compté en direct via initStatsCountUp() (tirage/main.js). */
+.tirage-stats {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 0 0 22px;
+}
+
+.tirage-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  max-width: 120px;
+  padding: 14px 8px 12px;
+  border: 1px solid rgba(212, 175, 100, 0.35);
+  border-radius: 14px;
+  background: rgba(9, 42, 27, 0.4);
+}
+
+.tirage-stat__icon {
+  font-size: 1.2rem;
+  margin-bottom: 2px;
+}
+
+.tirage-stat__number {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  color: #fdf6e3;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.tirage-stat__label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+}
+
+/* Les lots réels, visibles avant même de tirer le levier. */
+.tirage-prizes-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 0 0 34px;
+}
+
+.tirage-prize-chip {
+  padding: 7px 14px;
   border-radius: 999px;
-  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fdf6e3;
+}
+
+.tirage-prize-chip--tiramisu {
+  border-color: rgba(232, 199, 154, 0.5);
+}
+
+.tirage-hero__trust {
+  margin: 22px 0 0;
+  font-size: 0.74rem;
+  color: rgba(244, 239, 228, 0.55);
 }
 
 /* Levier : armature simple en CSS (pas de modèle 3D), effet ressort via
@@ -236,89 +332,208 @@
   color: var(--gold-bright);
 }
 
-/* ---------- Scène de révélation (tickets) ---------- */
+/* ---------- Scène de révélation ---------- */
 
 #tirage-stage {
   position: relative;
   z-index: 2;
   width: min(92vw, 420px);
-  height: 260px;
+  height: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
-  perspective: 1200px;
+  overflow: visible;
 }
 
-.tirage-ticket {
-  width: 240px;
-  height: 150px;
+/* Étape 1 — préparation : frémissement très bref de la scène, sans texte. */
+.tirage-stage--prep {
+  animation: tirageStagePrep 0.4s ease-in-out;
 }
 
-.tirage-ticket__inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
+@keyframes tirageStagePrep {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
 }
 
-.tirage-ticket__face {
+/* Étape 3 — flash au moment de la révélation, avant l'apparition de la carte. */
+.tirage-stage--flash::before {
+  content: "";
   position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
-  border-radius: 14px;
+  inset: -40px;
+  z-index: 0;
+  background: radial-gradient(circle, rgba(255, 236, 190, 0.9) 0%, rgba(255, 209, 102, 0.35) 35%, transparent 70%);
+  animation: tirageFlash 0.28s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes tirageFlash {
+  0% { opacity: 0; transform: scale(0.4); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+
+/* Étape 2 — suspense : "Et le gagnant est…" avec un ticket qui respire. */
+.tirage-suspense {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px;
+  gap: 10px;
+}
+
+.tirage-suspense__ticket {
+  font-size: 2.4rem;
+  animation: tirageSuspenseTicket 1.1s ease-in-out infinite;
+  filter: drop-shadow(0 0 14px rgba(255, 209, 102, 0.5));
+}
+
+@keyframes tirageSuspenseTicket {
+  0%, 100% { transform: rotate(-6deg) scale(1); }
+  50% { transform: rotate(6deg) scale(1.08); }
+}
+
+.tirage-suspense__text {
+  margin: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.1rem;
+  color: rgba(244, 239, 228, 0.85);
+  letter-spacing: 0.02em;
+}
+
+/* La carte du gagnant — le vrai héros de la scène : lumineuse, dorée,
+   avec de la profondeur, jamais une simple div qui surgit. */
+.tirage-winner-card {
+  position: relative;
+  width: min(84vw, 300px);
+  padding: 30px 22px 24px;
+  border-radius: 22px;
   text-align: center;
-}
-
-.tirage-ticket__face--front {
-  background: repeating-linear-gradient(135deg, #123a28, #123a28 10px, #0e3222 10px, #0e3222 20px);
-  border: 2px dashed rgba(212, 175, 100, 0.55);
-  color: var(--gold-bright);
-}
-
-.tirage-ticket__face--back {
-  transform: rotateY(180deg);
-  background: linear-gradient(160deg, #fdf6e3, #f1dfae);
-  border: 2px solid var(--gold);
+  background: linear-gradient(165deg, #fffaf0 0%, #fbecc9 55%, #f3dca4 100%);
+  border: 1px solid rgba(212, 175, 100, 0.9);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset,
+    0 24px 60px -18px rgba(0, 0, 0, 0.55),
+    0 0 70px -10px rgba(255, 209, 102, 0.45);
   color: var(--green-dark);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
 }
 
-.tirage-ticket--tiramisu .tirage-ticket__face--back {
-  background: linear-gradient(160deg, #fff3e2, #e8c79a);
+.tirage-winner-card--tiramisu {
+  background: linear-gradient(165deg, #fff9f2 0%, #f6e2c7 55%, #ecceA0 100%);
 }
 
-.tirage-ticket__hash {
+.tirage-winner-card--ultimate {
+  border-color: var(--gold-bright);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset,
+    0 28px 70px -16px rgba(0, 0, 0, 0.6),
+    0 0 110px -6px rgba(255, 209, 102, 0.65);
+}
+
+/* Les deux petits éléments qui encadrent le badge — décoratifs, discrets,
+   ne doivent jamais concurrencer le nom du gagnant. */
+.tirage-winner-card__decor {
+  position: absolute;
+  top: -14px;
+  font-size: 1.5rem;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
+  animation: tirageDecorFloat 2.6s ease-in-out infinite;
+}
+
+.tirage-winner-card__decor--left { left: 14%; animation-delay: 0s; }
+.tirage-winner-card__decor--right { right: 14%; animation-delay: 0.4s; transform: scaleX(-1); }
+
+@keyframes tirageDecorFloat {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-4px) rotate(4deg); }
+}
+
+.tirage-winner-card__decor--right {
+  animation-name: tirageDecorFloatRight;
+}
+
+@keyframes tirageDecorFloatRight {
+  0%, 100% { transform: scaleX(-1) translateY(0) rotate(-4deg); }
+  50% { transform: scaleX(-1) translateY(-4px) rotate(4deg); }
+}
+
+.tirage-winner-card__badge {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--red-dark);
+}
+
+.tirage-winner-card__name {
+  margin: 0 0 12px;
   font-family: var(--font-display);
-  font-size: 1.6rem;
-  opacity: 0.85;
-}
-
-.tirage-ticket__mark {
-  font-size: 0.7rem;
-  letter-spacing: 0.3em;
-}
-
-.tirage-ticket__emoji {
-  font-size: 2.1rem;
-  line-height: 1;
-}
-
-.tirage-ticket__pseudo {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.25rem;
+  font-weight: 800;
+  font-size: clamp(1.5rem, 8vw, 2.1rem);
+  line-height: 1.1;
   word-break: break-word;
+  color: var(--green-dark);
 }
 
-.tirage-ticket__prize {
-  font-weight: 600;
-  font-size: 0.95rem;
+.tirage-winner-card__prize {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(168, 30, 30, 0.3);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--red-dark);
+}
+
+.tirage-winner-card__prize-icon {
+  font-size: 1.4rem;
+}
+
+/* Liste "derniers gagnants" — mirroir décoratif pendant le show (la vraie
+   liste complète, accessible, existe déjà dans #tirage-resultats). */
+.tirage-live-list {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 2;
+  width: min(90vw, 360px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.tirage-live-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(9, 42, 27, 0.72);
+  border: 1px solid rgba(212, 175, 100, 0.4);
+  backdrop-filter: blur(3px);
+  font-size: 0.78rem;
+}
+
+.tirage-live-item__icon { font-size: 0.9rem; }
+
+.tirage-live-item__name {
+  font-weight: 700;
+  color: #fdf6e3;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tirage-live-item__prize {
+  color: var(--gold-bright);
+  font-size: 0.72rem;
+  white-space: nowrap;
 }
 
 /* ---------- Compteur dramatisé (250 -> 30 -> 45) ---------- */
@@ -668,7 +883,11 @@
   .tirage-stage-wrapper--shake { animation: none; }
   .tirage-lever__arm { transition: none; }
   .tirage-hero--hidden { transition: opacity 0.2s ease; transform: none; }
-  .tirage-ticket__inner { transition: none !important; }
+  .tirage-stage--prep { animation: none; }
+  .tirage-stage--flash::before { animation: none; opacity: 0; }
+  .tirage-suspense__ticket { animation: none; }
+  .tirage-winner-card__decor,
+  .tirage-winner-card__decor--right { animation: none; }
   .tirage-curtain { transition: opacity 0.3s ease; transform: none; }
   .tirage-curtain--open { transform: none; opacity: 1; }
   .tirage-curtain__emoji { animation: none; opacity: 1; transform: none; }
@@ -678,6 +897,6 @@
 }
 
 @media (max-width: 480px) {
-  #tirage-stage { height: 210px; }
-  .tirage-ticket { width: 200px; height: 130px; }
+  #tirage-stage { height: 260px; }
+  .tirage-winner-card { padding: 24px 16px 20px; }
 }

@@ -45,10 +45,6 @@ Redirect 301 /salades/ /menu.html#salades
 Redirect 301 /boissons/ /menu.html#boissons
 Redirect 301 /glaces/ /menu.html#desserts
 
-# Alias courts vers la page des résultats du jeu concours (grand-tirage.html)
-# — pratiques pour un lien de bio TikTok. Les trois marchent, choisis celui
-# que tu préfères mettre sur TikTok (ou change d'avis plus tard, aucune des
-# deux ne nécessite de republier le site).
-Redirect 301 /concours /grand-tirage.html
-Redirect 301 /jeu-concours /grand-tirage.html
+# Lien unique de bio TikTok vers la page des résultats du jeu concours
+# (grand-tirage.html) — un seul alias volontairement, pas plusieurs.
 Redirect 301 /tirage-au-sort /grand-tirage.html

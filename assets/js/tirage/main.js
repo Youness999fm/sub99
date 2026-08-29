@@ -87,10 +87,64 @@ function renderSearchResult(query) {
   resultEl.querySelector('.tirage-share-btn').addEventListener('click', (e) => shareResult(winner, e.currentTarget));
 }
 
+// Ancienneté réelle de Subito Pizza (ouvert le 1ᵉʳ avril 1999), calculée
+// par le script partagé du site (assets/js/main.js, chargé avant celui-ci
+// sur cette page) — jamais une valeur codée en dur ici, pour ne jamais
+// afficher un nombre d'années différent de celui du reste du site.
+function renderHeritageYears() {
+  const el = $('tirage-heritage-years');
+  if (!el || typeof window.yearsSinceOpening !== 'function') return;
+  el.textContent = window.yearsSinceOpening();
+}
+
+// Anime les 3 chiffres du hero (250 participants / 30 gagnants / 45
+// cadeaux) en vrai comptage jusqu'à leur valeur réelle (lue depuis
+// data-count-to, jamais réinventée) au moment où le hero devient visible.
+// Contenu réel dans le DOM dès le départ (0), donc rien ne manque pour un
+// lecteur d'écran ou si le JS/l'animation est coupé.
+function initStatsCountUp(reduceMotion) {
+  const numbers = Array.from(document.querySelectorAll('.tirage-stat__number'));
+  if (!numbers.length) return;
+
+  const animate = (el) => {
+    const target = Number(el.dataset.countTo || 0);
+    if (reduceMotion || !target) {
+      el.textContent = target;
+      return;
+    }
+    const duration = 900;
+    const start = performance.now();
+    const step = (now) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = Math.round(target * eased);
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
+  if (!('IntersectionObserver' in window)) {
+    numbers.forEach(animate);
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        animate(entry.target);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  numbers.forEach((el) => observer.observe(el));
+}
+
 // ---------- Orchestration du show ----------
 
 async function boot() {
   renderResultsList();
+  renderHeritageYears();
 
   const check = validateWinners();
   if (!check.ok) {
@@ -130,6 +184,7 @@ async function boot() {
 
   const quality = await detectQualityTier();
   document.documentElement.dataset.tirageQuality = quality;
+  initStatsCountUp(quality === 'off');
 
   const canvas = $('tirage-canvas');
   const particleField = canvas ? new ParticleField(canvas, quality) : null;
@@ -149,6 +204,7 @@ async function boot() {
   const falseEndingEl = $('tirage-false-ending');
   const falseEndingText = $('tirage-false-ending-text');
   const curtainEl = $('tirage-curtain');
+  const liveListEl = $('tirage-live-list');
   const finalEl = $('tirage-final');
   const finalLines = finalEl ? Array.from(finalEl.querySelectorAll('[data-final-line]')) : [];
   const replayBtn = $('tirage-replay');
@@ -193,6 +249,7 @@ async function boot() {
   }
 
   async function runFalseEnding() {
+    if (liveListEl) liveListEl.hidden = true;
     falseEndingEl.hidden = false;
     falseEndingText.textContent = "C'EST TERMINÉ…";
     particleField?.setIntensity(0.03);
@@ -253,7 +310,8 @@ async function boot() {
     if (cancelled) return finishShow();
 
     announce('Acte 1 : les 15 gagnants de 2 pizzas XXL.');
-    engine = new RevealEngine({ stageEl: stage, particleField, sound: soundEngine, quality, onAnnounce: announce });
+    if (liveListEl) { liveListEl.innerHTML = ''; liveListEl.hidden = false; }
+    engine = new RevealEngine({ stageEl: stage, particleField, sound: soundEngine, quality, onAnnounce: announce, liveListEl });
     const pizzaWinners = WINNERS.filter((w) => w.prize === 'pizza');
     await engine.playAct(pizzaWinners);
     if (cancelled) return finishShow();
@@ -266,10 +324,12 @@ async function boot() {
     if (cancelled) return finishShow();
 
     announce('Mode Tiramisu activé : 15 gagnants supplémentaires.');
+    if (liveListEl) { liveListEl.innerHTML = ''; liveListEl.hidden = false; }
     const tiramisuWinners = WINNERS.filter((w) => w.prize === 'tiramisu');
-    await engine.playAct(tiramisuWinners);
+    await engine.playAct(tiramisuWinners, { ultimateFinaleIndex: tiramisuWinners.length - 1 });
     if (cancelled) return finishShow();
     engine.clearStage();
+    if (liveListEl) liveListEl.hidden = true;
 
     await runGrandFinal();
     finishShow();
@@ -279,6 +339,7 @@ async function boot() {
     showRunning = false;
     finalEl.hidden = true;
     finalLines.forEach((l) => l.classList.remove('is-active'));
+    if (liveListEl) liveListEl.hidden = true;
     particleField?.setPalette('green');
     particleField?.setIntensity(0.1);
     goToResults();
@@ -329,7 +390,7 @@ async function boot() {
       cancelled = true;
       if (engine) engine.cancel();
       hero.classList.add('tirage-hero--hidden');
-      [counterEl, falseEndingEl, curtainEl, finalEl].forEach((el) => { if (el) el.hidden = true; });
+      [counterEl, falseEndingEl, curtainEl, finalEl, liveListEl].forEach((el) => { if (el) el.hidden = true; });
       goToResults();
     });
   }
