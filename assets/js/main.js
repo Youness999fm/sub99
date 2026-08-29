@@ -15,15 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initParallax();
   initHeroCarousel();
   initYearCounter();
-  initHeroMilestone();
   initOrderStatus();
   initDaysCounter();
   initFinaleEmbers();
   initMenuJumpActive();
   initPizzaBaseNav();
-  initContestCountdown();
-  initContestPresence();
-  initContestModal();
   initPanuzoStatus();
   initPanuzoReminder();
 });
@@ -47,53 +43,6 @@ function saturdaysSinceOpening(target) {
   const firstSaturdayOffset = (6 - openingWeekday + 7) % 7;
   if (target < firstSaturdayOffset) return 0;
   return Math.floor((target - firstSaturdayOffset) / 7) + 1;
-}
-
-// Nombre de jours restants avant le tirage au sort du concours (vidéo
-// TikTok, 30 août), même logique de date civile (sans heure) que
-// daysSinceOpening() ci-dessus.
-function daysUntilContestDraw() {
-  const drawUTC = Date.UTC(2026, 7, 30); // 30 août 2026 (mois 0-indexé)
-  const now = new Date();
-  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.floor((drawUTC - todayUTC) / 86400000);
-}
-
-// Pilote les points de contact du concours ajoutés en dehors de la carte
-// détaillée (bandeau global, teaser accueil, pastille menu, ligne de pied
-// de page) : même règle que initContestCountdown() ci-dessus — calculé
-// depuis la vraie date du tirage, masqué proprement une fois le tirage
-// passé, sans jamais nécessiter de retrait manuel le 31 août.
-function initContestPresence() {
-  const days = daysUntilContestDraw();
-  const isOpen = days >= 0;
-  const daysLabel = days === 0 ? 'dernier jour !' : days === 1 ? "plus qu'1 jour" : `plus que ${days} jours`;
-
-  const ribbon = document.getElementById('event-ribbon');
-  if (ribbon) {
-    if (!isOpen) {
-      ribbon.hidden = true;
-    } else {
-      const daysEl = document.getElementById('event-ribbon-days');
-      if (daysEl) daysEl.textContent = daysLabel;
-    }
-  }
-
-  const teaser = document.getElementById('contest-teaser');
-  if (teaser && !isOpen) teaser.hidden = true;
-
-  const pill = document.getElementById('menu-contest-pill');
-  if (pill && !isOpen) pill.hidden = true;
-
-  const footerLine = document.getElementById('footer-contest-line');
-  if (footerLine) {
-    if (!isOpen) {
-      footerLine.hidden = true;
-    } else {
-      const footerDaysEl = document.getElementById('footer-contest-days');
-      if (footerDaysEl) footerDaysEl.textContent = days;
-    }
-  }
 }
 
 // ---------- Panuzo : configuration centrale ----------
@@ -254,159 +203,16 @@ function initPanuzoReminder() {
   });
 }
 
-function initContestCountdown() {
-  const wrap = document.getElementById('contest-countdown');
-  const numberEl = document.getElementById('contest-countdown-number');
-  const labelEl = document.getElementById('contest-countdown-label');
-  if (!wrap || !numberEl || !labelEl) return;
-
-  const days = daysUntilContestDraw();
-
-  if (days < 0) {
-    // Le tirage est déjà passé : un compte à rebours négatif n'aurait
-    // aucun sens, on masque le bloc plutôt que d'afficher un chiffre faux.
-    wrap.hidden = true;
-    return;
-  }
-
-  if (days === 0) {
-    numberEl.textContent = "🎉";
-    labelEl.textContent = "C'est aujourd'hui !";
-    return;
-  }
-
-  numberEl.textContent = days;
-  labelEl.textContent = days === 1 ? 'jour avant le tirage au sort' : 'jours avant le tirage au sort';
-}
-
-// Pop-up "derniers jours" du jeu concours, affichée à l'arrivée sur le
-// site. Réutilise daysUntilContestDraw() — jamais de deuxième date codée
-// en dur : modifier la fin du concours se fait à un seul endroit, tout en
-// haut de ce fichier. Une seule apparition par session pour une même
-// urgence (clé sessionStorage ci-dessous, comparée au nombre de jours
-// restants) : si le visiteur revient un autre jour — donc dans une
-// nouvelle session la plupart du temps — le compte a changé et la pop-up
-// peut réapparaître, sans logique de fréquence plus compliquée que ça.
-function initContestModal() {
-  const modal = document.getElementById('contest-modal');
-  if (!modal) return;
-
-  const days = daysUntilContestDraw();
-  if (days < 0) return; // tirage déjà passé : jamais affichée après la fin
-
-  let alreadySeenForThisUrgency = false;
-  try {
-    alreadySeenForThisUrgency = sessionStorage.getItem('subitoContestModalSeen') === String(days);
-  } catch (e) { /* stockage indisponible : la pop-up pourra réapparaître à chaque visite, tant pis */ }
-  if (alreadySeenForThisUrgency) return;
-
-  const backdrop = modal.querySelector('.contest-modal__backdrop');
-  const panel = modal.querySelector('.contest-modal__panel');
-  const closeBtn = document.getElementById('contest-modal-close');
-  const cta = document.getElementById('contest-modal-cta');
-  const badgeEl = document.getElementById('contest-modal-badge');
-  const countWrapEl = document.getElementById('contest-modal-count-wrap');
-  const countEl = document.getElementById('contest-modal-count');
-  const countLabelEl = document.getElementById('contest-modal-count-label');
-  const titleEl = document.getElementById('contest-modal-title');
-  if (!panel || !closeBtn) return;
-
-  // Formulation adaptée à l'urgence réelle — jamais "0 jour restant" :
-  // le dernier jour a sa propre phrase, sans le gros chiffre.
-  if (days === 0) {
-    if (badgeEl) badgeEl.textContent = '🎉 Dernier jour — jeu concours';
-    if (countWrapEl) countWrapEl.hidden = true;
-    if (titleEl) titleEl.textContent = "Dernière chance : c'est aujourd'hui !";
-  } else {
-    if (badgeEl) badgeEl.textContent = '🎉 Derniers jours — jeu concours';
-    if (countWrapEl) countWrapEl.hidden = false;
-    if (countEl) countEl.textContent = String(days);
-    if (countLabelEl) countLabelEl.textContent = days === 1 ? 'jour' : 'jours';
-    if (titleEl) {
-      titleEl.textContent = days === 1
-        ? "Plus qu'1 jour pour participer !"
-        : `Plus que ${days} jours pour participer !`;
-    }
-  }
-
-  let lastFocused = null;
-
-  const getFocusable = () => Array.from(modal.querySelectorAll('a[href], button:not([disabled])'));
-
-  const onKeydown = (e) => {
-    if (e.key === 'Escape') { closeModal(); return; }
-    if (e.key !== 'Tab') return;
-    const focusable = getFocusable();
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-  };
-
-  function closeModal() {
-    if (!modal.classList.contains('is-open')) return;
-    modal.classList.remove('is-open');
-    document.body.style.overflow = '';
-    document.removeEventListener('keydown', onKeydown);
-    if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
-  }
-
-  function openModal() {
-    lastFocused = document.activeElement;
-    modal.classList.add('is-open');
-    document.body.style.overflow = 'hidden';
-    try { sessionStorage.setItem('subitoContestModalSeen', String(days)); } catch (e) { /* tant pis */ }
-    closeBtn.focus();
-    document.addEventListener('keydown', onKeydown);
-  }
-
-  closeBtn.addEventListener('click', closeModal);
-  if (backdrop) backdrop.addEventListener('click', closeModal);
-  if (cta) cta.addEventListener('click', closeModal); // navigation normale ensuite, aucun preventDefault
-
-  const introSplash = document.getElementById('intro-splash');
-  if (introSplash) {
-    // L'accueil a déjà son propre voile de bienvenue au chargement : on
-    // attend qu'il se dissipe avant de superposer la pop-up, pour ne
-    // jamais empiler deux écrans plein cadre en même temps.
-    window.addEventListener('subito:introDismissed', () => window.setTimeout(openModal, 400), { once: true });
-  } else {
-    window.setTimeout(openModal, 600);
-  }
-}
-
-// Fenêtre "10 000 jours" : le jour exact où le seuil est franchi, plus
-// une marge (2 semaines, choix assumé) pendant laquelle la petite
-// signature "✦ 10 000 JOURS ✦" reste visible. Calculée depuis la vraie
-// date d'ouverture, jamais une valeur ou une date codée en dur.
-const MILESTONE_DAY = 10000;
-const MILESTONE_WINDOW_END = MILESTONE_DAY + 13;
-
-// Signal du 10 000e jour dès le premier écran (voir commentaire CSS
-// .hero__milestone-pill) : sans lui, seule la scène finale — tout en bas
-// de la page — parle de l'événement, ratée par tout visiteur qui ne
-// descend pas jusque-là.
-function initHeroMilestone() {
-  const pill = document.getElementById('hero-milestone-pill');
-  if (!pill) return;
-  const days = daysSinceOpening();
-  if (days >= MILESTONE_DAY && days <= MILESTONE_WINDOW_END) pill.hidden = false;
-}
-
 // Fait apparaître le nombre de jours écoulés depuis 1999 en le comptant
 // jusqu'à sa valeur réelle (jamais figée), dans la scène finale, sous
-// forme d'un vrai compteur à rouleaux (réutilise setOdometer()). Au
-// passage exact des 10 000 jours, déclenche une courte célébration ;
+// forme d'un vrai compteur à rouleaux (réutilise setOdometer()) ;
 // rejouable en cliquant/appuyant sur le chiffre.
 function initDaysCounter() {
   const numberBtn = document.getElementById('finale-days-number');
   const wrapEl = document.getElementById('finale-days');
   const labelEl = document.getElementById('finale-days-label');
-  const badgeEl = document.getElementById('finale-milestone-badge');
   const yearEl = document.getElementById('finale-year');
   const finaleEl = document.getElementById('finale');
-  const milestoneDateEl = document.getElementById('finale-milestone-date');
   const equivalencesEl = document.getElementById('finale-equivalences');
   const eqYearsEl = document.getElementById('finale-eq-years');
   const eqWeeksEl = document.getElementById('finale-eq-weeks');
@@ -416,23 +222,7 @@ function initDaysCounter() {
   const target = daysSinceOpening();
   const width = String(target).length;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const isMilestoneWindow = target >= MILESTONE_DAY && target <= MILESTONE_WINDOW_END;
   const defaultLabel = labelEl.textContent;
-  const celebrationLine = "Depuis le 1ᵉʳ avril 1999. Et toujours le four allumé. 🔥🍕";
-
-  if (target >= MILESTONE_DAY) wrapEl.classList.add('is-milestone');
-
-  if (isMilestoneWindow && badgeEl) badgeEl.hidden = false;
-
-  // Plaque datée, réelle : uniquement visible pendant la vraie fenêtre des
-  // 10 000 jours, avec la date du jour telle qu'elle est — pas une mise en
-  // scène figée à l'avance.
-  if (isMilestoneWindow && milestoneDateEl) {
-    const today = new Date();
-    const formatted = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(today);
-    milestoneDateEl.textContent = `Constaté aujourd'hui, ${formatted}`;
-    milestoneDateEl.hidden = false;
-  }
 
   // Équivalences humaines, calculées en vrai à partir de la même date
   // d'ouverture (jamais des chiffres inventés) : transforment un nombre
@@ -457,51 +247,10 @@ function initDaysCounter() {
     window.setTimeout(() => numberBtn.classList.remove('is-settling'), 520);
   };
 
-  // Quelques braises chaudes montent depuis le chiffre — pas des
-  // confettis multicolores. Nettoyées du DOM après leur animation, pour
-  // pouvoir être rejouées sans s'accumuler.
-  const spawnEmbers = () => {
-    for (let i = 0; i < 10; i++) {
-      const ember = document.createElement('span');
-      ember.className = 'finale__ember';
-      ember.style.left = `${20 + Math.random() * 60}%`;
-      ember.style.setProperty('--ember-drift', `${(Math.random() - 0.5) * 60}px`);
-      ember.style.animationDelay = `${Math.random() * 300}ms`;
-      wrapEl.appendChild(ember);
-      window.setTimeout(() => ember.remove(), 2400);
-    }
-  };
-
-  const celebrate = (fromUserGesture) => {
-    sessionStorage.setItem('subito10kPlayed', '1');
-    // Les navigateurs bloquent (et journalisent une erreur) tout appel à
-    // navigator.vibrate() hors d'un vrai geste utilisateur — donc jamais
-    // lors du déclenchement automatique au scroll, seulement au clic/tap.
-    if (fromUserGesture && navigator.vibrate) {
-      try { navigator.vibrate(25); } catch (e) { /* vibration indisponible, tant pis */ }
-    }
-    if (reduceMotion) return; // le badge statique + le libellé permanent (ci-dessous) suffisent déjà
-
-    spawnEmbers();
-    if (yearEl) {
-      yearEl.textContent = '10 000';
-      yearEl.classList.add('is-climax');
-      window.setTimeout(() => {
-        yearEl.classList.remove('is-climax');
-        yearEl.textContent = '1999';
-      }, 3200);
-    }
-    labelEl.textContent = celebrationLine;
-    window.setTimeout(() => { labelEl.textContent = defaultLabel; }, 5200);
-  };
-
-  // Sous réduction de mouvement, l'information reste entièrement
-  // disponible sans dépendre d'une animation temporisée : le libellé
-  // reste en permanence sur la phrase de célébration pendant la fenêtre,
-  // plutôt que d'apparaître puis de disparaître.
+  // Sous réduction de mouvement, la valeur finale est posée directement
+  // (pas d'animation temporisée à attendre).
   if (reduceMotion) {
     setOdometer(numberBtn, finalValueStr, true, true);
-    if (isMilestoneWindow) labelEl.textContent = celebrationLine;
   }
 
   // Révélation façon "rouleau" : chaque chiffre tourne sur lui-même
@@ -510,11 +259,11 @@ function initDaysCounter() {
   // mécanique plutôt qu'un défilement de valeurs. Une seule transition
   // CSS par chiffre, posée une fois pour toutes : jamais de mise à jour
   // par frame, donc jamais de saccade, quel que soit l'appareil.
-  const spin = (dramatic, onDone) => {
-    const extraCycles = dramatic ? 3 : 1;
-    const baseDuration = dramatic ? 1300 : 800;
-    const stepDuration = dramatic ? 170 : 90;
-    const stepDelay = dramatic ? 110 : 60;
+  const spin = (onDone) => {
+    const extraCycles = 1;
+    const baseDuration = 800;
+    const stepDuration = 90;
+    const stepDelay = 60;
 
     numberBtn.innerHTML = '';
     numberBtn.dataset.value = finalValueStr;
@@ -557,26 +306,15 @@ function initDaysCounter() {
   };
 
   // Rejeu volontaire au clic/tap/clavier (vrai <button>, activable au
-  // clavier sans code de gestion de touches). Pendant la fenêtre : le
-  // chiffre retourne et la célébration complète rejoue. En dehors : un
-  // petit clin d'oeil honnête vers la prochaine étape, calculé en vrai.
+  // clavier sans code de gestion de touches) : le chiffre retourne
+  // simplement sur lui-même.
   numberBtn.addEventListener('click', () => {
-    if (isMilestoneWindow) {
-      if (!reduceMotion) spin(true, () => celebrate(true));
-      else celebrate(true);
-      return;
-    }
-    const daysTo20k = 20000 - target;
-    labelEl.textContent = daysTo20k > 0
-      ? `✦ Prochaine étape : dans ${daysTo20k.toLocaleString('fr-FR')} jours, les 20 000 ✦`
-      : defaultLabel;
-    window.setTimeout(() => { labelEl.textContent = defaultLabel; }, 3200);
-    if (!reduceMotion) spin(false);
+    if (!reduceMotion) spin();
   });
 
   if (reduceMotion) return;
 
-  if (!('IntersectionObserver' in window)) { spin(isMilestoneWindow, isMilestoneWindow ? () => celebrate(false) : undefined); return; }
+  if (!('IntersectionObserver' in window)) { spin(); return; }
 
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
@@ -584,10 +322,7 @@ function initDaysCounter() {
         // Synchronisé avec le temps d'arrivée de ce bloc dans la mise en
         // scène de la section finale (transition-delay CSS de 0.95s +
         // le temps que le fondu devienne perceptible).
-        window.setTimeout(() => {
-          const dramatic = isMilestoneWindow && sessionStorage.getItem('subito10kPlayed') !== '1';
-          spin(dramatic, dramatic ? () => celebrate(false) : undefined);
-        }, 1250);
+        window.setTimeout(() => { spin(); }, 1250);
         observer.unobserve(entry.target);
       }
     });
@@ -596,7 +331,7 @@ function initDaysCounter() {
   observer.observe(wrapEl);
 }
 
-// Braises ambiantes derrière le chiffre des "10 000 jours" — un nuage
+// Braises ambiantes derrière le chiffre des jours écoulés — un nuage
 // discret de particules chaudes en canvas (clin d'oeil au four à bois,
 // pas des confettis), qui donne une sensation de masse/temps accumulé
 // sans jamais coûter cher en performance : ne tourne que pendant que la
@@ -611,11 +346,6 @@ function initFinaleEmbers() {
 
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-
-  const isMilestoneWindow = () => {
-    const days = daysSinceOpening();
-    return days >= MILESTONE_DAY && days <= MILESTONE_WINDOW_END;
-  };
 
   let particles = [];
   let rafId = null;
@@ -647,7 +377,6 @@ function initFinaleEmbers() {
       drift: (Math.random() - 0.5) * 10, // px/s latéral
       life: 0,
       maxLife: 3.2 + Math.random() * 2.6,
-      warm: isMilestoneWindow(),
     });
   };
 
@@ -676,9 +405,7 @@ function initFinaleEmbers() {
         : Math.max(0, 1 - (lifeRatio - 0.15) / 0.85);
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.warm
-        ? `rgba(255, 209, 102, ${0.75 * opacity})`
-        : `rgba(212, 175, 100, ${0.5 * opacity})`;
+      ctx.fillStyle = `rgba(212, 175, 100, ${0.5 * opacity})`;
       ctx.fill();
     });
 
@@ -1391,11 +1118,6 @@ function initIntroSplash() {
 
   if (alreadySeen || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     splash.remove();
-    // Même signal que le chemin interactif ci-dessous : la pop-up concours
-    // (initContestModal) attend cet événement avant de s'afficher sur
-    // l'accueil, pour ne jamais superposer deux écrans plein cadre — donc
-    // il doit aussi être émis quand le voile ne joue pas du tout.
-    window.dispatchEvent(new CustomEvent('subito:introDismissed'));
     return;
   }
 
@@ -1420,7 +1142,6 @@ function initIntroSplash() {
     splash.classList.add('is-hiding');
     try { sessionStorage.setItem('subitoIntroSeen', '1'); } catch (e) { /* tant pis, l'intro rejouera */ }
     dismissEvents.forEach(([target, type]) => target.removeEventListener(type, dismiss));
-    window.dispatchEvent(new CustomEvent('subito:introDismissed'));
     setTimeout(() => splash.remove(), 950);
   };
 

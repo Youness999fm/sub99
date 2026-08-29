@@ -1,0 +1,683 @@
+/* ==========================================================================
+   LE GRAND TIRAGE — page événementielle dédiée aux résultats du concours.
+   Feuille de style séparée du style.css partagé : c'est une expérience
+   ponctuelle avec sa propre direction artistique (théâtre/jackpot premium,
+   vert profond + or + rouge — la palette du site, pas une palette néon).
+   Chaque animation a un repli `prefers-reduced-motion`, comme partout
+   ailleurs sur ce site.
+   ========================================================================== */
+
+.tirage-page-main {
+  background: var(--green-dark);
+  color: #f4efe4;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Garde-fou : plusieurs éléments ci-dessous forcent leur propre `display`
+   (flex, pour se centrer) avec une spécificité qui neutraliserait sinon
+   l'attribut `hidden` (une règle auteur l'emporte toujours sur la règle
+   `[hidden] { display: none }` du navigateur, même à spécificité égale).
+   Sans cette règle, les écrans "cachés" restent affichés et empilés
+   au-dessus du reste via leur z-index. */
+.tirage-page-main [hidden] {
+  display: none !important;
+}
+
+.tirage-page-main .section-title {
+  color: #f4efe4;
+}
+
+/* ---------- Toggle son (persistant en haut de l'expérience) ---------- */
+
+.tirage-sound-toggle {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 500;
+  background: rgba(9, 42, 27, 0.75);
+  border: 1px solid rgba(212, 175, 100, 0.5);
+  color: #f4efe4;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.tirage-sound-toggle:hover,
+.tirage-sound-toggle:focus-visible {
+  border-color: var(--gold-bright);
+}
+
+/* ---------- Scène (canvas + hero + overlays) ---------- */
+
+.tirage-stage-wrapper {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+}
+
+#tirage-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+[data-tirage-quality="off"] #tirage-canvas {
+  display: none;
+}
+
+[data-tirage-quality="off"] .tirage-stage-wrapper {
+  background: radial-gradient(ellipse at 50% 20%, #163b28 0%, #0c2419 60%, #071711 100%);
+}
+
+.tirage-stage-wrapper--shake {
+  animation: tirageShake 0.5s ease-in-out infinite;
+}
+
+@keyframes tirageShake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 1px); }
+  50% { transform: translate(2px, -1px); }
+  75% { transform: translate(-1px, -1px); }
+}
+
+/* ---------- Hero : titre + levier ---------- */
+
+.tirage-hero {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 60px 20px 80px;
+  max-width: 640px;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.tirage-hero--hidden {
+  opacity: 0;
+  transform: translateY(-24px) scale(0.97);
+  pointer-events: none;
+  position: absolute;
+}
+
+.tirage-hero__eyebrow {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  font-size: 0.78rem;
+  margin: 0 0 10px;
+}
+
+.tirage-hero__title {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 8vw, 4.2rem);
+  line-height: 1.05;
+  margin: 0 0 16px;
+  color: #fdf6e3;
+  text-shadow: 0 0 40px rgba(255, 209, 102, 0.25);
+}
+
+.tirage-hero__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 0 0 40px;
+  font-size: 0.95rem;
+  color: rgba(244, 239, 228, 0.85);
+}
+
+.tirage-hero__stats span {
+  border: 1px solid rgba(212, 175, 100, 0.4);
+  border-radius: 999px;
+  padding: 6px 14px;
+}
+
+/* Levier : armature simple en CSS (pas de modèle 3D), effet ressort via
+   easing "back" sur la rotation. Vrai <button>, donc clavier + lecteur
+   d'écran fonctionnent nativement. */
+
+.tirage-lever {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin: 0 auto;
+}
+
+.tirage-lever__rig {
+  position: relative;
+  width: 120px;
+  height: 150px;
+}
+
+.tirage-lever__base {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 30%, #3a3530, #14110e);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+.tirage-lever__arm {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  width: 10px;
+  height: 110px;
+  transform-origin: bottom center;
+  transform: translateX(-50%) rotate(-22deg);
+  background: linear-gradient(90deg, #8a6a2c, var(--gold-bright), #8a6a2c);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tirage-lever__knob {
+  position: absolute;
+  top: -14px;
+  left: -13px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff5a5a, var(--red-dark));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.35);
+}
+
+.tirage-lever--pulled .tirage-lever__arm {
+  transform: translateX(-50%) rotate(28deg);
+}
+
+.tirage-lever__label {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fdf6e3;
+  background: linear-gradient(135deg, var(--red), var(--red-dark));
+  padding: 10px 22px;
+  border-radius: 999px;
+  box-shadow: 0 8px 20px -10px rgba(214, 40, 40, 0.6);
+}
+
+.tirage-lever[aria-disabled="true"] {
+  cursor: default;
+}
+
+.tirage-lever[aria-disabled="true"] .tirage-lever__label {
+  opacity: 0.55;
+}
+
+.tirage-skip {
+  display: inline-block;
+  margin-top: 26px;
+  color: rgba(244, 239, 228, 0.75);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tirage-skip:hover,
+.tirage-skip:focus-visible {
+  color: var(--gold-bright);
+}
+
+/* ---------- Scène de révélation (tickets) ---------- */
+
+#tirage-stage {
+  position: relative;
+  z-index: 2;
+  width: min(92vw, 420px);
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1200px;
+}
+
+.tirage-ticket {
+  width: 240px;
+  height: 150px;
+}
+
+.tirage-ticket__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+
+.tirage-ticket__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+}
+
+.tirage-ticket__face--front {
+  background: repeating-linear-gradient(135deg, #123a28, #123a28 10px, #0e3222 10px, #0e3222 20px);
+  border: 2px dashed rgba(212, 175, 100, 0.55);
+  color: var(--gold-bright);
+}
+
+.tirage-ticket__face--back {
+  transform: rotateY(180deg);
+  background: linear-gradient(160deg, #fdf6e3, #f1dfae);
+  border: 2px solid var(--gold);
+  color: var(--green-dark);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+.tirage-ticket--tiramisu .tirage-ticket__face--back {
+  background: linear-gradient(160deg, #fff3e2, #e8c79a);
+}
+
+.tirage-ticket__hash {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  opacity: 0.85;
+}
+
+.tirage-ticket__mark {
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+}
+
+.tirage-ticket__emoji {
+  font-size: 2.1rem;
+  line-height: 1;
+}
+
+.tirage-ticket__pseudo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  word-break: break-word;
+}
+
+.tirage-ticket__prize {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* ---------- Compteur dramatisé (250 -> 30 -> 45) ---------- */
+
+.tirage-counter {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7, 23, 17, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.tirage-counter__number {
+  font-family: var(--font-display);
+  font-size: clamp(3.5rem, 16vw, 7rem);
+  font-weight: 800;
+  background: linear-gradient(135deg, #fff, var(--gold-bright));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1;
+}
+
+.tirage-counter--scramble .tirage-counter__number {
+  filter: blur(2px);
+}
+
+.tirage-counter__label {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: rgba(244, 239, 228, 0.85);
+  margin-top: 6px;
+}
+
+/* ---------- Faux-final ---------- */
+
+.tirage-false-ending {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #050c09;
+  text-align: center;
+  padding: 20px;
+}
+
+.tirage-false-ending__text {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 6vw, 2.6rem);
+  color: rgba(244, 239, 228, 0.7);
+}
+
+.tirage-false-ending__dot {
+  display: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--red);
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  box-shadow: 0 0 12px 4px rgba(214, 40, 40, 0.6);
+  animation: tirageBlink 1s ease-in-out infinite;
+}
+
+.tirage-false-ending--alert .tirage-false-ending__dot {
+  display: block;
+}
+
+.tirage-false-ending--alert .tirage-false-ending__text {
+  color: #fdf6e3;
+}
+
+@keyframes tirageBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* ---------- Transition Mode Tiramisu ---------- */
+
+.tirage-curtain {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: linear-gradient(180deg, #3a2416, #1c1109);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.9s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.tirage-curtain--open {
+  transform: scaleY(1);
+}
+
+.tirage-curtain__emoji {
+  font-size: clamp(3rem, 12vw, 5rem);
+  transform: translateY(-30px);
+  animation: tirageDrop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.3s;
+  opacity: 0;
+}
+
+@keyframes tirageDrop {
+  0% { transform: translateY(-60px); opacity: 0; }
+  60% { transform: translateY(8px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.tirage-curtain__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  color: #fff3e2;
+  text-align: center;
+}
+
+/* ---------- Grand final ---------- */
+
+.tirage-final {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 40%, #123a28 0%, #071711 75%);
+  text-align: center;
+  padding: 20px;
+}
+
+.tirage-final__line {
+  position: absolute;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 7vw, 3.2rem);
+  font-weight: 800;
+  color: #fdf6e3;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.tirage-final__line.is-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.tirage-final__signature {
+  font-size: clamp(2.4rem, 10vw, 4.5rem);
+  letter-spacing: 0.06em;
+  cursor: default;
+  background: linear-gradient(100deg, var(--gold) 0%, #fff3d0 45%, var(--gold-bright) 55%, var(--gold) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: tirageShimmer 3.5s linear infinite;
+}
+
+@keyframes tirageShimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: 220% 0; }
+}
+
+.tirage-final__signature[data-secret="1"]::after {
+  content: " 🍕";
+}
+
+/* ---------- Résultats persistants (toujours dans le DOM, accessibles sans le show) ---------- */
+
+.tirage-results {
+  position: relative;
+  z-index: 2;
+  background: #fdf9f0;
+  color: var(--dark);
+  padding: 60px 20px 80px;
+  border-radius: 32px 32px 0 0;
+}
+
+.tirage-results__inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.tirage-data-warning {
+  background: #fff3cd;
+  border: 1px solid #e0b400;
+  color: #6b5300;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+
+.tirage-search {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+  margin: 0 auto 50px;
+  max-width: 460px;
+  text-align: center;
+}
+
+.tirage-search__title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  margin: 0 0 16px;
+}
+
+.tirage-search__form {
+  display: flex;
+  gap: 8px;
+}
+
+.tirage-search__form input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  font-size: 1rem;
+}
+
+.tirage-search__form button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.tirage-search__form input:focus-visible {
+  outline: none;
+  border-color: var(--green);
+}
+
+.tirage-result-card {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.tirage-result-card--miss {
+  background: var(--green-tint);
+}
+
+.tirage-result-card--win {
+  background: linear-gradient(160deg, var(--green), var(--green-dark));
+  color: #fdf6e3;
+}
+
+.tirage-result-card__title {
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.tirage-result-card__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--gold-bright);
+  margin: 0 0 6px;
+}
+
+.tirage-result-card__pseudo {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  margin: 0 0 6px;
+}
+
+.tirage-result-card__prize {
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+
+.tirage-results-grid {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .tirage-results-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.tirage-results-column h3 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  border-bottom: 2px solid var(--gold);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+}
+
+.tirage-results-column ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tirage-results-column li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+
+.tirage-list__rank {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--green);
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.tirage-list__pseudo {
+  flex: 1;
+  font-weight: 600;
+}
+
+.tirage-list__prize {
+  color: var(--gray);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.tirage-replay-wrap {
+  text-align: center;
+  margin-top: 50px;
+}
+
+/* ---------- Accessibilité / repli mouvement réduit ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .tirage-stage-wrapper--shake { animation: none; }
+  .tirage-lever__arm { transition: none; }
+  .tirage-hero--hidden { transition: opacity 0.2s ease; transform: none; }
+  .tirage-ticket__inner { transition: none !important; }
+  .tirage-curtain { transition: opacity 0.3s ease; transform: none; }
+  .tirage-curtain--open { transform: none; opacity: 1; }
+  .tirage-curtain__emoji { animation: none; opacity: 1; transform: none; }
+  .tirage-final__line { transition: opacity 0.2s ease; transform: none; }
+  .tirage-final__signature { animation: none; }
+  .tirage-false-ending__dot { animation: none; }
+}
+
+@media (max-width: 480px) {
+  #tirage-stage { height: 210px; }
+  .tirage-ticket { width: 200px; height: 130px; }
+}
