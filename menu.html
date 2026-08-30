@@ -101,6 +101,18 @@
   <section>
     <p class="menu-page-eyebrow">Depuis 1999</p>
     <h1 class="section-title">Notre menu</h1>
+    <div class="order-status order-status--on-light" id="order-status">
+      <span class="order-status__dot" aria-hidden="true"></span>
+      <span class="order-status__body" aria-hidden="true">
+        <span class="order-status__label" id="order-status-label">Commandes ouvertes</span>
+        <span class="order-status__countdown">
+          <span id="order-status-verb">Ferment dans</span>
+          <span class="order-status__odo" id="order-status-hours"></span><span class="order-status__unit">h</span>
+          <span class="order-status__odo" id="order-status-minutes"></span><span class="order-status__unit">min</span>
+        </span>
+      </span>
+      <span class="visually-hidden" id="order-status-sr" role="status"></span>
+    </div>
   </section>
 
   <nav class="menu-jump" aria-label="Aller à une catégorie">

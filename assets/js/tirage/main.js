@@ -82,9 +82,33 @@ function renderSearchResult(query) {
       <p class="tirage-result-card__eyebrow">🎉 C'est toi !</p>
       <p class="tirage-result-card__pseudo">${winner.pseudo}</p>
       <p class="tirage-result-card__prize">${prize.emoji} Tu as gagné ${prize.label} !</p>
-      <button type="button" class="btn-solid tirage-share-btn">Partager ma victoire</button>
+      <p class="tirage-result-card__claim">📲 Envoie-nous un message sur Snapchat <strong>avant le 6 septembre</strong> pour recevoir ton code gagnant.</p>
+      <div class="tirage-result-card__actions">
+        <a class="btn-solid" href="https://www.snapchat.com/add/subito_henin" target="_blank" rel="noopener">👻 Message sur Snapchat</a>
+        <button type="button" class="btn-outline tirage-share-btn">Partager ma victoire</button>
+      </div>
     </div>`;
   resultEl.querySelector('.tirage-share-btn').addEventListener('click', (e) => shareResult(winner, e.currentTarget));
+}
+
+// Date limite pour que les gagnants nous contactent sur Snapchat (6
+// septembre 2026), calculée en date civile comme les autres décomptes du
+// site — jamais une deuxième date codée en dur ailleurs sur cette page.
+function daysUntilClaimDeadline() {
+  const deadlineUTC = Date.UTC(2026, 8, 6); // 6 septembre 2026 (mois 0-indexé)
+  const now = new Date();
+  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor((deadlineUTC - todayUTC) / 86400000);
+}
+
+function initClaimCountdown() {
+  const el = $('tirage-claim-countdown');
+  if (!el) return;
+  const days = daysUntilClaimDeadline();
+  if (days > 1) el.textContent = `Plus que ${days} jours`;
+  else if (days === 1) el.textContent = "Plus qu'1 jour";
+  else if (days === 0) el.textContent = "Dernier jour !";
+  else el.textContent = 'Date limite dépassée';
 }
 
 // Ancienneté réelle de Subito Pizza (ouvert le 1ᵉʳ avril 1999), calculée
@@ -145,6 +169,7 @@ function initStatsCountUp(reduceMotion) {
 async function boot() {
   renderResultsList();
   renderHeritageYears();
+  initClaimCountdown();
 
   const check = validateWinners();
   if (!check.ok) {

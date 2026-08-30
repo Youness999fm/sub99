@@ -737,6 +737,100 @@
   font-weight: 600;
 }
 
+/* Bandeau deadline — la chose la plus importante de la page pour un
+   gagnant : le mettre en évidence dès l'arrivée sur les résultats, avant
+   même la recherche de pseudo. */
+.tirage-claim-banner {
+  max-width: 560px;
+  margin: 0 auto 26px;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 14px 30px -14px rgba(214, 40, 40, 0.55);
+}
+
+.tirage-claim-banner__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.tirage-claim-banner__title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 5vw, 1.5rem);
+  font-weight: 700;
+}
+
+.tirage-claim-banner__countdown {
+  display: inline-block;
+  margin: 0;
+  padding: 5px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-weight: 800;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Étapes de récupération du cadeau — le parcours le plus important de la
+   page, doit rester lisible et sans ambiguïté en quelques secondes. */
+.tirage-claim-steps {
+  max-width: 560px;
+  margin: 0 auto 46px;
+  padding: 26px 22px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  background: var(--green-tint);
+  text-align: center;
+}
+
+.tirage-claim-steps__title {
+  margin: 0 0 18px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--green-dark);
+}
+
+.tirage-claim-steps__list {
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.tirage-claim-steps__list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 0.94rem;
+  line-height: 1.4;
+}
+
+.tirage-claim-steps__icon {
+  flex-shrink: 0;
+  font-size: 1.3rem;
+}
+
+.tirage-claim-steps__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+}
+
 .tirage-search {
   background: #fff;
   border: 1px solid var(--border);
@@ -816,6 +910,34 @@
 .tirage-result-card__prize {
   font-weight: 600;
   margin: 0 0 16px;
+}
+
+.tirage-result-card__claim {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.tirage-result-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.tirage-result-card--win .btn-outline {
+  background: transparent;
+  border-color: #fff;
+  color: #fff;
+}
+
+.tirage-result-card--win .btn-outline:hover,
+.tirage-result-card--win .btn-outline:focus-visible {
+  background: #fff;
+  color: var(--green);
 }
 
 .tirage-results-grid {

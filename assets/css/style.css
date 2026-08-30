@@ -431,6 +431,24 @@ a { color: inherit; }
   }
 }
 
+/* Le bloc statut a été conçu pour le fond sombre du hero (voir .hero
+   ci-dessus) : le fond translucide à 7% de blanc n'a plus de contraste sur
+   un fond clair. Variante utilisée là où ce même composant est repris hors
+   du hero (ex. menu.html) — mêmes textes, mêmes couleurs de statut, mêmes
+   données, seul le fond du pilule change pour rester lisible. */
+.order-status--on-light {
+  background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+  border-color: transparent;
+  box-shadow: var(--shadow);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .order-status--on-light:hover {
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+    transform: translateY(-1px);
+  }
+}
+
 .order-status__dot {
   position: relative;
   width: 9px;
