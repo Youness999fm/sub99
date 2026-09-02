@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo — Pop-up Panuzo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  /* Styles de la page de démo uniquement — ne fait PAS partie du composant popup. */
+  body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: #F6F1E7; color: #1C1B19; }
+  .demo-page { max-width: 720px; margin: 0 auto; padding: 60px 24px; text-align: center; }
+  .demo-page h1 { font-family: "Playfair Display", serif; }
+  .demo-reopen-btn { margin-top: 24px; padding: 12px 20px; border-radius: 10px; border: 1px solid #0E3B27; background: #0E3B27; color: #fff; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+     Page de démonstration : simule le site derrière le popup.
+
+     POUR INTÉGRER AU VRAI SITE SUBITO :
+     copiez UNIQUEMENT le bloc entre les commentaires
+     "PANUZO POPUP START" et "PANUZO POPUP END" ci-dessous (par exemple
+     dans index.html, juste avant </body>), puis chargez style.css et
+     script.js sur cette page.
+     ================================================================ -->
+
+<main class="demo-page">
+  <h1>Subito Pizza — aperçu du site</h1>
+  <p>Cette page sert uniquement à prévisualiser le pop-up Panuzo en conditions réelles.</p>
+  <button type="button" id="demoReopenBtn" class="demo-reopen-btn">Réafficher le popup (test)</button>
+</main>
+
+<!-- PANUZO POPUP START -->
+<div class="panuzo-popup-overlay" id="panuzoPopupOverlay" hidden>
+  <div class="panuzo-popup-container" role="dialog" aria-modal="true" aria-labelledby="panuzoPopupTitle" tabindex="-1">
+
+    <button type="button" class="panuzo-popup-close" id="panuzoPopupClose" aria-label="Fermer cette fenêtre">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+        <path d="M6 6l12 12M18 6 6 18"/>
+      </svg>
+    </button>
+
+    <div class="panuzo-popup-scroll">
+      <h2 class="panuzo-popup-kicker" id="panuzoPopupTitle">Panuzo</h2>
+
+      <div class="panuzo-popup-banner">
+        <span>Il est de retour !</span>
+      </div>
+
+      <p class="panuzo-popup-price"><span>9,90&nbsp;€</span></p>
+
+      <div class="panuzo-popup-photo">
+        <img src="assets/panuzo-photo.jpg" alt="Le Panuzo : jambon cru, mozzarella et roquette, tout juste sorti du four">
+      </div>
+
+      <a class="panuzo-popup-cta-primary" id="panuzoPopupCta" href="menu.html#panuzo">J'en profite</a>
+      <button type="button" class="panuzo-popup-cta-secondary" id="panuzoPopupSecondary">Accéder au site</button>
+    </div>
+  </div>
+</div>
+<!-- PANUZO POPUP END -->
+
+<script src="script.js"></script>
+<script>
+  // Uniquement pour cette page de démo : permet de rouvrir le popup manuellement.
+  document.getElementById('demoReopenBtn').addEventListener('click', function () {
+    if (window.PanuzoPopup) window.PanuzoPopup.open();
+  });
+</script>
+</body>
+</html>
