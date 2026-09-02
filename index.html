@@ -23,6 +23,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/panuzo-popup.css">
 <script src="assets/js/main.js" defer></script>
 <script>
   try {
@@ -476,6 +477,37 @@
   <p class="site-footer__signature"><strong>SUBITO PIZZA</strong> — depuis le 1ᵉʳ avril 1999</p>
   <p class="site-footer__panuzo-line"><span id="footer-panuzo-text">🥖 Nouveau : le <strong>Panuzo</strong>, tous les lundis en éphémère</span> — <a href="#panuzo-teaser">en savoir plus</a></p>
 </footer>
+
+<!-- PANUZO POPUP START -->
+<div class="panuzo-popup-overlay" id="panuzoPopupOverlay" hidden>
+  <div class="panuzo-popup-container" role="dialog" aria-modal="true" aria-labelledby="panuzoPopupTitle" tabindex="-1">
+
+    <button type="button" class="panuzo-popup-close" id="panuzoPopupClose" aria-label="Fermer cette fenêtre">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+        <path d="M6 6l12 12M18 6 6 18"/>
+      </svg>
+    </button>
+
+    <div class="panuzo-popup-scroll">
+      <h2 class="panuzo-popup-kicker" id="panuzoPopupTitle">Panuzo</h2>
+
+      <div class="panuzo-popup-banner">
+        <span>Il est de retour !</span>
+      </div>
+
+      <p class="panuzo-popup-price"><span>9,90&nbsp;€</span></p>
+
+      <div class="panuzo-popup-photo">
+        <img src="assets/img/photos/panuzo.jpg" alt="Le Panuzo : jambon cru, mozzarella et roquette, tout juste sorti du four">
+      </div>
+
+      <a class="panuzo-popup-cta-primary" id="panuzoPopupCta" href="menu.html#panuzo">J'en profite</a>
+      <button type="button" class="panuzo-popup-cta-secondary" id="panuzoPopupSecondary">Accéder au site</button>
+    </div>
+  </div>
+</div>
+<!-- PANUZO POPUP END -->
+<script src="assets/js/panuzo-popup.js"></script>
 
 </body>
 </html>

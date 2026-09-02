@@ -13,8 +13,9 @@
 <meta name="theme-color" content="#0E3B27">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Caveat:wght@500;700&display=swap">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/subito-popup.css">
 <script src="assets/js/main.js" defer></script>
 </head>
 <body>
@@ -117,6 +118,152 @@
   <p class="site-footer__signature"><strong>SUBITO PIZZA</strong> — depuis le 1ᵉʳ avril 1999</p>
   <p class="site-footer__panuzo-line"><span id="footer-panuzo-text">🥖 Nouveau : le <strong>Panuzo</strong>, tous les lundis en éphémère</span> — <a href="index.html#panuzo-teaser">en savoir plus</a></p>
 </footer>
+
+<!-- SUBITO POPUP START -->
+<div class="subito-popup-overlay" id="subitoPopupOverlay" hidden>
+  <div class="subito-popup-container" role="dialog" aria-modal="true" aria-labelledby="subitoPopupTitle" aria-describedby="subitoPopupDesc" tabindex="-1">
+    <div class="subito-popup-texture" aria-hidden="true"></div>
+
+    <button type="button" class="subito-popup-close" id="subitoPopupClose" aria-label="Fermer cette fenêtre">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M6 6l12 12M18 6 6 18"/>
+      </svg>
+    </button>
+
+    <div class="subito-popup-scroll">
+
+      <header class="subito-popup-header">
+        <div class="subito-popup-logo-wrap">
+          <img class="subito-popup-logo" src="assets/img/logo.jpg" alt="Subito Pizza">
+        </div>
+        <p class="subito-popup-since">Original depuis 1999</p>
+        <p class="subito-popup-location">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 21s-6.5-5.6-6.5-11A6.5 6.5 0 0 1 18.5 10c0 5.4-6.5 11-6.5 11Z"/>
+            <circle cx="12" cy="10" r="2.3"/>
+          </svg>
+          Hénin-Beaumont
+        </p>
+        <p class="subito-popup-handwritten">
+          <svg viewBox="0 0 60 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 6c14 2 28 10 34 24"/>
+            <path d="M30 24l8 6-2-9"/>
+          </svg>
+          On se rapproche de vous
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 20s-7-4.4-9.5-9C.8 7 2.4 3.6 5.7 3c2-.4 3.9.6 5 2.2C11.8 3.6 13.7 2.6 15.7 3c3.3.6 4.9 4 3.2 8-2.5 4.6-9.5 9-9.5 9Z"/>
+          </svg>
+        </p>
+      </header>
+
+      <h2 class="subito-popup-title" id="subitoPopupTitle">Subito Pizza,<br>toujours à vos côtés.</h2>
+
+      <div class="subito-popup-brushband">
+        <span>Encore plus près de vous !</span>
+      </div>
+
+      <p class="subito-popup-desc" id="subitoPopupDesc">
+        Depuis 1999 à Hénin-Beaumont, vous faites partie de notre histoire.
+        Aujourd'hui, on vous ouvre les portes de notre univers.
+      </p>
+
+      <p class="subito-popup-cta-intro">Rejoignez-nous sur nos réseaux !</p>
+
+      <div class="subito-popup-social">
+        <a class="subito-popup-social-btn subito-popup-social-btn--tiktok" id="subitoPopupTiktok" href="#" target="_blank" rel="noopener noreferrer" aria-label="Suivre Subito Pizza sur TikTok (ouvre un nouvel onglet)">
+          <span class="subito-popup-social-icon">
+            <svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+              <circle cx="22" cy="22" r="22" fill="#111"/>
+              <path d="M25 10c.6 2.7 2.4 4.6 5.2 4.9v3.4c-1.8 0-3.4-.6-5.2-1.7v8.3c0 4.2-3.4 7.1-7.3 6.6-3.2-.4-5.7-3-5.9-6.2-.3-4 3-7.2 6.9-6.9v3.5c-1.7-.3-3.3.9-3.4 2.7-.1 1.7 1.3 3.1 3 3 1.6-.1 2.8-1.4 2.8-3V10h3.9z" fill="#25F4EE" transform="translate(-0.8,-0.8)"/>
+              <path d="M25 10c.6 2.7 2.4 4.6 5.2 4.9v3.4c-1.8 0-3.4-.6-5.2-1.7v8.3c0 4.2-3.4 7.1-7.3 6.6-3.2-.4-5.7-3-5.9-6.2-.3-4 3-7.2 6.9-6.9v3.5c-1.7-.3-3.3.9-3.4 2.7-.1 1.7 1.3 3.1 3 3 1.6-.1 2.8-1.4 2.8-3V10h3.9z" fill="#FE2C55" transform="translate(0.8,0.8)"/>
+              <path d="M25 10c.6 2.7 2.4 4.6 5.2 4.9v3.4c-1.8 0-3.4-.6-5.2-1.7v8.3c0 4.2-3.4 7.1-7.3 6.6-3.2-.4-5.7-3-5.9-6.2-.3-4 3-7.2 6.9-6.9v3.5c-1.7-.3-3.3.9-3.4 2.7-.1 1.7 1.3 3.1 3 3 1.6-.1 2.8-1.4 2.8-3V10h3.9z" fill="#fff"/>
+            </svg>
+          </span>
+          <span class="subito-popup-social-text">
+            <strong>Suivre sur TikTok</strong>
+            <small>Coulisses • vidéos • moments fun</small>
+          </span>
+        </a>
+
+        <a class="subito-popup-social-btn subito-popup-social-btn--snapchat" id="subitoPopupSnapchat" href="#" target="_blank" rel="noopener noreferrer" aria-label="Rejoindre Subito Pizza sur Snapchat (ouvre un nouvel onglet)">
+          <span class="subito-popup-social-icon">
+            <svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+              <circle cx="22" cy="22" r="22" fill="#FFFC00"/>
+              <path d="M13,18 A9,9 0 1 1 31,18 L31,27 A3,3 0 0 1 25,27 A3,3 0 0 1 19,27 A3,3 0 0 1 13,27 Z" fill="#fff" stroke="#111" stroke-width="0.6"/>
+              <path d="M14 13c-1.8 0-2.5-2-1.3-3.2" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M30 13c1.8 0 2.5-2 1.3-3.2" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="subito-popup-social-text">
+            <strong>Nous rejoindre sur Snapchat</strong>
+            <small>Exclusivités • concours • surprises</small>
+          </span>
+        </a>
+      </div>
+
+      <p class="subito-popup-final">Du contenu exclusif rien que pour toi.</p>
+
+      <ul class="subito-popup-perks">
+        <li class="subito-popup-perk subito-popup-perk--green">
+          <span class="subito-popup-perk-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 10.5 20.5 7l.7 3.3L4 13.8z"/>
+              <rect x="3.3" y="10.8" width="17.4" height="8.7" rx="1.4"/>
+              <path d="m7 8.3 2.6 2.2M11.3 7.4l2.6 2.2M15.6 6.5l2.6 2.2"/>
+            </svg>
+          </span>
+          <span class="subito-popup-perk-title">Coulisses</span>
+          <span class="subito-popup-perk-text">Découvrez ce qui se passe derrière le comptoir.</span>
+        </li>
+        <li class="subito-popup-perk subito-popup-perk--red">
+          <span class="subito-popup-perk-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.5" y="10" width="17" height="10" rx="1.3"/>
+              <path d="M3.5 14h17M12 10v10"/>
+              <path d="M12 10c-1.8 0-3.4-1.1-3.4-2.8S9.8 4.5 11 5.3c1 .7 1 2.7 1 4.7ZM12 10c1.8 0 3.4-1.1 3.4-2.8S14.2 4.5 13 5.3c-1 .7-1 2.7-1 4.7Z"/>
+            </svg>
+          </span>
+          <span class="subito-popup-perk-title">Jeux concours</span>
+          <span class="subito-popup-perk-text">Tentez votre chance et gagnez des cadeaux.</span>
+        </li>
+        <li class="subito-popup-perk subito-popup-perk--gold">
+          <span class="subito-popup-perk-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3.5l2.5 5.6 6 .6-4.6 4 1.3 6-5.2-3.2-5.2 3.2 1.3-6-4.6-4 6-.6z"/>
+            </svg>
+          </span>
+          <span class="subito-popup-perk-title">Moments fun</span>
+          <span class="subito-popup-perk-text">Découvrez Subito autrement.</span>
+        </li>
+        <li class="subito-popup-perk subito-popup-perk--green">
+          <span class="subito-popup-perk-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3.5 10.5v3.5a1.5 1.5 0 0 0 1.5 1.5h1l2.8 4.3c.3.5 1 .2 1-.4v-3.9L18 19V5l-8.2 4H5A1.5 1.5 0 0 0 3.5 10.5Z"/>
+              <path d="M19.5 9.5a3 3 0 0 1 0 5"/>
+            </svg>
+          </span>
+          <span class="subito-popup-perk-title">Exclusivités</span>
+          <span class="subito-popup-perk-text">Nouveautés, offres et contenus exclusifs.</span>
+        </li>
+      </ul>
+
+      <p class="subito-popup-signature"><span>Plus qu'une pizza,<br>une histoire de proximité.</span></p>
+
+      <footer class="subito-popup-footer">
+        <div class="subito-popup-footer-stats">
+          <span>Pizzeria familiale<br>depuis 1999</span>
+          <span>Des milliers de clients<br>satisfaits</span>
+          <span>La passion<br>avant tout</span>
+        </div>
+        <p class="subito-popup-footer-place">Hénin-Beaumont</p>
+        <p class="subito-popup-footer-sign">Subito Pizza, bien plus qu'une pizza.</p>
+      </footer>
+
+    </div>
+  </div>
+</div>
+<!-- SUBITO POPUP END -->
+<script src="assets/js/subito-popup.js"></script>
 
 </body>
 </html>

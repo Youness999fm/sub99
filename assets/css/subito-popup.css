@@ -1,0 +1,511 @@
+/* ============================================================
+   Subito Pizza — Popup "Rejoignez-nous sur nos réseaux"
+   Composant 100% isolé : tous les sélecteurs sont scopés sous
+   .subito-popup-overlay pour ne jamais impacter le reste du site
+   dans lequel ce fichier sera chargé.
+   ============================================================ */
+
+.subito-popup-overlay {
+  --sp-red: #D62828;
+  --sp-red-dark: #A81E1E;
+  --sp-green: #0E3B27;
+  --sp-green-dark: #092A1B;
+  --sp-black: #0B0A09;
+  --sp-cream: #FFFFFF;
+  --sp-offwhite: #F6F1E7;
+  --sp-gold: #D4AF64;
+  --sp-gold-bright: #FFD166;
+  --sp-font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --sp-font-hand: "Caveat", "Segoe Script", cursive;
+  --sp-font-body: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  padding-top: max(18px, env(safe-area-inset-top));
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+  padding-left: max(18px, env(safe-area-inset-left));
+  padding-right: max(18px, env(safe-area-inset-right));
+  background: rgba(6, 8, 7, 0.78);
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .subito-popup-overlay {
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+  }
+}
+
+.subito-popup-overlay[hidden] { display: none; }
+
+.subito-popup-overlay.is-visible { opacity: 1; }
+
+.subito-popup-overlay,
+.subito-popup-overlay *,
+.subito-popup-overlay *::before,
+.subito-popup-overlay *::after {
+  box-sizing: border-box;
+}
+
+.subito-popup-overlay a {
+  text-decoration: none;
+}
+
+.subito-popup-overlay button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* ---------- Conteneur ---------- */
+
+.subito-popup-container {
+  position: relative;
+  width: 100%;
+  max-width: 740px;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 22px;
+  border: 1px solid rgba(212, 175, 100, 0.25);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 6px 18px rgba(0, 0, 0, 0.35);
+  background:
+    radial-gradient(circle at 18% -8%, rgba(214, 40, 40, 0.16), transparent 40%),
+    radial-gradient(circle at 90% 10%, rgba(212, 175, 100, 0.12), transparent 45%),
+    linear-gradient(180deg, var(--sp-green-dark) 0%, var(--sp-black) 46%, #050403 100%);
+  color: var(--sp-cream);
+  transform: scale(0.97);
+  opacity: 0;
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.subito-popup-overlay.is-visible .subito-popup-container {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.subito-popup-container:focus { outline: none; }
+
+.subito-popup-texture {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 140px 140px;
+}
+
+.subito-popup-scroll {
+  position: relative;
+  padding: 34px 26px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* ---------- Fermeture ---------- */
+
+.subito-popup-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--sp-offwhite);
+  transition: background 180ms ease, transform 180ms ease, border-color 180ms ease;
+}
+
+.subito-popup-close svg { width: 18px; height: 18px; }
+
+.subito-popup-close:hover {
+  background: rgba(214, 40, 40, 0.85);
+  border-color: rgba(214, 40, 40, 0.85);
+}
+
+.subito-popup-close:focus-visible,
+.subito-popup-overlay a:focus-visible,
+.subito-popup-overlay button:focus-visible {
+  outline: 2px solid var(--sp-gold-bright);
+  outline-offset: 2px;
+}
+
+/* ---------- En-tête / logo ---------- */
+
+.subito-popup-header {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.subito-popup-logo-wrap {
+  background: var(--sp-offwhite);
+  border-radius: 16px;
+  padding: 10px 16px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  margin-bottom: 14px;
+}
+
+.subito-popup-logo {
+  display: block;
+  height: 54px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.subito-popup-since {
+  margin: 0 0 4px;
+  font-family: var(--sp-font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--sp-gold-bright);
+}
+
+.subito-popup-location {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--sp-font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: rgba(246, 241, 231, 0.85);
+}
+
+.subito-popup-location svg { width: 14px; height: 14px; color: var(--sp-gold); flex-shrink: 0; }
+
+.subito-popup-handwritten {
+  margin: 10px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--sp-font-hand);
+  font-size: 22px;
+  line-height: 1;
+  color: var(--sp-gold-bright);
+  transform: rotate(-3deg);
+}
+
+.subito-popup-handwritten svg:first-child { width: 34px; height: 24px; transform: rotate(4deg) scaleX(-1); }
+.subito-popup-handwritten svg:last-child { width: 15px; height: 15px; color: var(--sp-red); }
+
+/* ---------- Titre ---------- */
+
+.subito-popup-title {
+  margin: 18px 0 0;
+  font-family: var(--sp-font-display);
+  font-weight: 800;
+  color: var(--sp-cream);
+  font-size: clamp(26px, 6vw, 34px);
+  line-height: 1.14;
+  letter-spacing: 0.005em;
+}
+
+.subito-popup-brushband {
+  margin: 16px 0 4px;
+  display: inline-block;
+  transform: rotate(-1.3deg);
+}
+
+.subito-popup-brushband span {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--sp-red) 0%, var(--sp-red-dark) 100%);
+  color: var(--sp-cream);
+  font-family: var(--sp-font-body);
+  font-weight: 800;
+  font-size: clamp(14px, 3.6vw, 17px);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 10px 22px;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: 0 10px 22px rgba(214, 40, 40, 0.35);
+}
+
+.subito-popup-desc {
+  margin: 18px 0 0;
+  max-width: 46ch;
+  font-family: var(--sp-font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(246, 241, 231, 0.88);
+}
+
+/* ---------- Visuel gourmand décoratif ---------- */
+
+/* ---------- Les 4 piliers ---------- */
+
+.subito-popup-perks {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.subito-popup-perk {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.subito-popup-perk-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.subito-popup-perk-icon svg { width: 19px; height: 19px; }
+
+.subito-popup-perk--green .subito-popup-perk-icon { background: rgba(14, 59, 39, 0.55); color: #6FC79B; box-shadow: 0 0 0 1px rgba(111, 199, 155, 0.25), 0 0 14px rgba(111, 199, 155, 0.18); }
+.subito-popup-perk--red .subito-popup-perk-icon { background: rgba(214, 40, 40, 0.22); color: #FF8A8A; box-shadow: 0 0 0 1px rgba(255, 138, 138, 0.3), 0 0 14px rgba(214, 40, 40, 0.22); }
+.subito-popup-perk--gold .subito-popup-perk-icon { background: rgba(212, 175, 100, 0.22); color: var(--sp-gold-bright); box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.3), 0 0 14px rgba(255, 209, 102, 0.2); }
+
+.subito-popup-perk-title {
+  font-family: var(--sp-font-body);
+  font-weight: 800;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sp-cream);
+}
+
+.subito-popup-perk-text {
+  font-family: var(--sp-font-body);
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(246, 241, 231, 0.72);
+}
+
+/* ---------- Signature ---------- */
+
+.subito-popup-signature {
+  margin: 26px 0 0;
+  max-width: 320px;
+}
+
+.subito-popup-signature span {
+  display: block;
+  transform: rotate(-1.6deg);
+  background: linear-gradient(180deg, var(--sp-gold-bright), var(--sp-gold));
+  color: var(--sp-black);
+  font-family: var(--sp-font-display);
+  font-weight: 700;
+  font-style: italic;
+  font-size: clamp(14px, 3.4vw, 16px);
+  line-height: 1.3;
+  padding: 12px 20px;
+  clip-path: polygon(2% 8%, 97% 0%, 100% 92%, 4% 100%);
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- CTA réseaux ---------- */
+
+.subito-popup-cta-intro {
+  margin: 24px 0 12px;
+  font-family: var(--sp-font-body);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sp-cream);
+}
+
+.subito-popup-social {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.subito-popup-social-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  transition: transform 200ms ease, box-shadow 200ms ease, filter 200ms ease;
+}
+
+.subito-popup-social-btn:hover,
+.subito-popup-social-btn:focus-visible {
+  transform: translateY(-3px) scale(1.015);
+}
+
+.subito-popup-social-icon {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.subito-popup-social-icon svg { width: 30px; height: 30px; }
+
+.subito-popup-social-text { text-align: left; display: flex; flex-direction: column; gap: 2px; }
+
+.subito-popup-social-text strong {
+  font-family: var(--sp-font-body);
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.subito-popup-social-text small {
+  font-family: var(--sp-font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.subito-popup-social-btn--tiktok {
+  background: linear-gradient(135deg, #161616, #0a0a0a);
+  border: 1px solid rgba(37, 244, 238, 0.28);
+  color: var(--sp-cream);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+.subito-popup-social-btn--tiktok:hover,
+.subito-popup-social-btn--tiktok:focus-visible {
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(37, 244, 238, 0.4);
+}
+
+.subito-popup-social-btn--snapchat {
+  background: var(--sp-gold-bright);
+  background: #FFFC00;
+  color: #101010;
+  box-shadow: 0 10px 24px rgba(255, 252, 0, 0.18);
+}
+
+.subito-popup-social-btn--snapchat:hover,
+.subito-popup-social-btn--snapchat:focus-visible {
+  box-shadow: 0 16px 30px rgba(255, 252, 0, 0.3);
+}
+
+.subito-popup-social-btn--snapchat .subito-popup-social-icon { background: rgba(0, 0, 0, 0.08); }
+
+.subito-popup-final {
+  margin: 16px 0 0;
+  font-family: var(--sp-font-hand);
+  font-size: 19px;
+  color: rgba(246, 241, 231, 0.85);
+}
+
+/* ---------- Pied ---------- */
+
+.subito-popup-footer {
+  margin-top: 26px;
+  padding-top: 18px;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.subito-popup-footer-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px 20px;
+}
+
+.subito-popup-footer-stats span {
+  font-family: var(--sp-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: rgba(246, 241, 231, 0.65);
+  max-width: 110px;
+}
+
+.subito-popup-footer-place {
+  margin: 14px 0 2px;
+  font-family: var(--sp-font-body);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--sp-gold);
+}
+
+.subito-popup-footer-sign {
+  margin: 0;
+  font-family: var(--sp-font-display);
+  font-style: italic;
+  font-size: 13px;
+  color: rgba(246, 241, 231, 0.6);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (min-width: 560px) {
+  .subito-popup-scroll { padding: 40px 40px 34px; }
+  .subito-popup-social { grid-template-columns: 1fr 1fr; }
+}
+
+@media (min-width: 700px) {
+  .subito-popup-perks { gap: 14px; }
+}
+
+@media (max-width: 359px) {
+  .subito-popup-perks { grid-template-columns: 1fr; }
+  .subito-popup-logo { height: 46px; }
+  .subito-popup-title { font-size: 24px; }
+}
+
+/* ---------- Mouvement réduit ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .subito-popup-overlay,
+  .subito-popup-container,
+  .subito-popup-social-btn,
+  .subito-popup-close {
+    transition: none !important;
+  }
+  .subito-popup-social-btn:hover,
+  .subito-popup-social-btn:focus-visible {
+    transform: none;
+  }
+}
