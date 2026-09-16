@@ -20,8 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initFinaleEmbers();
   initMenuJumpActive();
   initPizzaBaseNav();
-  initPanuzoStatus();
-  initPanuzoReminder();
 });
 
 // Nombre de jours complets depuis l'ouverture (1er avril 1999), calculé
@@ -45,163 +43,6 @@ function saturdaysSinceOpening(target) {
   return Math.floor((target - firstSaturdayOffset) / 7) + 1;
 }
 
-// ---------- Panuzo : configuration centrale ----------
-// Le Panuzo est une offre éphémère du lundi. Le prix, le nom et les
-// ingrédients se modifient UNIQUEMENT ici : chaque point de contact du
-// site (accueil, menu, réseaux, pied de page sur toutes les pages) lit
-// cette même source via getPanuzoStatus() plutôt que d'avoir son propre
-// texte figé — impossible qu'une section dise "aujourd'hui" pendant
-// qu'une autre dit "lundi prochain" ou affiche un autre prix.
-const PANUZO_CONFIG = {
-  name: 'Panuzo',
-  price: '9,90 €',
-  weekday: 1, // jour de disponibilité : 0 = dimanche … 1 = lundi … 6 = samedi (comme Date#getDay())
-  ingredients: ['Pesto', 'Salade fraîche', 'Charcuterie de bœuf', 'Burrata', "Huile d'olive"],
-};
-
-// Jour de la semaine actuel au restaurant (Hénin-Beaumont), jamais celui
-// de l'appareil du visiteur : un client connecté depuis l'étranger doit
-// voir exactement la même chose qu'un client sur place. Intl gère
-// nativement le passage heure d'été/hiver via la base de fuseaux IANA —
-// aucune librairie de dates nécessaire pour ça. Retourne 0 (dimanche) à
-// 6 (samedi), même convention que Date#getDay().
-function getParisWeekday() {
-  const short = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Paris', weekday: 'short' }).format(new Date());
-  return { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[short];
-}
-
-// Source unique de vérité pour tout ce que le site raconte sur le Panuzo
-// à l'instant présent. Chaque composant (accueil, menu, réseaux, pied de
-// page) appelle cette même fonction dans applyPanuzoStatus() ci-dessous.
-function getPanuzoStatus() {
-  const isToday = getParisWeekday() === PANUZO_CONFIG.weekday;
-  const marqueePhrase = isToday
-    ? `🔥 C'EST AUJOURD'HUI ✦ ${PANUZO_CONFIG.price} ✦`
-    : 'TOUS LES LUNDIS ✦ EN ÉPHÉMÈRE ✦';
-  return {
-    isToday,
-    name: PANUZO_CONFIG.name,
-    price: PANUZO_CONFIG.price,
-    ingredientsText: PANUZO_CONFIG.ingredients.join(', '),
-    tag: isToday ? "🔥 C'est aujourd'hui !" : 'Tous les lundis · En éphémère',
-    priceLine: isToday ? `Aujourd'hui seulement — ${PANUZO_CONFIG.price}` : `${PANUZO_CONFIG.price} le lundi`,
-    badgeLine1Html: isToday ? "C'est<br>aujourd'hui" : 'Tous les<br>lundis',
-    badgeLine2: isToday ? `${PANUZO_CONFIG.price} !` : 'En éphémère !',
-    marqueePhrase,
-    marqueeText: `${marqueePhrase} ${marqueePhrase}`,
-    footerHtml: isToday
-      ? `🔥 Aujourd'hui : le <strong>${PANUZO_CONFIG.name}</strong>, ${PANUZO_CONFIG.price} !`
-      : `🥖 Nouveau : le <strong>${PANUZO_CONFIG.name}</strong>, tous les lundis en éphémère`,
-  };
-}
-
-// Applique le statut du jour à tous les points de contact présents sur la
-// page courante — chaque page n'en a qu'une partie (guard clause par
-// élément), rien ne casse sur les pages qui n'en ont aucun.
-function applyPanuzoStatus(status) {
-  document.querySelectorAll('[data-panuzo="marquee"]').forEach((el) => { el.textContent = status.marqueeText; });
-
-  const badgeLine1 = document.getElementById('panuzo-badge-line1');
-  const badgeLine2 = document.getElementById('panuzo-badge-line2');
-  if (badgeLine1) badgeLine1.innerHTML = status.badgeLine1Html;
-  if (badgeLine2) badgeLine2.textContent = status.badgeLine2;
-
-  document.querySelectorAll('[data-panuzo="tag"]').forEach((el) => { el.textContent = status.tag; });
-  document.querySelectorAll('[data-panuzo="price-line"]').forEach((el) => { el.textContent = status.priceLine; });
-
-  const footerText = document.getElementById('footer-panuzo-text');
-  if (footerText) footerText.innerHTML = status.footerHtml;
-
-  // Accroche visuelle "jour spécial" (voir .is-panuzo-today dans le CSS) —
-  // posée sur les conteneurs racines des 3 composants Panuzo réutilisables.
-  document.querySelectorAll('[data-panuzo-root]').forEach((el) => { el.classList.toggle('is-panuzo-today', status.isToday); });
-}
-
-// Affiche le bon statut au chargement, puis le tient à jour tout seul si
-// l'onglet reste ouvert jusqu'au changement de jour (ex. lundi soir ->
-// mardi minuit) : une vérification légère toutes les minutes suffit très
-// largement ici, pas besoin d'un minuteur précis à la seconde près pour
-// un changement de jour. La comparaison avec le dernier statut connu
-// évite de réécrire le DOM 1440 fois par jour pour rien.
-function initPanuzoStatus() {
-  let lastIsToday = null;
-  const render = () => {
-    const status = getPanuzoStatus();
-    if (status.isToday === lastIsToday) return;
-    lastIsToday = status.isToday;
-    applyPanuzoStatus(status);
-  };
-  render();
-  window.setInterval(render, 60000);
-}
-
-// Bouton "rappel calendrier" du teaser Panuzo (index.html) : génère un
-// fichier .ics à la volée, sans backend ni dépendance. Le lundi ciblé
-// n'est jamais figé en dur : recalculé au chargement (pour l'affichage)
-// et à nouveau au clic (pour le fichier), toujours "le prochain lundi
-// 19h" à partir de maintenant. Format .ics en heure "flottante" (sans
-// suffixe Z ni VTIMEZONE) : l'appareil qui l'ouvre l'interprète dans son
-// propre fuseau local, ce qui convient à une clientèle locale.
-function initPanuzoReminder() {
-  const btn = document.getElementById('panuzo-remind-btn');
-  if (!btn) return;
-
-  const pad = (n) => String(n).padStart(2, '0');
-
-  function nextMondayAt19h() {
-    const now = new Date();
-    let daysUntilMonday = (1 - now.getDay() + 7) % 7;
-    if (daysUntilMonday === 0 && now.getHours() >= 19) daysUntilMonday = 7;
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilMonday, 19, 0, 0);
-  }
-
-  function toIcsLocal(d) {
-    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-  }
-
-  function toIcsUtcStamp(d) {
-    return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
-  }
-
-  const dateEl = document.getElementById('panuzo-remind-date');
-  if (dateEl) dateEl.textContent = nextMondayAt19h().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-  btn.addEventListener('click', () => {
-    const start = nextMondayAt19h();
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-
-    const ics = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Subito Pizza//Panuzo//FR',
-      'BEGIN:VEVENT',
-      `UID:panuzo-${start.getTime()}@subito-pizza-heninbeaumont.fr`,
-      `DTSTAMP:${toIcsUtcStamp(new Date())}`,
-      `DTSTART:${toIcsLocal(start)}`,
-      `DTEND:${toIcsLocal(end)}`,
-      'SUMMARY:Le Panuzo arrive chez Subito Pizza',
-      'DESCRIPTION:Tous les lundis\\, en édition éphémère — chez Subito Pizza\\, 333 rue Elie Gruyelle\\, Hénin-Beaumont.',
-      'LOCATION:Subito Pizza\\, 333 rue Elie Gruyelle\\, 62110 Hénin-Beaumont',
-      'BEGIN:VALARM',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:Le Panuzo arrive chez Subito Pizza ce soir !',
-      'TRIGGER:-PT30M',
-      'END:VALARM',
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ].join('\r\n');
-
-    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'panuzo-subito-pizza.ics';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  });
-}
 
 // Fait apparaître le nombre de jours écoulés depuis 1999 en le comptant
 // jusqu'à sa valeur réelle (jamais figée), dans la scène finale, sous
@@ -642,29 +483,6 @@ function initHeroCarousel() {
 
   const plate = img.closest('.hero__plate');
 
-  // Lundi = jour du Panuzo (getPanuzoStatus(), même source que le reste du
-  // site — aucune date codée ici). La toute première image vue par le
-  // visiteur devient le Panuzo plutôt que d'attendre son tour dans la
-  // rotation : appliqué AVANT le retour anticipé "reduced motion"
-  // ci-dessous, pour que ce premier message touche aussi les visiteurs qui
-  // ne verront jamais tourner le reste du carrousel. Mardi à dimanche,
-  // panuzoSlide n'est jamais utilisé : le carrousel reste identique à
-  // aujourd'hui, au caractère près.
-  const panuzoSlide = {
-    name: PANUZO_CONFIG.name,
-    src: 'assets/img/photos/panuzo.jpg',
-    caption: `🔥 <strong>Panuzo</strong> — aujourd'hui seulement, ${PANUZO_CONFIG.price}<br>🍕 À retrouver sur notre carte`,
-    href: 'menu.html#panuzo',
-  };
-  const isPanuzoDay = getPanuzoStatus().isToday;
-
-  if (isPanuzoDay) {
-    img.src = panuzoSlide.src;
-    img.alt = `${panuzoSlide.name}, à retrouver sur notre carte`;
-    caption.innerHTML = panuzoSlide.caption;
-    if (plate) { plate.href = panuzoSlide.href; plate.classList.add('is-panuzo'); }
-  }
-
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   // La carte complète, mélangée exprès (pizza, pâte, tex-mex...) plutôt
@@ -718,8 +536,6 @@ function initHeroCarousel() {
     { name: 'Pizza Carolina', src: 'assets/img/photos/carolina.jpg' }
   ];
 
-  if (isPanuzoDay) menuItems.unshift(panuzoSlide);
-
   const preloadAt = (i) => {
     const next = new Image();
     next.src = menuItems[(i + 1) % menuItems.length].src;
@@ -738,7 +554,7 @@ function initHeroCarousel() {
       img.src = p.src;
       img.alt = `${p.name}, à retrouver sur notre carte`;
       caption.innerHTML = p.caption || `🍕 À retrouver sur notre carte : <strong>${p.name}</strong>`;
-      if (plate) { plate.href = p.href || 'menu.html'; plate.classList.toggle('is-panuzo', p === panuzoSlide); }
+      if (plate) { plate.href = p.href || 'menu.html'; }
       img.classList.remove('is-swapping');
       caption.classList.remove('is-swapping');
     }, 380);
