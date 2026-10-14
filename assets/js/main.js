@@ -951,21 +951,64 @@ function initIntroSplash() {
   // Signature sonore + légère vibration, déclenchées au même instant que le
   // début du dévoilement du logo (voir .intro-splash__logo-wrap /
   // introLogoWipe en CSS, délai de 0.25s). Entièrement non bloquant : si le
-  // fichier audio est lent/indisponible, si la lecture auto est refusée
-  // (politique courante sans geste préalable) ou si l'appareil ne supporte
-  // pas la vibration, l'intro visuelle continue à l'identique.
+  // fichier audio est lent/indisponible/mal formé, ou si l'appareil ne
+  // supporte pas la vibration, l'intro visuelle continue à l'identique.
+  //
+  // Beaucoup de navigateurs mobiles refusent TOUT son/vibration tant
+  // qu'aucun geste utilisateur n'a eu lieu sur la page (politique
+  // d'activation, y compris pour un premier chargement automatique comme
+  // celui-ci). La tentative à 250ms ci-dessous couvre les cas où c'est
+  // autorisé d'emblée ; si elle est refusée, on retente une seule fois, en
+  // rattrapage, exactement au moment du tout premier geste de l'utilisateur
+  // (le même qui ferme déjà l'intro, voir dismiss() plus bas) — un geste
+  // valide pour les politiques des navigateurs, sans bouton ni écran ajouté.
   let introFxTimer = null;
   let chime = null;
-  try { chime = new Audio('assets/audio/intro-chime.wav'); chime.preload = 'auto'; chime.volume = 0.55; } catch (e) { /* audio indisponible : n'affecte jamais l'animation */ }
+  try {
+    chime = new Audio('assets/audio/intro-chime.wav');
+    chime.preload = 'auto';
+    chime.volume = 0.55;
+    chime.addEventListener('error', () => {
+      const code = chime.error ? chime.error.code : null;
+      console.warn('[intro-fx] fichier audio introuvable ou illisible (code ' + code + ' — 1 interrompu, 2 réseau, 3 décodage, 4 format non supporté). Vérifier assets/audio/intro-chime.wav sur le serveur (upload FTP en mode binaire).');
+    });
+  } catch (e) { console.warn('[intro-fx] API Audio indisponible dans ce navigateur', e); }
 
-  introFxTimer = window.setTimeout(() => {
-    if (chime) {
-      chime.play().catch(() => { /* lecture auto bloquée par le navigateur : silence, sans erreur */ });
+  let chimeStarted = false;
+  let vibrated = false;
+
+  const fireIntroFx = (origin) => {
+    if (chime && !chimeStarted) {
+      const p = chime.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          chimeStarted = true;
+          console.info('[intro-fx] son joué (déclencheur : ' + origin + ')');
+        }).catch((err) => {
+          console.info('[intro-fx] lecture du son refusée pour le moment (déclencheur : ' + origin + ', raison : ' + err.name + ') — nouvelle tentative au prochain geste si besoin');
+        });
+      } else {
+        chimeStarted = true;
+      }
     }
-    try {
-      if ('vibrate' in navigator) { navigator.vibrate(25); }
-    } catch (e) { /* vibration indisponible/refusée : purement facultatif */ }
-  }, 250);
+    if (!vibrated) {
+      try {
+        if ('vibrate' in navigator) {
+          const accepted = navigator.vibrate(25);
+          if (accepted) {
+            vibrated = true;
+            console.info('[intro-fx] vibration déclenchée (déclencheur : ' + origin + ')');
+          } else {
+            console.info('[intro-fx] vibration refusée pour le moment (déclencheur : ' + origin + ') — nouvelle tentative au prochain geste si besoin');
+          }
+        } else {
+          console.info('[intro-fx] navigator.vibrate non supporté par ce navigateur (normal sur iPhone/Safari)');
+        }
+      } catch (e) { console.warn('[intro-fx] appel vibrate() en erreur', e); }
+    }
+  };
+
+  introFxTimer = window.setTimeout(() => fireIntroFx('auto 250ms'), 250);
 
   let dismissed = false;
 
@@ -977,9 +1020,16 @@ function initIntroSplash() {
     stopSyncingViewport();
     splash.classList.add('is-hiding');
     try { sessionStorage.setItem('subitoIntroSeen', '1'); } catch (e) { /* tant pis, l'intro rejouera */ }
-    dismissEvents.forEach(([target, type]) => target.removeEventListener(type, dismiss));
+    dismissEvents.forEach(([target, type]) => target.removeEventListener(type, dismissFromGesture));
     setTimeout(() => splash.remove(), 950);
   };
+
+  // Fermeture par un vrai geste utilisateur : c'est aussi le dernier point
+  // possible pour jouer le son/la vibration avec l'autorisation du
+  // navigateur (appel synchrone, dans la pile du geste) — contrairement à
+  // la fermeture automatique après 1200ms ci-dessous, qui n'est pas un
+  // geste et ne débloquerait donc rien.
+  const dismissFromGesture = () => { fireIntroFx('premier geste utilisateur'); dismiss(); };
 
   const dismissEvents = [
     [window, 'keydown'],
@@ -988,7 +1038,7 @@ function initIntroSplash() {
     [window, 'touchstart'],
     [window, 'scroll'],
   ];
-  dismissEvents.forEach(([target, type]) => target.addEventListener(type, dismiss, { once: true, passive: true }));
+  dismissEvents.forEach(([target, type]) => target.addEventListener(type, dismissFromGesture, { once: true, passive: true }));
   setTimeout(dismiss, 1200);
 }
 
