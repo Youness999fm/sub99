@@ -948,28 +948,31 @@ function initIntroSplash() {
   document.body.style.overflow = 'hidden';
   const stopSyncingViewport = syncSplashToVisualViewport(splash);
 
-  // Signature sonore : un tintement cristallin déclenché au même instant que
-  // le début du dévoilement du logo (voir .intro-splash__logo-wrap /
+  // Signature sonore + légère vibration, déclenchées au même instant que le
+  // début du dévoilement du logo (voir .intro-splash__logo-wrap /
   // introLogoWipe en CSS, délai de 0.25s). Entièrement non bloquant : si le
-  // fichier est lent, indisponible, ou si le navigateur refuse la lecture
-  // automatique (politique courante sans geste préalable), l'intro visuelle
-  // continue à l'identique.
-  let chimeTimer = null;
-  try {
-    const chime = new Audio('assets/audio/intro-chime.wav');
-    chime.preload = 'auto';
-    chime.volume = 0.55;
-    chimeTimer = window.setTimeout(() => {
+  // fichier audio est lent/indisponible, si la lecture auto est refusée
+  // (politique courante sans geste préalable) ou si l'appareil ne supporte
+  // pas la vibration, l'intro visuelle continue à l'identique.
+  let introFxTimer = null;
+  let chime = null;
+  try { chime = new Audio('assets/audio/intro-chime.wav'); chime.preload = 'auto'; chime.volume = 0.55; } catch (e) { /* audio indisponible : n'affecte jamais l'animation */ }
+
+  introFxTimer = window.setTimeout(() => {
+    if (chime) {
       chime.play().catch(() => { /* lecture auto bloquée par le navigateur : silence, sans erreur */ });
-    }, 250);
-  } catch (e) { /* audio indisponible : n'affecte jamais l'animation */ }
+    }
+    try {
+      if ('vibrate' in navigator) { navigator.vibrate(25); }
+    } catch (e) { /* vibration indisponible/refusée : purement facultatif */ }
+  }, 250);
 
   let dismissed = false;
 
   const dismiss = () => {
     if (dismissed) return;
     dismissed = true;
-    if (chimeTimer !== null) { window.clearTimeout(chimeTimer); }
+    if (introFxTimer !== null) { window.clearTimeout(introFxTimer); }
     document.body.style.overflow = '';
     stopSyncingViewport();
     splash.classList.add('is-hiding');
