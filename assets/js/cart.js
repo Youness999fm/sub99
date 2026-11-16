@@ -171,6 +171,31 @@ const SUBITO_CART_CONFIG = {
      affichés (fiche produit, note de prix de catégorie, grille des
      tailles) plutôt que de dupliquer une liste de produits ici. */
 
+  // Plusieurs catégories donnent des noms courts (« Bolognaise », « Milano »,
+  // « Kebab »...) qui n'ont de sens qu'avec leur catégorie — et certains se
+  // retrouvent même en double d'une catégorie à l'autre (« Milano » et
+  // « Kebab » existent à la fois en pizza et en Subitowich). Sans la
+  // catégorie, le récapitulatif peut induire en erreur au téléphone : on la
+  // préfixe donc systématiquement pour ces catégories.
+  const CATEGORY_LABELS = {
+    pates: "Pâtes",
+    subitowichs: "Subitowich",
+    "tex-mex": "Tex-Mex",
+    salades: "Salade",
+    desserts: "Dessert",
+    boissons: "Boisson"
+  };
+
+  function qualifiedName(name, category) {
+    if (!category) return name;
+    const label = CATEGORY_LABELS[category.id];
+    if (!label) return name;
+    // Évite un doublon si le nom affiché commence déjà par le libellé
+    // (ex. le produit "Boisson 33cl" ne doit pas devenir "Boisson Boisson 33cl").
+    if (name.toLowerCase().indexOf(label.toLowerCase()) === 0) return name;
+    return label + " " + name;
+  }
+
   function priceFromCategoryNote(categorySection) {
     const note = categorySection.querySelector(".menu-category__price-note");
     if (note) {
@@ -276,11 +301,12 @@ const SUBITO_CART_CONFIG = {
 
       const ownPriceEl = item.querySelector(".menu-item__price");
       const category = item.closest(".menu-category");
+      const displayName = qualifiedName(name, category);
 
       if (ownPriceEl) {
         const price = parsePrice(ownPriceEl.textContent);
         if (price !== null) {
-          const widget = buildSimpleAdd(name, price);
+          const widget = buildSimpleAdd(displayName, price);
           body.appendChild(widget);
           simpleAddWidgets.push(widget);
         }
@@ -290,7 +316,7 @@ const SUBITO_CART_CONFIG = {
       if (category) {
         const price = priceFromCategoryNote(category);
         if (price !== null) {
-          const widget = buildSimpleAdd(name, price);
+          const widget = buildSimpleAdd(displayName, price);
           body.appendChild(widget);
           simpleAddWidgets.push(widget);
           return;
