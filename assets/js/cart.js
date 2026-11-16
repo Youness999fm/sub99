@@ -83,6 +83,20 @@ const SUBITO_CART_CONFIG = {
     return (name + "|" + (variant || "")).toLowerCase();
   }
 
+  // Rangement du récapitulatif par taille (toutes les Solo ensemble, toutes
+  // les Duo ensemble, etc.), peu importe l'ordre réel d'ajout au panier —
+  // demande explicite : un client qui alterne les tailles doit quand même
+  // retrouver un récap groupé proprement. Les articles sans taille (prix
+  // fixe) passent avant, dans leur ordre d'ajout (tri stable).
+  const SIZE_ORDER = ["Solo", "Duo", "Quatro", "XXL"];
+  function sizeRank(variant) {
+    const idx = SIZE_ORDER.indexOf(variant);
+    return idx === -1 ? -1 : idx;
+  }
+  function sortedCart() {
+    return readCart().slice().sort(function (a, b) { return sizeRank(a.variant) - sizeRank(b.variant); });
+  }
+
   // Deux ajouts avec le même nom ET la même option se regroupent (qty++) ;
   // des options différentes (ex. tailles différentes) restent deux lignes
   // séparées, conformément à la demande.
@@ -324,16 +338,19 @@ const SUBITO_CART_CONFIG = {
       '</button>';
     document.body.appendChild(bar);
 
-    document.getElementById("cartBarOpen").addEventListener("click", function (e) {
-      if (e.target.closest("#cartBarOrder")) {
-        openCheckout();
-      } else {
-        openDrawer();
-      }
-    });
+    document.getElementById("cartBarOpen").addEventListener("click", openDrawer);
   }
 
-  /* ---------- Panier détaillé (drawer) ---------- */
+  /* ---------- Panier = récapitulatif (un seul panneau) ----------
+     Pas d'étape intermédiaire "panier" puis "commande" : ouvrir le panier
+     affiche directement le récapitulatif, modifiable (quantités, suppression)
+     et prêt à transmettre (appel / copie) — demande explicite du client. */
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
 
   function ensureDrawer() {
     if (document.getElementById("cartOverlay")) return;
@@ -344,58 +361,54 @@ const SUBITO_CART_CONFIG = {
     overlay.innerHTML =
       '<div class="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle" tabindex="-1">' +
         '<div class="cart-drawer__header">' +
-          '<h2 id="cartDrawerTitle">🛒 Mon panier</h2>' +
-          '<button type="button" class="cart-drawer__close" id="cartDrawerClose" aria-label="Fermer le panier">✕</button>' +
+          '<h2 id="cartDrawerTitle">🛒 Mon récapitulatif</h2>' +
+          '<button type="button" class="cart-drawer__close" id="cartDrawerClose" aria-label="Fermer">✕</button>' +
         '</div>' +
         '<div class="cart-drawer__body" id="cartDrawerBody"></div>' +
-        '<div class="cart-drawer__footer">' +
-          '<div class="cart-drawer__total"><span>Total</span><strong id="cartDrawerTotal">0,00 €</strong></div>' +
-          '<button type="button" class="btn-solid cart-drawer__checkout" id="cartDrawerCheckout">Commander</button>' +
-          '<button type="button" class="cart-drawer__clear" id="cartDrawerClear">Vider le panier</button>' +
-        '</div>' +
+        '<div class="cart-drawer__footer" id="cartDrawerFooter"></div>' +
       '</div>';
     document.body.appendChild(overlay);
 
     overlay.addEventListener("click", function (e) { if (e.target === overlay) closeDrawer(); });
     document.getElementById("cartDrawerClose").addEventListener("click", closeDrawer);
-    document.getElementById("cartDrawerCheckout").addEventListener("click", function () {
-      closeDrawer();
-      openCheckout();
-    });
-    document.getElementById("cartDrawerClear").addEventListener("click", function () {
-      if (window.confirm("Vider tout le panier ?")) clearCart();
-    });
+    document.addEventListener("keydown", onDrawerKeydown, true);
   }
 
   function renderDrawer() {
     const body = document.getElementById("cartDrawerBody");
-    if (!body) return;
-    const cart = readCart();
+    const footer = document.getElementById("cartDrawerFooter");
+    if (!body || !footer) return;
+    const cart = sortedCart();
 
     if (!cart.length) {
       body.innerHTML = '<p class="cart-drawer__empty">Votre panier est vide pour le moment — parcourez la carte et ajoutez vos envies 🍕</p>';
-    } else {
-      body.innerHTML = cart.map(function (line) {
-        const sub = line.unitPrice * line.qty;
-        return (
-          '<div class="cart-line" data-id="' + line.id + '">' +
-            '<div class="cart-line__info">' +
-              '<p class="cart-line__name">' + escapeHtml(line.name) + (line.variant ? ' <span class="cart-line__variant">(' + escapeHtml(line.variant) + ')</span>' : "") + '</p>' +
-              '<p class="cart-line__unit">' + formatPrice(line.unitPrice) + ' / unité</p>' +
-            '</div>' +
-            '<div class="cart-line__qty">' +
-              '<button type="button" class="cart-line__dec" aria-label="Diminuer la quantité">−</button>' +
-              '<span class="cart-line__qty-value">' + line.qty + '</span>' +
-              '<button type="button" class="cart-line__inc" aria-label="Augmenter la quantité">+</button>' +
-            '</div>' +
-            '<p class="cart-line__subtotal">' + formatPrice(sub) + '</p>' +
-            '<button type="button" class="cart-line__remove" aria-label="Retirer cet article">🗑</button>' +
-          '</div>'
-        );
-      }).join("");
+      footer.innerHTML = "";
+      return;
     }
 
-    document.getElementById("cartDrawerTotal").textContent = formatPrice(cartTotal(cart));
+    let lastGroup; // undefined au départ : distinct de null (= "sans taille")
+    body.innerHTML = cart.map(function (line) {
+      const group = sizeRank(line.variant) === -1 ? null : line.variant;
+      const groupLabel = group !== null && group !== lastGroup ? '<p class="cart-group-label">' + escapeHtml(group) + '</p>' : "";
+      lastGroup = group;
+      const sub = line.unitPrice * line.qty;
+      return (
+        groupLabel +
+        '<div class="cart-line" data-id="' + line.id + '">' +
+          '<div class="cart-line__info">' +
+            '<p class="cart-line__name">' + escapeHtml(line.name) + (line.variant ? ' <span class="cart-line__variant">(' + escapeHtml(line.variant) + ')</span>' : "") + '</p>' +
+            '<p class="cart-line__unit">' + formatPrice(line.unitPrice) + ' / unité</p>' +
+          '</div>' +
+          '<div class="cart-line__qty">' +
+            '<button type="button" class="cart-line__dec" aria-label="Diminuer la quantité">−</button>' +
+            '<span class="cart-line__qty-value">' + line.qty + '</span>' +
+            '<button type="button" class="cart-line__inc" aria-label="Augmenter la quantité">+</button>' +
+          '</div>' +
+          '<p class="cart-line__subtotal">' + formatPrice(sub) + '</p>' +
+          '<button type="button" class="cart-line__remove" aria-label="Retirer cet article">🗑</button>' +
+        '</div>'
+      );
+    }).join("");
 
     body.querySelectorAll(".cart-line").forEach(function (row) {
       const id = row.getAttribute("data-id");
@@ -405,21 +418,29 @@ const SUBITO_CART_CONFIG = {
       row.querySelector(".cart-line__dec").addEventListener("click", function () { setQty(id, line.qty - 1); });
       row.querySelector(".cart-line__remove").addEventListener("click", function () { removeItem(id); });
     });
-  }
 
-  // Les deux panneaux (panier détaillé / commande) ne doivent jamais être
-  // ouverts en même temps — fermeture immédiate et sans animation de
-  // l'autre avant d'en ouvrir un, quel que soit le chemin emprunté.
-  function hideImmediately(id) {
-    const overlay = document.getElementById(id);
-    if (!overlay || overlay.hidden) return;
-    overlay.classList.remove("is-visible");
-    overlay.hidden = true;
+    footer.innerHTML =
+      '<div class="cart-drawer__total"><span>Total</span><strong>' + formatPrice(cartTotal(cart)) + '</strong></div>' +
+      '<div class="checkout-actions">' +
+        '<a class="btn-solid checkout-call" id="checkoutCall" href="tel:' + SUBITO_CART_CONFIG.phone + '">📞 Appeler pour commander · ' + SUBITO_CART_CONFIG.phoneDisplay + '</a>' +
+        '<button type="button" class="btn-outline" id="checkoutCopy">📋 Copier le récapitulatif</button>' +
+      '</div>' +
+      '<p class="checkout-disclaimer">😄 Petite précision utile : ce bouton n’envoie rien tout seul, ce n’est pas une commande en ligne. C’est juste votre antisèche pour ne rien oublier au téléphone — à vous de jouer, le resto est au bout du fil !</p>' +
+      '<button type="button" class="cart-drawer__clear" id="cartDrawerClear">Vider le panier</button>';
+
+    document.getElementById("checkoutCall").addEventListener("click", function () {
+      showToast("On vous laisse composer le 📞 — à tout de suite !");
+    });
+    document.getElementById("checkoutCopy").addEventListener("click", function () {
+      copyToClipboard(buildRecapText());
+    });
+    document.getElementById("cartDrawerClear").addEventListener("click", function () {
+      if (window.confirm("Vider tout le panier ?")) clearCart();
+    });
   }
 
   let drawerLastFocused = null;
   function openDrawer() {
-    hideImmediately("checkoutOverlay");
     ensureDrawer();
     renderDrawer();
     const overlay = document.getElementById("cartOverlay");
@@ -429,7 +450,6 @@ const SUBITO_CART_CONFIG = {
     overlay.classList.add("is-visible");
     document.documentElement.style.overflow = "hidden";
     overlay.querySelector(".cart-drawer").focus();
-    document.addEventListener("keydown", onDrawerKeydown, true);
   }
 
   function closeDrawer() {
@@ -437,60 +457,21 @@ const SUBITO_CART_CONFIG = {
     if (!overlay) return;
     overlay.classList.remove("is-visible");
     document.documentElement.style.overflow = "";
-    document.removeEventListener("keydown", onDrawerKeydown, true);
     setTimeout(function () { overlay.hidden = true; }, 280);
     if (drawerLastFocused && typeof drawerLastFocused.focus === "function") drawerLastFocused.focus();
   }
 
   function onDrawerKeydown(e) {
-    if (e.key === "Escape") closeDrawer();
+    const overlay = document.getElementById("cartOverlay");
+    if (e.key === "Escape" && overlay && !overlay.hidden) closeDrawer();
   }
 
-  /* ---------- Commande (récapitulatif + transmission) ---------- */
-
-  function ensureCheckout() {
-    if (document.getElementById("checkoutOverlay")) return;
-    const overlay = document.createElement("div");
-    overlay.id = "checkoutOverlay";
-    overlay.className = "checkout-overlay";
-    overlay.hidden = true;
-    overlay.innerHTML =
-      '<div class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle" tabindex="-1">' +
-        '<button type="button" class="checkout-modal__close" id="checkoutClose" aria-label="Fermer">✕</button>' +
-        '<h2 id="checkoutTitle">🛒 Mon récapitulatif</h2>' +
-        '<div class="checkout-recap" id="checkoutRecap" aria-live="polite"></div>' +
-        '<div class="checkout-actions">' +
-          '<a class="btn-solid checkout-call" id="checkoutCall" href="tel:' + SUBITO_CART_CONFIG.phone + '">📞 Appeler pour commander · ' + SUBITO_CART_CONFIG.phoneDisplay + '</a>' +
-          '<button type="button" class="btn-outline" id="checkoutCopy">📋 Copier le récapitulatif</button>' +
-        '</div>' +
-        '<p class="checkout-disclaimer">😄 Petite précision utile : ce bouton n’envoie rien tout seul, ce n’est pas une commande en ligne. C’est juste votre antisèche pour ne rien oublier au téléphone — à vous de jouer, le resto est au bout du fil !</p>' +
-      '</div>';
-    document.body.appendChild(overlay);
-
-    overlay.addEventListener("click", function (e) { if (e.target === overlay) closeCheckout(); });
-    document.getElementById("checkoutClose").addEventListener("click", closeCheckout);
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && !overlay.hidden) closeCheckout();
-    });
-
-    document.getElementById("checkoutCall").addEventListener("click", function () {
-      showToast("On vous laisse composer le 📞 — à tout de suite !");
-    });
-
-    document.getElementById("checkoutCopy").addEventListener("click", function () {
-      const text = buildRecapText();
-      copyToClipboard(text);
-    });
-  }
-
-  function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  }
+  /* ---------- Récapitulatif texte (pour la copie presse-papiers) ----------
+     Même tri par taille que l'affichage, pour que le texte copié corresponde
+     exactement à ce que le client voit à l'écran. */
 
   function buildRecapText() {
-    const cart = readCart();
+    const cart = sortedCart();
     const lines = [];
     lines.push("Ma commande — Subito Pizza");
     lines.push("");
@@ -501,12 +482,6 @@ const SUBITO_CART_CONFIG = {
     lines.push("");
     lines.push("Total : " + formatPrice(cartTotal(cart)));
     return lines.join("\n");
-  }
-
-  function updateRecap() {
-    const recapEl = document.getElementById("checkoutRecap");
-    if (!recapEl) return;
-    recapEl.textContent = buildRecapText();
   }
 
   function copyToClipboard(text) {
@@ -533,33 +508,6 @@ const SUBITO_CART_CONFIG = {
     }
   }
 
-  let checkoutLastFocused = null;
-  function openCheckout() {
-    if (!readCart().length) {
-      showToast("Votre panier est vide — ajoutez d’abord un produit.");
-      return;
-    }
-    hideImmediately("cartOverlay");
-    ensureCheckout();
-    updateRecap();
-    const overlay = document.getElementById("checkoutOverlay");
-    checkoutLastFocused = document.activeElement;
-    overlay.hidden = false;
-    void overlay.offsetWidth;
-    overlay.classList.add("is-visible");
-    document.documentElement.style.overflow = "hidden";
-    overlay.querySelector(".checkout-modal").focus();
-  }
-
-  function closeCheckout() {
-    const overlay = document.getElementById("checkoutOverlay");
-    if (!overlay) return;
-    overlay.classList.remove("is-visible");
-    document.documentElement.style.overflow = "";
-    setTimeout(function () { overlay.hidden = true; }, 280);
-    if (checkoutLastFocused && typeof checkoutLastFocused.focus === "function") checkoutLastFocused.focus();
-  }
-
   /* ---------- Rendu global (barre + sync des widgets produits) ---------- */
 
   function renderAll() {
@@ -575,9 +523,6 @@ const SUBITO_CART_CONFIG = {
     if (document.getElementById("cartOverlay") && !document.getElementById("cartOverlay").hidden) {
       renderDrawer();
     }
-    if (document.getElementById("checkoutOverlay") && !document.getElementById("checkoutOverlay").hidden) {
-      updateRecap();
-    }
 
     simpleAddWidgets.forEach(function (widget) {
       widget.dispatchEvent(new Event("cart:sync"));
@@ -591,7 +536,7 @@ const SUBITO_CART_CONFIG = {
     clear: clearCart,
     get: readCart,
     open: openDrawer,
-    checkout: openCheckout
+    checkout: openDrawer
   };
 
   function init() {

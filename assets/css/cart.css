@@ -2,6 +2,27 @@
    Feuille à part comme subito-popup.css : une fonctionnalité ajoutée au
    site existant, jamais mélangée au style.css partagé. */
 
+/* ---------- Bandeau d'annonce (menu.html) ---------- */
+
+.cart-announce {
+  max-width: var(--max-width);
+  margin: 0 auto 18px;
+  text-align: center;
+  background: linear-gradient(135deg, #fff8e8 0%, #fdf0d4 100%);
+  border: 1px solid var(--gold);
+  color: var(--dark);
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.cart-announce strong { color: var(--red); }
+
+@media (max-width: 600px) {
+  .cart-announce { border-radius: 14px; text-align: left; }
+}
+
 /* ---------- Boutons "Ajouter" sur une fiche produit ---------- */
 
 .add-to-cart {
@@ -202,8 +223,7 @@
 
 /* ---------- Panier détaillé (drawer) ---------- */
 
-.cart-overlay,
-.checkout-overlay {
+.cart-overlay {
   position: fixed;
   inset: 0;
   background: rgba(14, 17, 15, 0.5);
@@ -217,13 +237,9 @@
   padding: 0;
 }
 
-.checkout-overlay { z-index: 4800; align-items: center; padding: 20px; }
+.cart-overlay[hidden] { display: flex; }
 
-.cart-overlay[hidden],
-.checkout-overlay[hidden] { display: flex; }
-
-.cart-overlay.is-visible,
-.checkout-overlay.is-visible {
+.cart-overlay.is-visible {
   opacity: 1;
   visibility: visible;
 }
@@ -341,6 +357,20 @@
   text-decoration: underline;
 }
 
+/* En-tête discret devant chaque groupe de taille (Solo, Duo, Quatro, XXL) :
+   le client qui a mélangé les tailles en ajoutant retrouve son récap bien
+   rangé, pas dans l'ordre d'ajout. */
+.cart-group-label {
+  margin: 14px 0 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+}
+
+.cart-line:first-child { padding-top: 0; }
+
 .cart-drawer__footer {
   padding: 16px 20px;
   border-top: 1px solid var(--border);
@@ -348,6 +378,8 @@
   flex-direction: column;
   gap: 10px;
 }
+
+.cart-drawer__footer:empty { display: none; }
 
 .cart-drawer__total {
   display: flex;
@@ -357,8 +389,6 @@
 }
 
 .cart-drawer__total strong { color: var(--red); font-size: 1.3rem; }
-
-.cart-drawer__checkout { text-align: center; border: none; cursor: pointer; width: 100%; font-size: 1rem; }
 
 .cart-drawer__clear {
   border: none;
@@ -370,52 +400,7 @@
   align-self: center;
 }
 
-/* ---------- Commande (récapitulatif) ---------- */
-
-.checkout-modal {
-  background: #fff;
-  width: 100%;
-  max-width: 480px;
-  max-height: 90vh;
-  overflow-y: auto;
-  border-radius: var(--radius);
-  padding: 26px 24px 24px;
-  position: relative;
-  transform: translateY(16px) scale(0.98);
-  transition: transform 0.28s cubic-bezier(0.22, 0.75, 0.2, 1);
-}
-
-.checkout-overlay.is-visible .checkout-modal { transform: translateY(0) scale(1); }
-
-.checkout-modal__close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  border: none;
-  background: var(--green-tint);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-#checkoutTitle {
-  margin: 0 36px 16px 0;
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-}
-
-.checkout-recap {
-  background: var(--green-tint);
-  border-radius: 10px;
-  padding: 14px 16px;
-  font-size: 0.85rem;
-  white-space: pre-wrap;
-  line-height: 1.5;
-  margin-bottom: 16px;
-  max-height: 180px;
-  overflow-y: auto;
-}
+/* ---------- Appel / copie du récapitulatif (dans le pied du panier) ---------- */
 
 .checkout-actions {
   display: flex;
@@ -445,7 +430,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cart-overlay, .checkout-overlay, .cart-drawer, .checkout-modal {
+  .cart-overlay, .cart-drawer {
     transition: none;
   }
 }
