@@ -1,0 +1,451 @@
+/* Subito Pizza — Panier de commande (voir assets/js/cart.js).
+   Feuille à part comme subito-popup.css : une fonctionnalité ajoutée au
+   site existant, jamais mélangée au style.css partagé. */
+
+/* ---------- Boutons "Ajouter" sur une fiche produit ---------- */
+
+.add-to-cart {
+  margin-top: 10px;
+}
+
+.add-to-cart__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid var(--green);
+  background: #fff;
+  color: var(--green);
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.add-to-cart__btn:hover,
+.add-to-cart__btn:focus-visible {
+  background: var(--green);
+  color: #fff;
+}
+
+.add-to-cart__btn:active { transform: scale(0.96); }
+
+.add-to-cart__stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--green);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 6px;
+}
+
+.add-to-cart__dec,
+.add-to-cart__inc {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.add-to-cart__dec:hover, .add-to-cart__inc:hover { background: rgba(255, 255, 255, 0.32); }
+
+.add-to-cart__qty {
+  font-weight: 700;
+  min-width: 1.2em;
+  text-align: center;
+}
+
+.add-to-cart--sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.add-to-cart__size {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 2px solid var(--green);
+  background: #fff;
+  color: var(--green);
+  border-radius: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.add-to-cart__size:hover,
+.add-to-cart__size:focus-visible {
+  background: var(--green);
+  color: #fff;
+}
+
+.add-to-cart__size:active { transform: scale(0.96); }
+
+.add-to-cart__size-name { font-weight: 700; font-size: 0.78rem; }
+.add-to-cart__size-price { font-size: 0.72rem; opacity: 0.85; }
+
+/* Sur la page composer.html, le sélecteur de taille de la base Marguerita
+   est inséré seul (pas dans une .menu-item) : on l'encadre comme le reste
+   des blocs .compose-group pour qu'il ait l'air d'avoir toujours été là. */
+.compose-pizza > .add-to-cart--sizes {
+  justify-content: center;
+  margin: 18px 0 0;
+}
+
+/* ---------- Confirmation d'ajout (toast) ---------- */
+
+.cart-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-12px);
+  background: var(--dark);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 4500;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+
+.cart-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---------- Barre flottante ---------- */
+
+.cart-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  z-index: 500;
+  pointer-events: none;
+}
+
+.cart-bar[hidden] { display: none; }
+
+.cart-bar__btn {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 10px 10px 18px;
+  box-shadow: 0 16px 34px -12px rgba(9, 42, 27, 0.55);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.cart-bar__btn:active { transform: scale(0.98); }
+
+.cart-bar.is-bumping .cart-bar__btn { animation: cartBarBump 0.4s ease; }
+
+@keyframes cartBarBump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.cart-bar__icon { font-size: 1.3rem; }
+
+.cart-bar__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-bar__label { font-size: 0.74rem; font-weight: 600; opacity: 0.85; }
+.cart-bar__total { font-weight: 800; font-size: 1rem; }
+
+.cart-bar__cta {
+  background: var(--red);
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-bar.is-bumping .cart-bar__btn { animation: none; }
+}
+
+/* ---------- Panier détaillé (drawer) ---------- */
+
+.cart-overlay,
+.checkout-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 17, 15, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.28s ease, visibility 0.28s;
+  z-index: 4000;
+  padding: 0;
+}
+
+.checkout-overlay { z-index: 4800; align-items: center; padding: 20px; }
+
+.cart-overlay[hidden],
+.checkout-overlay[hidden] { display: flex; }
+
+.cart-overlay.is-visible,
+.checkout-overlay.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cart-drawer {
+  background: #fff;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(24px);
+  transition: transform 0.28s cubic-bezier(0.22, 0.75, 0.2, 1);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.cart-overlay.is-visible .cart-drawer { transform: translateY(0); }
+
+@media (min-width: 560px) {
+  .cart-overlay { align-items: center; padding: 20px; }
+  .cart-drawer { border-radius: var(--radius); max-height: 80vh; }
+}
+
+.cart-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cart-drawer__header h2 { margin: 0; font-size: 1.1rem; font-family: var(--font-display); }
+
+.cart-drawer__close {
+  border: none;
+  background: var(--green-tint);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.cart-drawer__body {
+  padding: 12px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cart-drawer__empty {
+  text-align: center;
+  color: var(--gray);
+  padding: 30px 10px;
+}
+
+.cart-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cart-line__info { grid-column: 1; }
+.cart-line__name { margin: 0; font-weight: 700; font-size: 0.95rem; }
+.cart-line__variant { font-weight: 500; color: var(--gray); }
+.cart-line__unit { margin: 2px 0 0; font-size: 0.78rem; color: var(--gray); }
+
+.cart-line__qty {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--green-tint);
+  border-radius: 999px;
+  padding: 3px 4px;
+  height: fit-content;
+}
+
+.cart-line__dec, .cart-line__inc {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.cart-line__qty-value { min-width: 1em; text-align: center; font-weight: 700; font-size: 0.85rem; }
+
+.cart-line__subtotal {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  font-weight: 800;
+  color: var(--red);
+  text-align: right;
+}
+
+.cart-line__remove {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  border: none;
+  background: none;
+  color: var(--gray);
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 2px 0;
+  text-decoration: underline;
+}
+
+.cart-drawer__footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cart-drawer__total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 1.05rem;
+}
+
+.cart-drawer__total strong { color: var(--red); font-size: 1.3rem; }
+
+.cart-drawer__checkout { text-align: center; border: none; cursor: pointer; width: 100%; font-size: 1rem; }
+
+.cart-drawer__clear {
+  border: none;
+  background: none;
+  color: var(--gray);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.82rem;
+  align-self: center;
+}
+
+/* ---------- Commande (récapitulatif) ---------- */
+
+.checkout-modal {
+  background: #fff;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: var(--radius);
+  padding: 26px 24px 24px;
+  position: relative;
+  transform: translateY(16px) scale(0.98);
+  transition: transform 0.28s cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+.checkout-overlay.is-visible .checkout-modal { transform: translateY(0) scale(1); }
+
+.checkout-modal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  border: none;
+  background: var(--green-tint);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+#checkoutTitle {
+  margin: 0 36px 16px 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.checkout-recap {
+  background: var(--green-tint);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.checkout-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkout-actions #checkoutCopy {
+  text-align: center;
+  cursor: pointer;
+  width: 100%;
+  background: none;
+}
+
+.checkout-call {
+  text-align: center;
+  display: block;
+  width: 100%;
+}
+
+.checkout-disclaimer {
+  margin: 14px 0 0;
+  font-size: 0.76rem;
+  color: var(--gray);
+  text-align: center;
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-overlay, .checkout-overlay, .cart-drawer, .checkout-modal {
+    transition: none;
+  }
+}
