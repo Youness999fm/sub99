@@ -83,12 +83,16 @@ const SUBITO_CART_CONFIG = {
     }
   }
 
-  function writeCart(cart) {
+  function saveCart(cart) {
     try {
       localStorage.setItem(SUBITO_CART_CONFIG.storageKey, JSON.stringify(cart));
     } catch (e) {
       log("localStorage indisponible : le panier ne sera pas conservé.");
     }
+  }
+
+  function writeCart(cart) {
+    saveCart(cart);
     renderAll();
   }
 
@@ -232,15 +236,22 @@ const SUBITO_CART_CONFIG = {
     return buildLineId(name, variant, [], [], null, "");
   }
 
+  // Changer juste la quantité (sans ajouter/retirer de ligne) ne doit
+  // jamais reconstruire toute la liste du panier : ça faisait disparaître
+  // puis réapparaître chaque article à chaque appui sur +/-, donnant une
+  // impression de lag même quand tout fonctionnait. On met à jour le
+  // stockage et seulement la ligne concernée + le pied (totaux/promo).
   function setQty(id, qty) {
-    let cart = readCart();
+    const cart = readCart();
     if (qty <= 0) {
-      cart = cart.filter(function (l) { return l.id !== id; });
-    } else {
-      const line = cart.find(function (l) { return l.id === id; });
-      if (line) line.qty = qty;
+      writeCart(cart.filter(function (l) { return l.id !== id; }));
+      return;
     }
-    writeCart(cart);
+    const line = cart.find(function (l) { return l.id === id; });
+    if (!line) return;
+    line.qty = qty;
+    saveCart(cart);
+    patchQtyDisplay(id);
   }
 
   function removeItem(id) {
@@ -1082,6 +1093,7 @@ const SUBITO_CART_CONFIG = {
     const body = document.getElementById("cartDrawerBody");
     const footer = document.getElementById("cartDrawerFooter");
     if (!body || !footer) return;
+    const scrollBefore = body.scrollTop;
     const cart = sortedCart();
 
     if (!cart.length) {
@@ -1132,6 +1144,18 @@ const SUBITO_CART_CONFIG = {
       row.querySelector(".cart-line__dec").addEventListener("click", function () { setQty(id, line.qty - 1); });
       row.querySelector(".cart-line__remove").addEventListener("click", function () { removeItem(id); });
     });
+    body.scrollTop = scrollBefore;
+
+    renderDrawerFooter(cart);
+  }
+
+  // Pied du panier (sous-total, promo, total, boutons d'action) : isolé de
+  // renderDrawer() pour pouvoir le rafraîchir seul après un +/- de quantité,
+  // sans reconstruire toute la liste des articles au-dessus.
+  function renderDrawerFooter(cart) {
+    const footer = document.getElementById("cartDrawerFooter");
+    if (!footer) return;
+    if (!cart.length) { footer.innerHTML = ""; return; }
 
     const promo = pizzaPromo(cart);
     const gross = cartGrossTotal(cart);
@@ -1177,6 +1201,35 @@ const SUBITO_CART_CONFIG = {
     document.getElementById("cartDrawerClear").addEventListener("click", function () {
       if (window.confirm("Vider tout le panier ?")) clearCart();
     });
+  }
+
+  // Mise à jour "légère" après un simple changement de quantité (+/-) :
+  // on touche uniquement le nombre, le sous-total de la ligne et le pied,
+  // jamais la liste entière — plus de flash, le défilement reste en place.
+  function patchQtyDisplay(id) {
+    const cart = readCart();
+    const bar = document.getElementById("cartBar");
+    if (bar) {
+      document.getElementById("cartBarCount").textContent = String(cartCount(cart));
+      document.getElementById("cartBarTotal").textContent = formatPrice(cartTotal(cart));
+    }
+
+    const overlay = document.getElementById("cartOverlay");
+    if (!overlay || overlay.hidden) return;
+
+    const sorted = sortedCart();
+    const index = sorted.findIndex(function (l) { return l.id === id; });
+    if (index === -1) return;
+    const line = sorted[index];
+    const row = overlay.querySelector('.cart-line[data-index="' + index + '"]');
+    if (row) {
+      const unit = lineUnitPrice(line);
+      const qtyEl = row.querySelector(".cart-line__qty-value");
+      const subEl = row.querySelector(".cart-line__subtotal");
+      if (qtyEl) qtyEl.textContent = line.qty;
+      if (subEl) subEl.textContent = formatPrice(unit * line.qty);
+    }
+    renderDrawerFooter(sorted);
   }
 
   let drawerLastFocused = null;

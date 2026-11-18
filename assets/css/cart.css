@@ -297,20 +297,27 @@
   background: #fff;
   width: 100%;
   max-width: 480px;
-  max-height: 85vh;
-  border-radius: 20px 20px 0 0;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
-  transform: translateY(24px);
+  transform: translateY(16px);
   transition: transform 0.28s cubic-bezier(0.22, 0.75, 0.2, 1);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
 .cart-overlay.is-visible .cart-drawer { transform: translateY(0); }
 
+.cart-drawer__header { padding-top: calc(18px + env(safe-area-inset-top)); }
+
+/* Plein écran sous 560px (mobile) : plus de place pour lire le récap et
+   toucher les boutons +/- sans viser au pixel. Au-delà, on revient à une
+   carte centrée classique, plus adaptée à un grand écran. */
 @media (min-width: 560px) {
   .cart-overlay { align-items: center; padding: 20px; }
-  .cart-drawer { border-radius: var(--radius); max-height: 80vh; }
+  .cart-drawer { height: auto; max-height: 80vh; border-radius: var(--radius); }
+  .cart-drawer__header { padding-top: 18px; }
 }
 
 .cart-drawer__header {
@@ -371,18 +378,19 @@
 }
 
 .cart-line__dec, .cart-line__inc {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: none;
   background: #fff;
   box-shadow: var(--shadow);
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   line-height: 1;
+  touch-action: manipulation;
 }
 
-.cart-line__qty-value { min-width: 1em; text-align: center; font-weight: 700; font-size: 0.85rem; }
+.cart-line__qty-value { min-width: 1.4em; text-align: center; font-weight: 700; font-size: 0.9rem; }
 
 .cart-line__subtotal {
   grid-column: 2;
