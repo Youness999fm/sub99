@@ -1227,7 +1227,7 @@ const SUBITO_CART_CONFIG = {
 
     document.getElementById("checkoutCall").addEventListener("click", function () {
       showToast("On vous laisse composer le 📞 — à tout de suite !");
-      pendingCallCheck = true;
+      localStorage.setItem(CALL_PENDING_KEY, String(Date.now()));
     });
   }
 
@@ -1264,16 +1264,34 @@ const SUBITO_CART_CONFIG = {
     renderStickyFooter(sorted);
   }
 
-  // Vrai juste après un appui sur "Appeler pour commander" : sert à
-  // proposer de vider le panier quand le client revient sur l'onglet (voir
-  // le listener "visibilitychange" tout en bas du fichier). Un site ne peut
-  // pas savoir si l'appel a réellement abouti — on se contente du signal le
-  // plus proche possible : il a quitté la page pour son téléphone, puis il
-  // est revenu.
-  let pendingCallCheck = false;
+  // Posé dans localStorage juste après un appui sur "Appeler pour
+  // commander" (horodatage), pour proposer de vider le panier la prochaine
+  // fois que le client rouvre son récapitulatif. Un site ne peut pas savoir
+  // si l'appel a réellement abouti — on se contente du signal le plus
+  // proche possible. Stocké en localStorage (pas une simple variable) et
+  // vérifié uniquement au moment où le client rouvre lui-même son panier
+  // (un vrai clic) plutôt que sur un événement automatique de retour sur
+  // l'onglet : ce deuxième choix, testé en premier, posait problème sur
+  // téléphone réel — les navigateurs mobiles n'affichent pas toujours
+  // correctement une boîte de dialogue déclenchée hors d'un geste direct du
+  // client (pas un vrai clic), contrairement à l'ouverture du panier.
+  const CALL_PENDING_KEY = SUBITO_CART_CONFIG.storageKey + "_appel_en_cours";
+
+  function checkCallFollowup() {
+    const raw = localStorage.getItem(CALL_PENDING_KEY);
+    if (!raw) return;
+    const elapsed = Date.now() - parseInt(raw, 10);
+    if (elapsed < 3000) return; // probablement un double-tap, pas un vrai aller-retour : on retentera au prochain coup
+    localStorage.removeItem(CALL_PENDING_KEY);
+    if (!readCart().length) return;
+    if (window.confirm("Avez-vous passé votre commande au téléphone tout à l’heure ? On vide votre panier pour la prochaine fois.")) {
+      clearCart();
+    }
+  }
 
   let drawerLastFocused = null;
   function openDrawer() {
+    checkCallFollowup();
     ensureDrawer();
     renderDrawer();
     const overlay = document.getElementById("cartOverlay");
@@ -1434,20 +1452,4 @@ const SUBITO_CART_CONFIG = {
     if (e.key === SUBITO_CART_CONFIG.storageKey) renderAll();
   });
 
-  // Retour sur l'onglet après avoir tapé sur "Appeler pour commander" (le
-  // client a été basculé vers son app téléphone puis est revenu) : on lui
-  // propose de vider son panier, pour qu'il n'ait pas à le refaire lui-même
-  // à sa prochaine visite. On demande confirmation plutôt que de vider
-  // automatiquement : un retour sur l'onglet ne prouve pas que l'appel a
-  // vraiment abouti (annulé, raccroché avant de commander...).
-  document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState !== "visible" || !pendingCallCheck) return;
-    pendingCallCheck = false;
-    if (!readCart().length) return;
-    setTimeout(function () {
-      if (window.confirm("Commande bien passée au téléphone ? On vide votre panier pour la prochaine fois.")) {
-        clearCart();
-      }
-    }, 300);
-  });
 })();
