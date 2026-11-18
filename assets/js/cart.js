@@ -1133,29 +1133,44 @@ const SUBITO_CART_CONFIG = {
           '<button type="button" class="cart-line__remove" aria-label="Retirer cet article">🗑</button>' +
         '</div>'
       );
-    }).join("");
+    }).join("") + '<div class="cart-drawer__extra" id="cartDrawerExtra"></div>';
 
     body.querySelectorAll(".cart-line").forEach(function (row) {
       const index = parseInt(row.getAttribute("data-index"), 10);
       const line = cart[index];
       if (!line) return;
       const id = line.id;
-      row.querySelector(".cart-line__inc").addEventListener("click", function () { setQty(id, line.qty + 1); });
-      row.querySelector(".cart-line__dec").addEventListener("click", function () { setQty(id, line.qty - 1); });
+      // Depuis que +/- ne reconstruit plus toute la liste (voir
+      // patchQtyDisplay), ce gestionnaire reste attaché longtemps : il ne
+      // doit jamais se fier à la quantité "figée" au moment du rendu, sinon
+      // un deuxième appui recalcule à partir d'un chiffre périmé et reste
+      // bloqué. On relit toujours la quantité actuelle avant de l'ajuster.
+      row.querySelector(".cart-line__inc").addEventListener("click", function () {
+        const current = readCart().find(function (l) { return l.id === id; });
+        if (current) setQty(id, current.qty + 1);
+      });
+      row.querySelector(".cart-line__dec").addEventListener("click", function () {
+        const current = readCart().find(function (l) { return l.id === id; });
+        if (current) setQty(id, current.qty - 1);
+      });
       row.querySelector(".cart-line__remove").addEventListener("click", function () { removeItem(id); });
     });
     body.scrollTop = scrollBefore;
 
-    renderDrawerFooter(cart);
+    renderDrawerExtra(cart);
+    renderStickyFooter(cart);
   }
 
-  // Pied du panier (sous-total, promo, total, boutons d'action) : isolé de
-  // renderDrawer() pour pouvoir le rafraîchir seul après un +/- de quantité,
-  // sans reconstruire toute la liste des articles au-dessus.
-  function renderDrawerFooter(cart) {
-    const footer = document.getElementById("cartDrawerFooter");
-    if (!footer) return;
-    if (!cart.length) { footer.innerHTML = ""; return; }
+  // Bloc secondaire (sous-total, promo, nudge, copier/envoyer, mentions,
+  // vider le panier) : affiché À LA SUITE de la liste des pizzas, à
+  // l'intérieur de la zone qui défile. Avant, tout ça vivait dans un pied
+  // fixe toujours affiché, qui prenait plus de la moitié de l'écran sur
+  // téléphone et ne laissait presque plus de place pour voir/gérer les
+  // pizzas elles-mêmes. Seuls le total et le bouton d'appel restent fixes
+  // en bas (voir renderStickyFooter).
+  function renderDrawerExtra(cart) {
+    const extra = document.getElementById("cartDrawerExtra");
+    if (!extra) return;
 
     const promo = pizzaPromo(cart);
     const gross = cartGrossTotal(cart);
@@ -1169,12 +1184,10 @@ const SUBITO_CART_CONFIG = {
       ? '<p class="cart-drawer__nudge">🎁 Ajoutez encore 1 pizza : elle sera offerte (1 achetée = 1 offerte, à emporter) !</p>'
       : "";
 
-    footer.innerHTML =
+    extra.innerHTML =
       promoHtml +
-      '<div class="cart-drawer__total"><span>Total à emporter</span><strong>' + formatPrice(cartTotal(cart)) + '</strong></div>' +
       nudgeHtml +
       '<div class="checkout-actions">' +
-        '<a class="btn-solid checkout-call" id="checkoutCall" href="tel:' + SUBITO_CART_CONFIG.phone + '">📞 Appeler pour commander · ' + SUBITO_CART_CONFIG.phoneDisplay + '</a>' +
         '<div class="checkout-actions__row">' +
           '<button type="button" class="btn-outline" id="checkoutCopy">📋 Copier</button>' +
           (typeof navigator.share === "function" ? '<button type="button" class="btn-outline" id="checkoutShare">📤 Envoyer à quelqu’un</button>' : "") +
@@ -1184,9 +1197,6 @@ const SUBITO_CART_CONFIG = {
       '<p class="checkout-disclaimer">💡 Ce total correspond à une commande à emporter. Pour une livraison, appelez-nous directement : le tarif est différent.</p>' +
       '<button type="button" class="cart-drawer__clear" id="cartDrawerClear">Vider le panier</button>';
 
-    document.getElementById("checkoutCall").addEventListener("click", function () {
-      showToast("On vous laisse composer le 📞 — à tout de suite !");
-    });
     document.getElementById("checkoutCopy").addEventListener("click", function () {
       copyToClipboard(buildRecapText());
     });
@@ -1203,9 +1213,30 @@ const SUBITO_CART_CONFIG = {
     });
   }
 
+  // Pied fixe, toujours visible : juste le total et l'appel, l'essentiel
+  // pour passer commande. Volontairement minimal pour laisser un maximum
+  // de hauteur d'écran à la liste des pizzas au-dessus.
+  function renderStickyFooter(cart) {
+    const footer = document.getElementById("cartDrawerFooter");
+    if (!footer) return;
+    if (!cart.length) { footer.innerHTML = ""; return; }
+
+    footer.innerHTML =
+      '<div class="cart-drawer__total"><span>Total à emporter</span><strong>' + formatPrice(cartTotal(cart)) + '</strong></div>' +
+      '<a class="btn-solid checkout-call" id="checkoutCall" href="tel:' + SUBITO_CART_CONFIG.phone + '">📞 Appeler pour commander · ' + SUBITO_CART_CONFIG.phoneDisplay + '</a>';
+
+    document.getElementById("checkoutCall").addEventListener("click", function () {
+      showToast("On vous laisse composer le 📞 — à tout de suite !");
+      pendingCallCheck = true;
+    });
+  }
+
   // Mise à jour "légère" après un simple changement de quantité (+/-) :
-  // on touche uniquement le nombre, le sous-total de la ligne et le pied,
+  // on touche uniquement le nombre et le sous-total de LA ligne concernée,
   // jamais la liste entière — plus de flash, le défilement reste en place.
+  // Le total/promo peuvent changer (ex: franchir le seuil de la promo), donc
+  // le pied fixe et le bloc secondaire sont régénérés, mais ça reste léger :
+  // ce ne sont que quelques lignes de texte, pas toute la liste de pizzas.
   function patchQtyDisplay(id) {
     const cart = readCart();
     const bar = document.getElementById("cartBar");
@@ -1229,8 +1260,17 @@ const SUBITO_CART_CONFIG = {
       if (qtyEl) qtyEl.textContent = line.qty;
       if (subEl) subEl.textContent = formatPrice(unit * line.qty);
     }
-    renderDrawerFooter(sorted);
+    renderDrawerExtra(sorted);
+    renderStickyFooter(sorted);
   }
+
+  // Vrai juste après un appui sur "Appeler pour commander" : sert à
+  // proposer de vider le panier quand le client revient sur l'onglet (voir
+  // le listener "visibilitychange" tout en bas du fichier). Un site ne peut
+  // pas savoir si l'appel a réellement abouti — on se contente du signal le
+  // plus proche possible : il a quitté la page pour son téléphone, puis il
+  // est revenu.
+  let pendingCallCheck = false;
 
   let drawerLastFocused = null;
   function openDrawer() {
@@ -1392,5 +1432,22 @@ const SUBITO_CART_CONFIG = {
   // Un autre onglet a modifié le panier : on reste cohérent partout.
   window.addEventListener("storage", function (e) {
     if (e.key === SUBITO_CART_CONFIG.storageKey) renderAll();
+  });
+
+  // Retour sur l'onglet après avoir tapé sur "Appeler pour commander" (le
+  // client a été basculé vers son app téléphone puis est revenu) : on lui
+  // propose de vider son panier, pour qu'il n'ait pas à le refaire lui-même
+  // à sa prochaine visite. On demande confirmation plutôt que de vider
+  // automatiquement : un retour sur l'onglet ne prouve pas que l'appel a
+  // vraiment abouti (annulé, raccroché avant de commander...).
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState !== "visible" || !pendingCallCheck) return;
+    pendingCallCheck = false;
+    if (!readCart().length) return;
+    setTimeout(function () {
+      if (window.confirm("Commande bien passée au téléphone ? On vide votre panier pour la prochaine fois.")) {
+        clearCart();
+      }
+    }, 300);
   });
 })();

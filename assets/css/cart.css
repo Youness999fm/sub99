@@ -344,7 +344,14 @@
   padding: 12px 20px;
   overflow-y: auto;
   flex: 1;
+  /* Sans min-height:0, un enfant flex avec overflow:auto refuse de se
+     rétrécir sous la hauteur de son contenu : avec plusieurs pizzas, la
+     liste poussait le pied (sous-total, total, bouton d'appel) hors de
+     l'écran au lieu de défiler elle-même à l'intérieur de l'écran. */
+  min-height: 0;
 }
+
+.cart-drawer { overflow: hidden; }
 
 .cart-drawer__empty {
   text-align: center;
@@ -428,12 +435,28 @@
 
 .cart-line:first-child { padding-top: 0; }
 
-.cart-drawer__footer {
-  padding: 16px 20px;
+/* Bloc secondaire (sous-total, promo, copier/envoyer, mentions, vider le
+   panier) : défile avec la liste des pizzas au lieu d'occuper en
+   permanence la moitié de l'écran — c'est ce qui empêchait de bien voir
+   et gérer ses pizzas sur téléphone. */
+.cart-drawer__extra {
+  margin-top: 16px;
+  padding-top: 16px;
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Pied fixe, volontairement minimal : juste le total et l'appel, toujours
+   accessibles sans avoir à faire défiler. */
+.cart-drawer__footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .cart-drawer__footer:empty { display: none; }
