@@ -1016,10 +1016,15 @@ const SUBITO_CART_CONFIG = {
      affiche directement le récapitulatif, modifiable (quantités, suppression)
      et prêt à transmettre (appel / copie) — demande explicite du client. */
 
+  // div.innerHTML n'échappe que &/</> (jamais les guillemets, qui n'ont pas
+  // besoin de l'être dans du contenu texte) — insuffisant pour une valeur
+  // réinjectée dans un attribut HTML comme value="...". On échappe donc les
+  // guillemets nous-mêmes en plus, par prudence partout où cette fonction
+  // est utilisée.
   function escapeHtml(str) {
     const div = document.createElement("div");
     div.textContent = str;
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   // Détail de personnalisation d'une ligne, affiché sous son nom dans le
@@ -1085,8 +1090,15 @@ const SUBITO_CART_CONFIG = {
       return;
     }
 
+    // L'identifiant de ligne (buildLineId) est un JSON complet — il contient
+    // des guillemets. Inséré tel quel dans un attribut HTML, même échappé
+    // pour &/</>, le premier guillemet referme l'attribut en avance et casse
+    // la ligne (certains navigateurs récupèrent silencieusement, pas tous :
+    // sur certains mobiles, les boutons +/- et supprimer ne retrouvaient
+    // plus la bonne ligne et ne faisaient donc rien). On utilise à la place
+    // un simple index de position, sans aucun caractère spécial possible.
     let lastGroup; // undefined au départ : distinct de null (= "sans taille")
-    body.innerHTML = cart.map(function (line) {
+    body.innerHTML = cart.map(function (line, index) {
       const group = sizeRank(line.variant) === -1 ? null : line.variant;
       const groupLabel = group !== null && group !== lastGroup ? '<p class="cart-group-label">' + escapeHtml(group) + '</p>' : "";
       lastGroup = group;
@@ -1094,7 +1106,7 @@ const SUBITO_CART_CONFIG = {
       const sub = unit * line.qty;
       return (
         groupLabel +
-        '<div class="cart-line" data-id="' + escapeHtml(line.id) + '">' +
+        '<div class="cart-line" data-index="' + index + '">' +
           '<div class="cart-line__info">' +
             '<p class="cart-line__name">' + escapeHtml(line.name) + (line.variant ? ' <span class="cart-line__variant">(' + escapeHtml(line.variant) + ')</span>' : "") + '</p>' +
             renderLineDetails(line) +
@@ -1112,9 +1124,10 @@ const SUBITO_CART_CONFIG = {
     }).join("");
 
     body.querySelectorAll(".cart-line").forEach(function (row) {
-      const id = row.getAttribute("data-id");
-      const line = cart.find(function (l) { return l.id === id; });
+      const index = parseInt(row.getAttribute("data-index"), 10);
+      const line = cart[index];
       if (!line) return;
+      const id = line.id;
       row.querySelector(".cart-line__inc").addEventListener("click", function () { setQty(id, line.qty + 1); });
       row.querySelector(".cart-line__dec").addEventListener("click", function () { setQty(id, line.qty - 1); });
       row.querySelector(".cart-line__remove").addEventListener("click", function () { removeItem(id); });
@@ -1138,7 +1151,10 @@ const SUBITO_CART_CONFIG = {
       nudgeHtml +
       '<div class="checkout-actions">' +
         '<a class="btn-solid checkout-call" id="checkoutCall" href="tel:' + SUBITO_CART_CONFIG.phone + '">📞 Appeler pour commander · ' + SUBITO_CART_CONFIG.phoneDisplay + '</a>' +
-        '<button type="button" class="btn-outline" id="checkoutCopy">📋 Copier le récapitulatif</button>' +
+        '<div class="checkout-actions__row">' +
+          '<button type="button" class="btn-outline" id="checkoutCopy">📋 Copier</button>' +
+          (typeof navigator.share === "function" ? '<button type="button" class="btn-outline" id="checkoutShare">📤 Envoyer à quelqu’un</button>' : "") +
+        '</div>' +
       '</div>' +
       '<p class="checkout-disclaimer">😄 Petite précision utile : ce bouton n’envoie rien tout seul, ce n’est pas une commande en ligne. C’est juste votre antisèche pour ne rien oublier au téléphone — à vous de jouer, le resto est au bout du fil !</p>' +
       '<p class="checkout-disclaimer">💡 Ce total correspond à une commande à emporter. Pour une livraison, appelez-nous directement : le tarif est différent.</p>' +
@@ -1150,6 +1166,14 @@ const SUBITO_CART_CONFIG = {
     document.getElementById("checkoutCopy").addEventListener("click", function () {
       copyToClipboard(buildRecapText());
     });
+    const shareBtn = document.getElementById("checkoutShare");
+    if (shareBtn) {
+      shareBtn.addEventListener("click", function () {
+        navigator.share({ text: buildSimpleRecapText() }).catch(function () {
+          /* annulé par le client ou non disponible sur l'instant : rien à faire, pas une erreur */
+        });
+      });
+    }
     document.getElementById("cartDrawerClear").addEventListener("click", function () {
       if (window.confirm("Vider tout le panier ?")) clearCart();
     });
@@ -1209,6 +1233,37 @@ const SUBITO_CART_CONFIG = {
     }
     lines.push("");
     lines.push("(Pour une livraison, appelez directement : tarif différent.)");
+    return lines.join("\n");
+  }
+
+  // Version simplifiée, pensée pour être partagée à quelqu'un d'autre (qui
+  // appelle à la place du client) : juste de quoi comprendre la commande en
+  // un coup d'oeil — pizza/taille, suppléments, retraits, moitié-moitié, et
+  // le total — sans le détail des prix ni la demande libre, demande
+  // explicite pour que ça reste rapide à lire pour un tiers.
+  function buildSimpleRecapText() {
+    const cart = sortedCart();
+    const lines = [];
+    lines.push("Commande Subito Pizza");
+    lines.push("");
+    cart.forEach(function (line) {
+      const label = line.name + (line.variant ? " (" + line.variant + ")" : "");
+      lines.push(line.qty + " × " + label);
+      if (line.half) {
+        lines.push("   - Moitié 1 : " + line.half.flavor1);
+        lines.push("   - Moitié 2 : " + line.half.flavor2);
+      }
+      if (line.removed && line.removed.length) {
+        lines.push("   - Sans : " + line.removed.join(", "));
+      }
+      if (line.extras && line.extras.length) {
+        lines.push("   - Suppléments : " + line.extras.map(function (ex) { return ex.name; }).join(", "));
+      }
+    });
+    lines.push("");
+    lines.push("Total : " + formatPrice(cartTotal(cart)));
+    lines.push("");
+    lines.push("📞 Pour commander : appeler Subito Pizza au " + SUBITO_CART_CONFIG.phoneDisplay + " (à confirmer par téléphone, ce n'est pas une commande en ligne).");
     return lines.join("\n");
   }
 

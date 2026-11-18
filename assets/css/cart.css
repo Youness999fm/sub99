@@ -483,11 +483,20 @@
   gap: 10px;
 }
 
-.checkout-actions #checkoutCopy {
+.checkout-actions__row {
+  display: flex;
+  gap: 8px;
+}
+
+.checkout-actions #checkoutCopy,
+.checkout-actions #checkoutShare {
   text-align: center;
   cursor: pointer;
-  width: 100%;
+  flex: 1;
   background: none;
+  font-size: 0.86rem;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .checkout-call {
