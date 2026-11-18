@@ -5,22 +5,71 @@
 /* ---------- Bandeau d'annonce (menu.html) ---------- */
 
 .cart-announce {
+  position: relative;
   max-width: var(--max-width);
-  margin: 0 auto 18px;
-  text-align: center;
-  background: linear-gradient(135deg, #fff8e8 0%, #fdf0d4 100%);
+  margin: 0 auto 22px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: linear-gradient(160deg, #fffaf0 0%, #fdf0d4 100%);
   border: 1px solid var(--gold);
-  color: var(--dark);
-  border-radius: 999px;
-  padding: 10px 20px;
-  font-size: 0.86rem;
-  font-weight: 600;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+  overflow: hidden;
 }
 
-.cart-announce strong { color: var(--red); }
+.cart-announce::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 5px;
+  background: linear-gradient(180deg, var(--red) 0%, var(--gold-bright) 100%);
+}
+
+.cart-announce__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 1.3rem;
+  box-shadow: 0 6px 14px -8px rgba(28, 27, 25, 0.35);
+}
+
+.cart-announce__body { min-width: 0; }
+
+.cart-announce__title {
+  margin: 2px 0 4px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.02rem;
+  color: var(--green-dark);
+}
+
+.cart-announce__text {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: var(--dark);
+  line-height: 1.5;
+}
+
+.cart-announce__note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--gray);
+  font-style: italic;
+  line-height: 1.4;
+}
 
 @media (max-width: 600px) {
-  .cart-announce { border-radius: 14px; text-align: left; }
+  .cart-announce { padding: 14px; gap: 10px; }
+  .cart-announce__title { font-size: 0.95rem; }
 }
 
 /* ---------- Boutons "Ajouter" sur une fiche produit ---------- */
@@ -381,6 +430,32 @@
 
 .cart-drawer__footer:empty { display: none; }
 
+.cart-drawer__subtotal,
+.cart-drawer__promo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.86rem;
+  color: var(--gray);
+}
+
+.cart-drawer__promo {
+  color: var(--green-dark);
+  font-weight: 700;
+}
+
+.cart-drawer__promo span:last-child { color: var(--green-dark); }
+
+.cart-drawer__nudge {
+  margin: 0;
+  background: linear-gradient(135deg, #fff8e8 0%, #fdf0d4 100%);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 .cart-drawer__total {
   display: flex;
   justify-content: space-between;
@@ -428,6 +503,329 @@
   text-align: center;
   line-height: 1.4;
 }
+
+/* ---------- Widget pizza (taille + ajout rapide + personnalisation) ---------- */
+
+.pizza-widget {
+  margin-top: 10px;
+}
+
+.pizza-widget__sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pizza-widget__size {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 2px solid var(--green);
+  background: #fff;
+  color: var(--green);
+  border-radius: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.pizza-widget__size:hover,
+.pizza-widget__size:focus-visible {
+  background: var(--green);
+  color: #fff;
+}
+
+.pizza-widget__size:active { transform: scale(0.96); }
+
+.pizza-widget__size.is-active {
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 6px 16px -6px rgba(9, 42, 27, 0.55);
+}
+
+.pizza-widget__size-name { font-weight: 700; font-size: 0.78rem; }
+.pizza-widget__size-price { font-size: 0.72rem; opacity: 0.85; }
+
+/* Sur composer.html, le widget de la base Marguerita est inséré seul (pas
+   dans une .menu-item) : encadré comme le reste des blocs .compose-group
+   pour qu'il ait l'air d'avoir toujours été là. */
+.compose-pizza > .pizza-widget {
+  margin: 18px 0 0;
+}
+
+.compose-pizza > .pizza-widget > .pizza-widget__sizes { justify-content: center; }
+
+/* Barre d'action révélée une fois une taille choisie : ajout immédiat ou
+   personnalisation — deux chemins clairement distincts, pas de doublon avec
+   la rangée de tailles ci-dessus. */
+.pizza-widget__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pizza-widget__actions[hidden] { display: none; }
+
+.pizza-widget__quickadd {
+  flex: 1;
+  min-width: 160px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--dark);
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pizza-widget__quickadd:hover,
+.pizza-widget__quickadd:focus-visible {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+
+.pizza-widget__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1.5px solid var(--gold);
+  background: #fff;
+  color: var(--dark);
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.pizza-widget__toggle svg { flex-shrink: 0; transition: transform 0.25s ease; }
+
+.pizza-widget__toggle:hover,
+.pizza-widget__toggle:focus-visible {
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-bright) 100%);
+  border-color: var(--gold);
+  color: #fff;
+}
+
+.pizza-widget__toggle.is-open {
+  background: var(--dark);
+  border-color: var(--dark);
+  color: #fff;
+}
+
+.pizza-widget__toggle.is-open svg { transform: rotate(90deg); }
+
+/* ---------- Personnalisation (panneau dépliable sous le produit) ---------- */
+
+.customize {
+  margin-top: 10px;
+}
+
+.customize__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  color: var(--green);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.customize__toggle:hover,
+.customize__toggle:focus-visible { color: var(--green-dark); }
+
+.customize__panel {
+  position: relative;
+  margin-top: 12px;
+  padding: 18px 16px 16px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.customize__panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--red) 0%, var(--gold-bright) 100%);
+}
+
+.customize__section { display: flex; flex-direction: column; gap: 8px; }
+
+/* `display: flex` ci-dessus a la même spécificité que la règle native
+   [hidden]{display:none} et l'emporterait sans ceci (même piège que
+   .checkout-field plus haut) : une section masquée par JS (ex. moitié-moitié
+   tant qu'aucune taille n'est choisie) resterait visible à l'écran. */
+.customize__panel[hidden],
+.customize__section[hidden],
+.customize__half-row[hidden] { display: none; }
+
+.customize__section + .customize__section {
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+.customize__title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+  color: var(--green-dark);
+}
+
+.customize__hint {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--gray);
+  line-height: 1.4;
+}
+
+.customize__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.customize__chip {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--dark);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 32px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.customize__chip.is-active {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+  text-decoration: line-through;
+}
+
+.customize__chip--extra.is-active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  text-decoration: none;
+}
+
+.customize__chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.customize__half-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.customize__half-toggle input { width: 18px; height: 18px; }
+
+.customize__half-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.customize__half-row select {
+  font: inherit;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  flex: 1;
+  min-height: 36px;
+}
+
+.customize__extra-group { display: flex; flex-direction: column; gap: 6px; }
+
+.customize__extra-group-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--gray);
+}
+
+.customize__note {
+  font: inherit;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 38px;
+}
+
+.customize__note:focus {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+
+.customize__summary {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--dark);
+  background: var(--green-tint);
+  border-radius: 10px;
+  padding: 11px 13px;
+  line-height: 1.5;
+}
+
+.customize__add {
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.customize__add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none !important;
+}
+
+/* ---------- Détails de personnalisation affichés dans le panier ---------- */
+
+.cart-line__details {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.76rem;
+  color: var(--gray);
+  line-height: 1.5;
+}
+
+.cart-line__details li { margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .cart-overlay, .cart-drawer {
