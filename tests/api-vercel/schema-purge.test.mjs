@@ -70,7 +70,9 @@ test('supabase/001_schema.sql contient le schéma et la purge actuels (aucun éc
 
 test('le script du fichier SQL (hors planification pg_cron) s\'exécute tel quel, deux fois de suite', async () => {
   const fichier = readFileSync(new URL('../../supabase/001_schema.sql', import.meta.url), 'utf8');
-  const sansCron = fichier.slice(0, fichier.indexOf('select cron.schedule'));
+  assert.ok(fichier.includes('create extension if not exists pg_cron'), 'extension pg_cron activée par le script');
+  const sansCron = fichier.slice(0, fichier.indexOf('-- ==== PLANIFICATION (pg_cron) ===='));
+  assert.ok(sansCron.length > 500 && !/cron\./.test(sansCron), 'la partie hors planification ne touche pas à pg_cron');
   const neuf = new PGlite();
   await neuf.exec(sansCron);
   await neuf.exec(sansCron);

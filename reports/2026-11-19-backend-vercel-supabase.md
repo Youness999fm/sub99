@@ -49,10 +49,11 @@
 
 ## À faire par vous
 
-1. **Supabase** → SQL Editor → coller le contenu de `supabase/001_schema.sql` → Run. Puis `select * from cron.job;` : les tâches `purge-commandes-hors-jour` et `purge-orders-hors-jour` doivent apparaître.
-2. **Sur votre PC**, dans le dossier du dépôt : `npm install`, puis `npm run hash-code` (saisie masquée) et copier la valeur affichée. Le code lui-même ne doit apparaître nulle part.
-3. **Vercel** → New Project → importer le dépôt GitHub → Framework « Other » → Environment Variables : `DATABASE_URL` (Supabase > Connect > **Transaction pooler**, port 6543) et `OWNER_CODE_HASH`. Déployer.
-4. Sur l'adresse `*.vercel.app` donnée par Vercel : créer un compte, passer une commande test, ouvrir `/commercant/`, se connecter avec le code, accepter la commande. Seulement ensuite, ajouter le domaine dans Vercel et changer les enregistrements DNS chez OVH.
+1. **Supabase : FAIT le 19/11/2026 (16:00)** sur le projet `subito-henin-commandes`. Le projet était vide (aucune table, extension pg_cron absente : le schéma et la tâche de purge annoncés dans le brief n'existaient pas). Créés : les 7 tables, toutes avec Row Level Security, le réglage par défaut, l'extension pg_cron et la tâche `purge-orders-hors-jour` (active, `15 * * * *`). Vérifié : minuit parisien = `2026-11-18T23:00:00Z` sur le serveur réel. Aucune commande ni aucun compte pour l'instant.
+2. **Pousser le code** : GitHub Desktop → dépôt `sub99` → branche `main` → « Push origin » (8 commits).
+3. **Sur votre PC**, dans le dossier du dépôt : `npm run hash-code` (saisie masquée) et copier la valeur affichée. Le code lui-même ne doit apparaître nulle part.
+4. **Vercel** → New Project → importer le dépôt GitHub `sub99` → Framework « Other » → Environment Variables : `DATABASE_URL` (Supabase > Connect > **Transaction pooler**, port 6543, avec le mot de passe de la base à la place de `[YOUR-PASSWORD]`) et `OWNER_CODE_HASH`. Déployer.
+5. Sur l'adresse `*.vercel.app` donnée par Vercel : créer un compte, passer une commande test, ouvrir `/commercant/`, se connecter avec le code, accepter la commande, la marquer prête. Seulement ensuite, ajouter le domaine dans Vercel et changer les enregistrements DNS chez OVH.
 
 ## Points ouverts
 

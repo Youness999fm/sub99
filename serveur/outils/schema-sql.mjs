@@ -9,14 +9,18 @@ const entete = `-- Subito Pizza : tables de l'API (Supabase / Postgres).
 -- À exécuter UNE fois : Supabase > SQL Editor > New query > coller tout > Run. Sans danger si relancé.
 -- Row Level Security est activée sur chaque table, sans aucune politique : seul le serveur
 -- (connexion DATABASE_URL) peut lire ou écrire. L'API publique de Supabase n'y a pas accès.
--- La table public.commandes du premier schéma n'est pas utilisée par l'API : laissez-la telle quelle.
+-- Une éventuelle table public.commandes d'un schéma précédent n'est pas utilisée par l'API : laissez-la telle quelle.
 `;
 
+export const MARQUEUR_CRON = '-- ==== PLANIFICATION (pg_cron) ====';
+
 const purge = `
--- Purge quotidienne (pg_cron, déjà actif sur le projet) : chaque heure, à la minute 15, supprime les
--- commandes d'avant aujourd'hui (fuseau Europe/Paris) et leurs lignes, ainsi que les sessions expirées.
--- Les comptes clients ne sont pas touchés. La tâche existante « purge-commandes-hors-jour » (table commandes)
--- n'est pas modifiée.
+${MARQUEUR_CRON}
+-- Purge quotidienne : chaque heure, à la minute 15, supprime les commandes d'avant aujourd'hui (fuseau Europe/Paris)
+-- et leurs lignes, ainsi que les sessions expirées. Les comptes clients ne sont pas touchés.
+-- L'extension pg_cron est activée ici si elle ne l'est pas déjà (sinon : Database > Extensions > pg_cron).
+create extension if not exists pg_cron with schema pg_catalog;
+
 select cron.schedule(
   'purge-orders-hors-jour',
   '15 * * * *',
