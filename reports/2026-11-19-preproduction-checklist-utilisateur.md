@@ -2,11 +2,12 @@
 
 Destinée à l'utilisateur (ou à son prestataire), à exécuter **sur le sous-domaine de préproduction**. Aucun accès OVH ni serveur n'a été utilisé pour préparer ce document. Rien n'est publié tant que cette checklist n'est pas terminée et que les points bloquants du rapport de mission ne sont pas tranchés.
 
-**Version figée du paquet (19/11/2026)** : commit `d19c4c7` (arbre git `a31340b2eaba262e6e69da72cec5773c24ec0896`, même contenu hors `reports/`) (contenu du site, hors `reports/`).
+**Version figée du paquet (19/11/2026)** : commit `d19c4c7` (arbre git `a31340b2eaba262e6e69da72cec5773c24ec0896`, même contenu hors `reports/`). Les commits suivants ne changent pas le paquet (tests et rapports seulement).
 - Archive `preproduction-subito-2026-11-19.zip` : 172 fichiers, SHA-256 `839c6dce04f7dc8d1ead9e1337c285bdb8ce68b92c492ac8252a5addddd785ad`.
-- Manifeste `preproduction-MANIFESTE-SHA256.txt` : une empreinte par fichier (172 lignes), à vérifier (section 0).
+- Manifeste `preproduction-MANIFESTE-SHA256.txt` : une empreinte par fichier (172 lignes), à vérifier (section 0.2).
+- Dossier `preproduction-paquet` : la même copie, dépliée. C'est son **contenu** qu'on téléverse.
 
-**Éléments non figés, à revalider avant publication** : publication des gagnants du concours (question en cours) ; noms des avis (`avis.html`, `index.html`), réduits à prénom et initiale ; galerie de la page d'accueil (`index.html`), sans agrandissement ; moitié-moitié du composeur, décidée mais pas encore implémentée (après le commit). Les prix des desserts et des boissons, les minimums par ville et la règle d'échange (une portion par pizza) sont validés.
+**Éléments non figés, à revalider avant publication** : noms des avis (`avis.html`, `index.html`), réduits à prénom et initiale ; galerie de la page d'accueil, sans agrandissement tant que les photos manquent ; moitié-moitié du composeur, décidée mais pas encore implémentée (après le commit). Décidés et intégrés : concours exclu du paquet, `subito-popup/` exclu, prix des desserts et des boissons, minimums par ville, règle d'échange (une portion gratuite par pizza), catalogue serveur (testé : 26 tests).
 
 **Remplacer avant de commencer** : `SOUS-DOMAINE` (par exemple `preprod.votre-domaine.fr`), `CHEMIN_DU_SOUS_DOMAINE` (le dossier indiqué par OVH pour ce sous-domaine), `HOTE_SSH` et `UTILISATEUR` (identifiants fournis par OVH), `CHEMIN` (dossiers sur le PC). Les libellés exacts des menus OVH peuvent varier : suivre l'interface en vigueur.
 
@@ -33,7 +34,7 @@ sha256sum -c 'CHEMIN/preproduction-MANIFESTE-SHA256.txt'
 
 Attendu : une ligne `OK` par fichier (172 lignes) et aucune ligne `FAILED`. Le manifeste est en UTF-8 sans BOM, fins de ligne LF : `sha256sum` le lit tel quel.
 
-Avec PowerShell seul (testé sur le paquet du 19/11) :
+Avec PowerShell seul :
 
 ```powershell
 Set-Location -LiteralPath 'CHEMIN\preproduction-decompressee'
@@ -73,10 +74,10 @@ Si une page de la carte a changé, relancer d'abord, dans le dépôt : `node too
 Ne pas téléverser l'archive `.zip`. Procédure :
 
 1. Décompresser l'archive **sur votre ordinateur**, dans un dossier vide (par exemple `CHEMIN\preproduction-decompressee`).
-2. Téléverser **le contenu** de ce dossier (fichiers et sous-dossiers, pas le dossier lui-même) dans `CHEMIN_DU_SOUS_DOMAINE`, par FTP/SFTP ou par le gestionnaire de fichiers OVH. **Dans `CHEMIN_DU_SOUS_DOMAINE` uniquement**, jamais à la racine du domaine principal.
+2. Téléverser **le contenu** de ce dossier (fichiers et sous-dossiers, pas le dossier lui-même) dans `CHEMIN_DU_SOUS_DOMAINE`, par FTP/SFTP ou par le gestionnaire de fichiers OVH. **Dans `CHEMIN_DU_SOUS_DOMAINE` uniquement**, jamais à la racine du domaine principal. Le client doit transférer aussi les fichiers qui commencent par un point (`.htaccess`, `.user.ini`).
 3. **Créer à la main le dossier vide `assets/img/placeholders`** dans `CHEMIN_DU_SOUS_DOMAINE` : une archive ne peut pas transporter un dossier vide.
-4. Vérifier que `.htaccess` (fichier caché) et le dossier `api/` sont bien présents à la racine du sous-domaine.
-5. Ne **pas** téléverser `subito-popup/`, `concours.html`, `grand-tirage.html` ni `assets/js/tirage/` : ils ne sont pas dans le paquet (décision du responsable). Ils restent dans le dépôt.
+4. Vérifier que `.htaccess`, `.user.ini` et le dossier `api/` (avec `api/tools/` et `api/data/`) sont bien présents à la racine du sous-domaine.
+5. Ne **pas** téléverser ce qui n'est pas dans le paquet : `subito-popup/`, `concours.html`, `grand-tirage.html`, `assets/js/tirage/`, `assets/js/winners-data.js`, `api/README.md`, `tests/`, `tools/`, `reports/`. Ils restent dans le dépôt (décisions du 19/11).
 
 ## 4. Créer `api/config.php` sur le serveur (jamais dans le dépôt)
 
@@ -88,11 +89,11 @@ cp config.sample.php config.php
 nano config.php
 ```
 
-Dans `nano`, remplacer **toutes** les valeurs « À REMPLACER » :
-- `dsn` : `mysql:host=HOTE_MYSQL;dbname=NOM_BASE;charset=utf8mb4` (valeurs de l'étape 2) ;
-- `user` et `password` : utilisateur et mot de passe de l'étape 2 ;
-- `app_origins` : `https://SOUS-DOMAINE` exactement, sans barre finale ;
-- `cookie_secure` : doit rester `true`.
+Dans `nano`, remplacer **toutes** les valeurs « À REMPLACER » (elles sont à deux endroits : dans `db` et dans `app_origins`) :
+- dans `'db'` : `'dsn' => 'mysql:host=HOTE_MYSQL;dbname=NOM_BASE;charset=utf8mb4'`, puis `'user'` et `'password'` (valeurs de l'étape 2) ;
+- `'app_origins'` : un tableau, avec l'origine HTTPS exacte, sans barre finale : `['https://SOUS-DOMAINE']` ;
+- `'cookie_secure'` : doit rester `true` ;
+- `'timezone'` : laisser `'Europe/Paris'`.
 
 Puis :
 
@@ -112,7 +113,7 @@ cd ~/CHEMIN_DU_SOUS_DOMAINE
 php api/tools/install.php
 ```
 
-Le script crée les tables et ne touche pas aux données existantes. Il doit se terminer sans erreur. Les tests du dépôt ont tourné sur MariaDB 11.8 et sur SQLite, pas sur MySQL OVH : si le script échoue ici, le signaler avec le message exact.
+Le script crée les tables manquantes sans effacer les données existantes, puis recopie les indisponibilités du fichier `assets/data/disponibilite.json`. Ce fichier est vide dans ce paquet : le script affiche `0 ajoutée(s)`. Il doit se terminer sans erreur. Les tests du dépôt ont tourné sur MariaDB 11.8 et sur SQLite, pas sur MySQL OVH : si le script échoue ici, le signaler avec le message exact.
 
 ## 6. Créer le compte propriétaire
 
@@ -121,7 +122,7 @@ cd ~/CHEMIN_DU_SOUS_DOMAINE
 php api/tools/create_owner.php
 ```
 
-Saisir l'adresse e-mail du propriétaire, puis le mot de passe choisi par l'utilisateur (12 caractères au minimum). **Le terminal affiche le mot de passe pendant la saisie** (sauf sous Unix, où la saisie est masquée) : ne pas le faire pendant un partage d'écran, puis fermer la session SSH après.
+Saisir l'adresse e-mail du propriétaire, puis le mot de passe choisi par l'utilisateur (12 caractères au minimum). Sous Unix, la saisie n'est masquée que si la commande `stty` est disponible sur l'hébergement ; sinon **le mot de passe s'affiche pendant la saisie**. Dans tous les cas, ne pas le faire pendant un partage d'écran, et fermer la session SSH après.
 
 ## 7. Vérifications sur le sous-domaine (sur le PC)
 
@@ -152,16 +153,20 @@ foreach ($c in 'api/config.php', 'api/lib/db.php', 'api/tools/install.php', 'api
 
 Attendu : `403` pour chacun. Si l'un répond `200`, arrêter et signaler : le fichier est accessible.
 
-**7.3 Les fichiers absents du paquet répondent 404** :
+**7.3 Les fichiers absents ou refusés** :
 
 ```powershell
-foreach ($c in 'api/_phpinfo.php', 'api/_dbtest.php', 'api/README.md', 'subito-popup/index.html', 'concours.html', 'grand-tirage.html', 'assets/js/tirage/main.js', 'assets/js/winners-data.js', 'tirage-au-sort') {
+foreach ($c in 'api/_phpinfo.php', 'api/_dbtest.php', 'api/README.md') {
+  try { $r = Invoke-WebRequest -Uri "https://SOUS-DOMAINE/$c" -UseBasicParsing; "$c -> $($r.StatusCode) (ANORMAL)" }
+  catch { "$c -> " + [int]$_.Exception.Response.StatusCode }
+}
+foreach ($c in 'subito-popup/index.html', 'concours.html', 'grand-tirage.html', 'assets/js/tirage/main.js', 'assets/js/winners-data.js', 'tirage-au-sort') {
   try { $r = Invoke-WebRequest -Uri "https://SOUS-DOMAINE/$c" -UseBasicParsing; "$c -> $($r.StatusCode) (ANORMAL)" }
   catch { "$c -> " + [int]$_.Exception.Response.StatusCode }
 }
 ```
 
-Attendu : `404` pour chacun. `tirage-au-sort` est l'ancienne adresse de la page du concours : sa redirection n'est pas dans le paquet, donc 404 sur le serveur. Ce n'est pas le cas pour le dépôt, qui la garde.
+Attendu, premier groupe : `403` (la règle de `api/.htaccess` refuse ces noms avant de chercher le fichier). Tout code autre que `200` est acceptable, mais `403` est le résultat normal. Attendu, second groupe : `404`, car ces pages ne sont pas dans le paquet et l'ancienne adresse `tirage-au-sort` n'a plus de redirection. Si un fichier répond `200`, arrêter et signaler.
 
 **7.4 Redirection HTTP vers HTTPS, et non-indexation** :
 
@@ -189,7 +194,7 @@ Attendu : `User-agent: *` puis `Disallow: /`.
 
 **Limite connue** : le service worker s'enregistre sur `/commercant/`, mais son cache a échoué sur les profils neufs du poste de développement. Sur le téléphone, vérifier que le favori ouvre l'espace sans réseau. Si ce n'est pas le cas, le signaler : l'utilisation hors ligne n'est pas garantie.
 
-**7.6 Le `.htaccess` (protections)**. Le fichier `.htaccess` racine contient, après la redirection HTTPS, un bloc « Protections » : `Options -Indexes`, puis les règles qui refusent les fichiers cachés, les fichiers `config*`, la documentation (`.md`), les sauvegardes (`.bak`, `.old`, `.orig`, `.swp`, `~`), les `.sql` et `.log`. Le dossier `/.well-known/` (validation HTTPS) reste accessible.
+**7.6 Le `.htaccess` (protections)**. Le `.htaccess` du paquet contient, après la redirection HTTPS, un bloc « Protections » : `Options -Indexes`, puis les règles qui refusent les fichiers cachés, les fichiers `config*`, la documentation (`.md`), les sauvegardes (`.bak`, `.old`, `.orig`, `.swp`, `~`), les `.sql` et `.log`. Le dossier `/.well-known/` (validation HTTPS) reste accessible.
 - Si la page d'accueil répond `500` (7.0), retirer ce bloc du `.htaccess` du sous-domaine (de « Options -Indexes » jusqu'à la balise `</FilesMatch>`), puis demander à OVH si `Options` et `Require` sont autorisés. Le site reste alors fonctionnel, mais les protections 7.2 ne tiennent plus : le signaler.
 
 ## 7 bis. Contrôles complémentaires
@@ -226,18 +231,26 @@ php api/tools/reset_customer.php
 
 ## 8. Points restants (à trancher par l'utilisateur, non tranchés ici)
 
-1. **Catalogue serveur des prix** : bloquant pour toute commande réelle. Les prix, promotions, minimums et frais sont des décisions par défaut à confirmer (`reports/2026-11-19-catalogue-serveur-proposition.md`, « Reste à confirmer »).
+1. **Catalogue serveur des prix** : implémenté et testé (26 tests, dont la parité entre le navigateur et le serveur). Les décisions du 19/11 sont intégrées (`reports/2026-11-19-catalogue-tableau-prix-a-valider.md`, section 15). À vérifier sur le sous-domaine avec une commande de test fictive : le prix et le total affichés doivent correspondre.
 2. **Source des disponibilités** : le menu lit d'abord l'API (`api/availability.php`), puis, seulement si elle ne répond pas, `assets/data/disponibilite.json`. Ce fichier ne sert que de secours (listes vides = tout disponible) : **ne pas l'utiliser pour gérer les ruptures**, c'est le rôle de l'espace commerçant. À vérifier sur le sous-domaine : une rupture saisie doit disparaître du menu.
 3. **Service worker** : s'enregistre sur `/commercant/` ; cache à vérifier sur téléphone (voir 7.5).
 4. **Son de l'alerte** : arrêt après 30 secondes, rétablissement à chaque nouvelle commande : à confirmer.
 5. **Éléments non figés** (voir en tête) : à revalider avant publication.
 6. **Décidé, à implémenter** : la moitié-moitié du composeur (à partir de Duo, comme le menu), après le commit. Elle n'est pas dans cette version.
 
-**Tant que les points 1 et 2 ne sont pas tranchés et vérifiés, ne pas laisser de vrais clients commander sur la préproduction.** Utiliser des données de test uniquement.
+**La préproduction reste réservée aux données de test.** Ne pas y faire commander de vrais clients.
+
+## 8 bis. Avant une mise en ligne réelle (domaine principal)
+
+Ces points ne sont pas techniques : ils relèvent du propriétaire, et aucun texte n'a été rédigé ici.
+- **Horaires d'ouverture** : les pages donnent trois versions contradictoires (18 h–23 h ; fin à 22 h 47 ; livraison de 19 h à 22 h). À trancher, puis à appliquer (rapport d'audit, P-06).
+- **Mentions légales, politique de confidentialité et information sur les allergènes** : à rédiger avec un professionnel (rapport d'audit, P-04).
+- **Durée de conservation des commandes** : à décider (rapport d'audit, P-09).
+- **Carte Google Maps** sur la page d'accueil : elle charge un service tiers. À mentionner dans la politique de confidentialité, ou à remplacer par un lien.
 
 ## 9. Avant toute publication sur le domaine principal
 
-- Remplacer `robots.txt` par la version publique du dépôt (`sub99/robots.txt`), qui autorise l'indexation des pages publiques.
-- Retirer les lignes de préproduction du `.htaccess` (redirection HTTPS conservée, `X-Robots-Tag` retiré) ; le bloc « Protections » reste.
-- Vérifier une dernière fois `api/` et supprimer tout fichier de test ou de diagnostic qui s'y trouverait.
+- Publier les **fichiers du site**, pas le dépôt entier : mêmes exclusions que la section 3 (`tests/`, `tools/`, `reports/`, `subito-popup/`, `concours.html`, `grand-tirage.html`, `assets/js/tirage/`, `assets/js/winners-data.js`, `api/README.md`). Utiliser le `robots.txt` et le `.htaccess` **du dépôt** : le `robots.txt` autorise l'indexation des pages publiques, et le `.htaccess` n'a pas les lignes de préproduction.
+- Le `.htaccess` du dépôt n'a pas de redirection HTTP vers HTTPS. Si l'hébergeur ne la force pas, ajouter les lignes 2 à 7 du `.htaccess` du paquet (la redirection) avant de publier.
+- Vérifier une dernière fois `api/` et supprimer tout fichier de test ou de diagnostic qui s'y trouverait (`api/_phpinfo.php`, `api/_dbtest.php`).
 - Rappel : la publication se fait sur accord explicite de l'utilisateur.
