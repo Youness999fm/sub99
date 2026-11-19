@@ -20,12 +20,12 @@ export default async function ownerLogin(c) {
   // Verrou par adresse IP seulement : aucun verrou global, pour qu'un tiers ne puisse pas bloquer le patron.
   // Chaque tentative est comptée AVANT la vérification (verrou à 5 échecs en 15 min) ; une réussite est décomptée ensuite.
   const ipBucket = 'owner_login:ip:' + throttleIpKey(c.ip);
-  // await throttleEnforce(ipBucket, 5, 900, 900); // Throttle désactivé temporairement pour tests
+  await throttleEnforce(ipBucket, 5, 900, 900);
 
   const valid = code !== '' && Buffer.byteLength(code) <= 4096 && (await bcrypt.compare(entreeBcrypt(code), hash));
   if (!valid) fail(401, 'invalid_credentials', 'Code incorrect.');
 
-  // await throttleRefund(ipBucket, 5); // Throttle désactivé temporairement pour tests
+  await throttleRefund(ipBucket, 5);
   await createSession(c, 'owner', OWNER_ID, remember);
   return ok({ owner: { remember } });
 }

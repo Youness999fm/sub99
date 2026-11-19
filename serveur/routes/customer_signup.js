@@ -12,7 +12,7 @@ export default async function customerSignup(c) {
   const b = await readJsonBody(c);
 
   const ipBucket = 'customer_signup:ip:' + throttleIpKey(c.ip);
-  // await throttleGuard([ipBucket]); // Throttle désactivé temporairement pour tests
+  await throttleGuard([ipBucket]);
 
   const err = {};
   const [first, last, phone] = validateProfile(b, err);
@@ -25,7 +25,7 @@ export default async function customerSignup(c) {
   const [street, city] = validateAddress(b, err);
   if (Object.keys(err).length) failValidation(err);
 
-  // await throttleEnforce(ipBucket, 100, 3600); // Throttle désactivé temporairement pour tests
+  await throttleEnforce(ipBucket, 100, 3600);
 
   if ((await one('SELECT id FROM customers WHERE email = ?', [email])) !== null) {
     fail(409, 'email_taken', 'Un compte existe déjà avec cette adresse e-mail.');
