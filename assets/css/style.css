@@ -241,6 +241,13 @@ a { color: inherit; }
   color: var(--gray);
 }
 
+/* Très petits écrans (320 px) : l'en-tête ne doit jamais déborder (test massif des pages). */
+@media (max-width: 360px) {
+  .site-header__top { gap: 6px; }
+  .site-header__badge-icon { gap: 2px; }
+  .site-header__badge-icon svg { width: 17px; height: 17px; }
+}
+
 @media (min-width: 480px) {
   .site-header__logo { max-width: 200px; }
   .site-header__top { gap: 24px; }

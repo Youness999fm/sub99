@@ -38,7 +38,8 @@ async function prendre() {
 }
 
 const slot = await prendre();
-const port = 18600 + slot.i * 5;
+// Port neuf à chaque lancement : réutiliser un port rempli de connexions TIME_WAIT donne EADDRINUSE (Windows).
+const port = 20000 + Math.floor(Math.random() * 20000) * 1;
 const nom = path.basename(script).replace(/\.mjs$/, '');
 const fichier = path.join(journaux, `${nom}-${new Date().toISOString().replace(/[:.]/g, '-')}.log`);
 const sortie = fs.createWriteStream(fichier);

@@ -162,6 +162,34 @@ export function stopServer(proc) {
   if (proc && proc.exitCode === null) proc.kill();
 }
 
+// Connexions réutilisées (keep-alive, 64 au plus) : sans cela, chaque rafale ouvre des centaines de connexions qui
+// restent en TIME_WAIT et saturent la pile TCP locale de Windows (fausses erreurs « fetch failed » sous charge).
+const agentHttp = new http.Agent({ keepAlive: true, maxSockets: 64, maxFreeSockets: 64, keepAliveMsecs: 30000 });
+
+/** Requête HTTP avec les mêmes résultats que fetch : { status, headers (Headers), text }. */
+function appelerHttp(method, url, headers, payload) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const entetes = { ...headers };
+    if (payload !== undefined) entetes['Content-Length'] = String(Buffer.byteLength(payload));
+    const req = http.request({ host: u.hostname, port: u.port, path: u.pathname + u.search, method, headers: entetes, agent: agentHttp }, (res) => {
+      const morceaux = [];
+      res.on('data', (c) => morceaux.push(c));
+      res.on('end', () => {
+        const h = new Headers();
+        for (const [k, v] of Object.entries(res.headers)) {
+          if (Array.isArray(v)) v.forEach((x) => h.append(k, x)); else h.append(k, String(v));
+        }
+        resolve({ status: res.statusCode, headers: h, text: Buffer.concat(morceaux).toString('utf8') });
+      });
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    if (payload !== undefined) req.write(payload);
+    req.end();
+  });
+}
+
 /** Client HTTP avec boîte à cookies (comme un navigateur, Origin envoyé sur les POST). */
 export class Client {
   constructor(name) {
@@ -204,8 +232,8 @@ export class Client {
       payload = JSON.stringify(body);
       if (!Object.keys(h).some((k) => k.toLowerCase() === 'content-type')) h['Content-Type'] = 'application/json';
     }
-    const res = await fetch(BASE + route, { method, headers: h, body: payload, redirect: 'manual' });
-    const text = await res.text();
+    const res = await appelerHttp(method, BASE + route, h, payload);
+    const text = res.text;
     this.storeCookies(res.headers);
     let json = null;
     try { json = JSON.parse(text); } catch { /* contrôlé plus bas */ }
