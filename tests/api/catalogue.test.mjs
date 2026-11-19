@@ -588,6 +588,11 @@ test('échange par pizza : 3 pizzas avec un retrait et une olive → 3 olives of
   assert.equal(total, 3 * 1600 - 1600, 'à emporter : trois pizzas à 16,00 €, une pizza sur deux de la paire offerte, aucune olive facturée');
   const r = await order(items, { total_cents: total });
   assert.equal(r.status, 201, r.text);
+  // Total de ligne enregistré par le serveur : 3 × le prix unitaire taille seule (l'olive est offerte sur chaque pizza).
+  const stocke = r.json.order.items[0];
+  assert.equal(stocke.qty, 3);
+  assert.equal(stocke.unit_price_cents, 1600, 'prix unitaire taille seule');
+  assert.equal(stocke.line_total_cents, 3 * 1600, 'total de ligne = 3 × prix unitaire');
 });
 
 test('échange par pizza : une olive facturée sur une ligne de 3 pizzas est refusée (422 price_mismatch_line)', async () => {
@@ -603,8 +608,12 @@ test('échange par pizza : une ligne normale (une pizza, un retrait, un supplém
   assert.equal(b.orderTotalsCents(offert).total_cents, 1600, 'olive du même groupe offerte');
   const paye = browserCart([{ name: 'Régina', variant: 'Duo', removed: ['champignons'], extras: ['brie'] }], b);
   assert.equal(b.orderTotalsCents(paye).total_cents, 1600 + 200, 'brie d\'un autre groupe : payé');
-  assert.equal((await order(payloadOf(offert, b), { total_cents: 1600 })).status, 201);
-  assert.equal((await order(payloadOf(paye, b), { total_cents: 1800 })).status, 201);
+  const rOffert = await order(payloadOf(offert, b), { total_cents: 1600 });
+  assert.equal(rOffert.status, 201, rOffert.text);
+  assert.equal(rOffert.json.order.items[0].line_total_cents, 1600, 'ligne normale, olive offerte : même prix');
+  const rPaye = await order(payloadOf(paye, b), { total_cents: 1800 });
+  assert.equal(rPaye.status, 201, rPaye.text);
+  assert.equal(rPaye.json.order.items[0].line_total_cents, 1800, 'ligne normale, brie payé : même prix');
 });
 
 test('échange par pizza : parité navigateur et serveur, quantités 1 et 3', async () => {
