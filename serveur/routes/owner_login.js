@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { allowMethods, readJsonBody, bodyBool, fail, ok } from '../core.js';
 import { createSession, OWNER_ID } from '../auth.js';
 import { throttleEnforce, throttleRefund, throttleIpKey } from '../throttle.js';
+import { entreeBcrypt } from '../util.js';
 
 export default async function ownerLogin(c) {
   allowMethods(c, ['POST']);
@@ -21,7 +22,7 @@ export default async function ownerLogin(c) {
   const ipBucket = 'owner_login:ip:' + throttleIpKey(c.ip);
   await throttleEnforce(ipBucket, 5, 900, 900);
 
-  const valid = code !== '' && Buffer.byteLength(code) <= 4096 && (await bcrypt.compare(code, hash));
+  const valid = code !== '' && Buffer.byteLength(code) <= 4096 && (await bcrypt.compare(entreeBcrypt(code), hash));
   if (!valid) fail(401, 'invalid_credentials', 'Code incorrect.');
 
   await throttleRefund(ipBucket, 5);

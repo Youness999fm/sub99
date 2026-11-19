@@ -18,10 +18,11 @@ export async function throttleLocked(bucket) {
  * Compte une tentative (atomique) et renvoie son numéro dans la fenêtre. Quand le seuil est atteint, verrouille
  * le seau pendant `lock` secondes (ou jusqu'à la fin de la fenêtre si `lock` est null).
  */
-export async function throttleHit(bucket, limit, windowS, lock = null) {
+export async function throttleHit(bucket, limit, windowS, lock = null, db = null) {
+  const { one: lire, exec: ecrire } = db ?? { one, exec };
   const now = maintenantEpoch();
-  await exec('DELETE FROM throttle WHERE window_start < ? AND (locked_until IS NULL OR locked_until < ?)', [now - 86400, now]);
-  const row = await one(
+  await ecrire('DELETE FROM throttle WHERE window_start < ? AND (locked_until IS NULL OR locked_until < ?)', [now - 86400, now]);
+  const row = await lire(
     `INSERT INTO throttle (bucket, attempts, window_start, locked_until) VALUES (?, 1, ?, NULL)
      ON CONFLICT (bucket) DO UPDATE SET
        attempts = CASE WHEN throttle.window_start + ? <= ? THEN 1 ELSE throttle.attempts + 1 END,
@@ -33,7 +34,7 @@ export async function throttleHit(bucket, limit, windowS, lock = null) {
   const attempts = Number(row.attempts);
   if (attempts >= limit) {
     const until = lock !== null ? now + lock : Math.max(now + 1, Number(row.window_start) + windowS);
-    await exec('UPDATE throttle SET locked_until = ? WHERE bucket = ?', [until, bucket]);
+    await ecrire('UPDATE throttle SET locked_until = ? WHERE bucket = ?', [until, bucket]);
   }
   return attempts;
 }

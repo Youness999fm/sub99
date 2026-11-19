@@ -688,12 +688,13 @@ try {
     controle('remember non booléen (« oui ») : ignoré, session courte (200, remember = false)', pasBooleen.status === 200 && pasBooleen.json.owner.remember === false, `statut ${pasBooleen.status}, remember ${pasBooleen.json && pasBooleen.json.owner && pasBooleen.json.owner.remember}`);
     const casseCode = await appel('owner_login.php', { code: site.codePatron.toUpperCase() }, ipNeuve());
     controle('code patron : la casse compte (majuscules -> 401)', casseCode.status === 401, `statut ${casseCode.status}`);
-    // Code patron long : bcrypt ne lit que 72 octets (un code plus long que cela est tronqué).
+    // Code patron long : au-delà de 72 octets, le serveur passe par SHA-256 avant bcrypt (aucune fin ignorée).
     const ancienHash = process.env.OWNER_CODE_HASH;
     const bcrypt = (await import('bcryptjs')).default;
+    const crypto = await import('node:crypto');
     try {
       const codeLong = 'L'.repeat(72) + '-suite-du-code';
-      process.env.OWNER_CODE_HASH = bcrypt.hashSync(codeLong, 4);
+      process.env.OWNER_CODE_HASH = bcrypt.hashSync(crypto.createHash('sha256').update(codeLong).digest('hex'), 4);
       const tronque = await appel('owner_login.php', { code: 'L'.repeat(72) + '-AUTRE-SUITE' }, ipNeuve());
       const exact = await appel('owner_login.php', { code: codeLong }, ipNeuve());
       controle('code patron de 86 octets : une autre suite après les 72 premiers octets est refusée (401)', exact.status === 200 && tronque.status === 401, `code exact ${exact.status} ; autre suite ${tronque.status}`);

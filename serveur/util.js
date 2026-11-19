@@ -1,7 +1,17 @@
 // Dates, chaînes, constantes métier (port de api/lib/util.php).
+import crypto from 'node:crypto';
 import { maintenantEpoch } from './horloge.js';
 
 export const DELAY_CHOICES = [20, 30, 40, 50, 60];
+
+/**
+ * Texte transmis à bcrypt. bcrypt ne lit que les 72 premiers octets : au-delà, on passe d'abord par SHA-256
+ * (64 caractères hexadécimaux), pour qu'aucune partie du mot de passe ou du code ne soit ignorée.
+ * Sans effet pour les textes de 72 octets ou moins (les hachages déjà enregistrés restent valides).
+ */
+export function entreeBcrypt(texte) {
+  return Buffer.byteLength(texte) > 72 ? crypto.createHash('sha256').update(texte).digest('hex') : texte;
+}
 
 /** Zones de livraison : identiques à DELIVERY_ZONES de assets/js/cart.js (montants en centimes). */
 export const DELIVERY_ZONES = {

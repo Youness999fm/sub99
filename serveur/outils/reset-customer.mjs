@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { one, transaction } from '../db.js';
 import { normalizeEmail } from '../customers.js';
-import { nowUtc } from '../util.js';
+import { nowUtc, entreeBcrypt } from '../util.js';
 
 /**
  * Remplace le mot de passe du client et révoque ses sessions.
@@ -26,7 +26,7 @@ export async function resetCustomer(email, nouveauMotDePasse) {
     if (client === null) return { code: 1, stdout: '', stderr: 'Aucun client avec cet e-mail.\n' };
 
     const now = nowUtc();
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(entreeBcrypt(password), 10);
     const revoquees = await transaction(async (t) => {
       await t.exec('UPDATE customers SET password_hash = ?, updated_at = ? WHERE id = ?', [hash, now, Number(client.id)]);
       return t.exec(

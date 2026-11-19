@@ -5,7 +5,7 @@ import { one, exec } from '../db.js';
 import { createSession, currentSession, revokeSession, dummyPasswordHash } from '../auth.js';
 import { throttleEnforce, throttleRefund, throttleIpKey } from '../throttle.js';
 import { customerView } from '../customers.js';
-import { nowUtc } from '../util.js';
+import { nowUtc, entreeBcrypt } from '../util.js';
 
 export default async function customerLogin(c) {
   allowMethods(c, ['POST']);
@@ -21,9 +21,11 @@ export default async function customerLogin(c) {
   // 15 min sont vérifiées, même envoyées en même temps ; une réussite est décomptée ensuite.
   await throttleEnforce(ipBucket, 5, 900, 900);
 
-  const cust = email !== '' && Buffer.byteLength(email) <= 190 ? await one('SELECT * FROM customers WHERE email = ?', [email]) : null;
+  // Un e-mail avec caractère NUL n'est jamais un compte : refus propre (401), pas d'erreur Postgres (500).
+  const cust = email !== '' && Buffer.byteLength(email) <= 190 && !email.includes('\0')
+    ? await one('SELECT * FROM customers WHERE email = ?', [email]) : null;
   const hash = cust !== null ? String(cust.password_hash) : await dummyPasswordHash();
-  const valid = Buffer.byteLength(password) <= 4096 && (await bcrypt.compare(password, hash)) && cust !== null;
+  const valid = Buffer.byteLength(password) <= 4096 && (await bcrypt.compare(entreeBcrypt(password), hash)) && cust !== null;
   if (!valid) fail(401, 'invalid_credentials', 'Email ou mot de passe incorrect.');
 
   // Pas de remise à zéro : sinon un client connecté à son propre compte effacerait ses échecs sur les comptes d'autrui.

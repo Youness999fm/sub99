@@ -5,7 +5,7 @@ import { one, insert, estViolationUnique } from '../db.js';
 import { createSession, currentSession, revokeSession } from '../auth.js';
 import { throttleGuard, throttleEnforce, throttleIpKey } from '../throttle.js';
 import { customerView, validateProfile, normalizeEmail, validateAddress } from '../customers.js';
-import { nowUtc } from '../util.js';
+import { nowUtc, entreeBcrypt } from '../util.js';
 
 export default async function customerSignup(c) {
   allowMethods(c, ['POST']);
@@ -19,9 +19,9 @@ export default async function customerSignup(c) {
   const email = normalizeEmail(b.email);
   if (email === null) err.email = 'Adresse e-mail invalide.';
   const password = b.password;
-  if (typeof password !== 'string' || Buffer.byteLength(password) < 8 || Buffer.byteLength(password) > 200) {
-    err.password = 'Mot de passe de 8 caractères au moins.';
-  }
+  const tailleMotDePasse = typeof password === 'string' ? Buffer.byteLength(password) : 0;
+  if (tailleMotDePasse < 8) err.password = 'Mot de passe de 8 caractères au moins.';
+  else if (tailleMotDePasse > 200) err.password = 'Mot de passe de 200 octets au plus.';
   const [street, city] = validateAddress(b, err);
   if (Object.keys(err).length) failValidation(err);
 
@@ -36,7 +36,7 @@ export default async function customerSignup(c) {
     id = await insert(
       `INSERT INTO customers (email, password_hash, first_name, last_name, phone, street, city, created_at, updated_at, last_login_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [email, await bcrypt.hash(password, 10), first, last, phone, street, city, now, now, now]
+      [email, await bcrypt.hash(entreeBcrypt(password), 10), first, last, phone, street, city, now, now, now]
     );
   } catch (e) {
     if (estViolationUnique(e)) fail(409, 'email_taken', 'Un compte existe déjà avec cette adresse e-mail.');
