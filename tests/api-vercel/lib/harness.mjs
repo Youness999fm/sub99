@@ -135,12 +135,29 @@ export async function startServer(ctx, { statique = false } = {}) {
     else traiter(req, res);
   });
   await new Promise((resolve, reject) => { serveur.once('error', reject); serveur.listen(PORT, '127.0.0.1', resolve); });
+  // Second écouteur, sur un tube nommé, pour les clients HTTP des tests (aucun port TCP consommé).
+  let serveurTube = null;
+  if (process.env.SUBITO_TEST_TUBE !== '0') {
+    const chemin = process.platform === 'win32'
+      ? `\\\\.\\pipe\\subito-test-${process.pid}-${PORT}`
+      : path.join(tmpdir(), `subito-test-${process.pid}-${PORT}.sock`);
+    serveurTube = http.createServer((req, res) => {
+      if (statique && !(req.url || '').startsWith('/api/')) servirStatique(req, res);
+      else traiter(req, res);
+    });
+    try {
+      await new Promise((resolve, reject) => { serveurTube.once('error', reject); serveurTube.listen(chemin, resolve); });
+      cheminTube = chemin;
+    } catch { serveurTube = null; cheminTube = null; }
+  }
   const proc = {
     exitCode: null,
     kill() {
       if (proc.exitCode !== null) return;
       proc.exitCode = 0;
       console.error = consoleError;
+      if (serveurTube) { serveurTube.closeAllConnections(); serveurTube.close(); cheminTube = null; }
+      agentHttp.destroy();
       serveur.closeAllConnections();
       serveur.close();
       ctx.pilote.close();
@@ -167,12 +184,20 @@ export function stopServer(proc) {
 const agentHttp = new http.Agent({ keepAlive: true, maxSockets: 64, maxFreeSockets: 64, keepAliveMsecs: 30000 });
 
 /** Requête HTTP avec les mêmes résultats que fetch : { status, headers (Headers), text }. */
+// Tube nommé (Windows) ou socket Unix : les requêtes des clients de test n'utilisent alors AUCUN port TCP. Sur la
+// machine de test, des dizaines de milliers de connexions TCP locales restent en TIME_WAIT et épuisent les ports
+// éphémères (erreurs EADDRINUSE) : le tube nommé contourne ce plafond. Le serveur écoute aussi en TCP (navigateur).
+let cheminTube = null;
+
 function appelerHttp(method, url, headers, payload) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     const entetes = { ...headers };
     if (payload !== undefined) entetes['Content-Length'] = String(Buffer.byteLength(payload));
-    const req = http.request({ host: u.hostname, port: u.port, path: u.pathname + u.search, method, headers: entetes, agent: agentHttp }, (res) => {
+    const cible = cheminTube
+      ? { socketPath: cheminTube, path: u.pathname + u.search, headers: { Host: u.host, ...entetes } }
+      : { host: u.hostname, port: u.port, path: u.pathname + u.search, headers: entetes };
+    const req = http.request({ ...cible, method, agent: agentHttp }, (res) => {
       const morceaux = [];
       res.on('data', (c) => morceaux.push(c));
       res.on('end', () => {
@@ -194,6 +219,9 @@ function appelerHttp(method, url, headers, payload) {
 export class Client {
   constructor(name) {
     this.name = name;
+    // Sur un tube nommé la requête n'a pas d'adresse distante : on lui donne l'adresse qu'aurait eue une connexion TCP
+    // locale (127.0.0.1, les tests y comptent leurs seaux), sauf si le test impose lui-même x-subito-test-ip.
+    this.ipParDefaut = '127.0.0.1';
     this.cookies = new Map();
     this.lastSetCookies = [];
   }
@@ -220,6 +248,7 @@ export class Client {
 
   async request(method, route, { body, raw, headers = {}, origin } = {}) {
     const h = { 'User-Agent': 'Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36', ...headers };
+    if (cheminTube && !Object.keys(h).some((k) => k.toLowerCase() === 'x-subito-test-ip')) h['x-subito-test-ip'] = this.ipParDefaut;
     if (this.cookies.size) h.Cookie = this.cookieHeader();
     if (origin !== undefined) {
       if (origin !== null) h.Origin = origin;
