@@ -190,4 +190,5 @@ a.account-order:focus-visible {
 
 .account-order__status--new { background: #FFF3DA; color: #7A5300; }
 .account-order__status--accepted { background: #E3F3E9; color: var(--green-dark); }
+.account-order__status--ready { background: var(--green-dark); color: #fff; }
 .account-order__status--refused { background: #FCECEC; color: var(--red-dark); }

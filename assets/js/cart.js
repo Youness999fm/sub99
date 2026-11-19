@@ -296,12 +296,14 @@ const SUBITO_CART_CONFIG = {
     if (!container) return;
     container.querySelectorAll("[data-method]").forEach(function (btn) {
       btn.addEventListener("click", function () {
+        if (cartLocked()) { showToast("Commande en cours d’envoi : changez le paiement après la réponse."); return; }
         togglePaymentMethod(btn.getAttribute("data-method"));
         renderDrawerExtra(sortedCart());
       });
     });
     container.querySelectorAll("[data-change]").forEach(function (btn) {
       btn.addEventListener("click", function () {
+        if (cartLocked()) { showToast("Commande en cours d’envoi : changez le billet après la réponse."); return; }
         cashChangeFor = parseInt(btn.getAttribute("data-change"), 10);
         renderDrawerExtra(sortedCart());
       });
@@ -347,7 +349,7 @@ const SUBITO_CART_CONFIG = {
   // lignes séparées — voir buildLineId().
   function addLine(config) {
     // Pendant l'envoi, le panier est figé : un article ajouté maintenant ne serait ni commandé ni vidé proprement.
-    if (orderBusy) { showToast("Commande en cours d’envoi : ajoutez cet article après la réponse."); return; }
+    if (cartLocked()) { showToast("Commande en cours d’envoi : ajoutez cet article après la réponse."); return; }
     const name = config.name;
     const basePrice = config.basePrice;
     if (!name || typeof basePrice !== "number" || isNaN(basePrice)) {
@@ -412,7 +414,7 @@ const SUBITO_CART_CONFIG = {
   // impression de lag même quand tout fonctionnait. On met à jour le
   // stockage et seulement la ligne concernée + le pied (totaux/promo).
   function setQty(id, qty) {
-    if (orderBusy) { showToast("Commande en cours d’envoi : modifiez votre panier après la réponse."); return; }
+    if (cartLocked()) { showToast("Commande en cours d’envoi : modifiez votre panier après la réponse."); return; }
     const cart = readCart();
     if (qty <= 0) {
       writeCart(cart.filter(function (l) { return l.id !== id; }));
@@ -426,7 +428,7 @@ const SUBITO_CART_CONFIG = {
   }
 
   function removeItem(id) {
-    if (orderBusy) { showToast("Commande en cours d’envoi : modifiez votre panier après la réponse."); return; }
+    if (cartLocked()) { showToast("Commande en cours d’envoi : modifiez votre panier après la réponse."); return; }
     const cart = readCart().filter(function (l) { return l.id !== id; });
     writeCart(cart);
   }
@@ -1480,6 +1482,7 @@ const SUBITO_CART_CONFIG = {
     extra.querySelectorAll(".order-mode-toggle__btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
         const mode = btn.getAttribute("data-mode");
+        if (cartLocked()) { showToast("Commande en cours d’envoi : changez le mode après la réponse."); return; }
         if (mode === orderMode) return;
         orderMode = mode;
         const sorted = sortedCart();
@@ -1503,7 +1506,7 @@ const SUBITO_CART_CONFIG = {
       });
     }
     document.getElementById("cartDrawerClear").addEventListener("click", function () {
-      if (orderBusy) { showToast("Commande en cours d’envoi : videz le panier après la réponse."); return; }
+      if (cartLocked()) { showToast("Commande en cours d’envoi : videz le panier après la réponse."); return; }
       if (window.confirm("Vider tout le panier ?")) clearCart();
     });
   }
@@ -1689,6 +1692,7 @@ const SUBITO_CART_CONFIG = {
 
   function startOnlineOrder() {
     if (orderBusy) return; // un second appui pendant la vérification ne doit jamais envoyer une seconde commande
+    if (sendingElsewhere()) { setOrderStatus(SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Une commande est en cours d’envoi dans un autre onglet : patientez quelques secondes.", "error"); return; }
     if (!window.SubitoAccount) { setOrderStatus(SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Service de commande indisponible pour l'instant — merci d'appeler directement.", "error"); return; }
     orderBusy = true;
     setOrderStatus("Vérification de votre compte…", "pending");
@@ -1729,6 +1733,40 @@ const SUBITO_CART_CONFIG = {
   const ORDER_ATTEMPT_KEY = "subito_order_attempt";
   const ORDER_ATTEMPT_TTL_MS = 24 * 60 * 60 * 1000;
   const ORDER_ATTEMPT_MAX = 5;
+  // Une issue inconnue reste connue (et dédoublonnée) bien plus longtemps qu'un envoi réglé.
+  const ORDER_UNKNOWN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  // Envoi en vol : repère partagé entre les onglets. Pendant le vol (délai de 10 s), les autres onglets ne
+  // modifient pas le panier et n'envoient rien. Le repère expire seul au bout de 15 s.
+  const ORDER_FLIGHT_KEY = "subito_order_flight";
+  const ORDER_FLIGHT_MS = 15000;
+
+  function setFlight(key) {
+    try { localStorage.setItem(ORDER_FLIGHT_KEY, JSON.stringify({ key: key, at: Date.now() })); } catch (e) { /* stockage bloqué : pas de verrou entre onglets */ }
+  }
+
+  function clearFlight(key) {
+    try {
+      const f = JSON.parse(localStorage.getItem(ORDER_FLIGHT_KEY) || "null");
+      if (f && f.key === key) localStorage.removeItem(ORDER_FLIGHT_KEY);
+    } catch (e) { /* rien à effacer */ }
+  }
+
+  // Vrai si un envoi est en vol, dans cet onglet ou dans un autre.
+  function sendingElsewhere() {
+    try {
+      const f = JSON.parse(localStorage.getItem(ORDER_FLIGHT_KEY) || "null");
+      return !!(f && Date.now() - Number(f.at) < ORDER_FLIGHT_MS);
+    } catch (e) { return false; }
+  }
+
+  // Panier figé : un envoi est en cours dans cet onglet ou dans un autre.
+  function cartLocked() {
+    return orderBusy || sendingElsewhere();
+  }
+
+  function attemptStored(key) {
+    return readAttempts().some(function (a) { return a.key === key; });
+  }
 
   function saveAttempts(list) {
     try {
@@ -1746,7 +1784,10 @@ const SUBITO_CART_CONFIG = {
       else if (parsed && typeof parsed === "object") list = [parsed];
     } catch (e) { list = []; }
     const now = Date.now();
-    const alive = list.filter(function (a) { return a && a.key && Number(a.at) > now - ORDER_ATTEMPT_TTL_MS; });
+    const alive = list.filter(function (a) {
+      if (!a || !a.key) return false;
+      return Number(a.at) > now - (a.unknown ? ORDER_UNKNOWN_TTL_MS : ORDER_ATTEMPT_TTL_MS);
+    });
     if (alive.length !== list.length) saveAttempts(alive);
     return alive;
   }
@@ -1786,21 +1827,23 @@ const SUBITO_CART_CONFIG = {
   }
 
   // Clé de l'envoi. Un même contenu reprend toujours sa clé : après une coupure, le serveur renvoie alors la
-  // commande déjà créée au lieu d'en créer une seconde. Si un envoi précédent a une issue inconnue et que le
-  // contenu a changé, un seul avertissement (null) : le client peut ensuite renvoyer en connaissance de cause.
+  // commande déjà créée au lieu d'en créer une seconde. Quand le contenu change alors qu'une issue est
+  // inconnue, un seul avertissement (null) couvre les issues inconnues non encore signalées ; le client peut
+  // ensuite renvoyer en connaissance de cause. La nouvelle tentative est créée « inconnue » : elle n'est
+  // jamais évincée avant sa réponse.
   function idempotencyKeyFor(content) {
     const fp = fingerprint(JSON.stringify(content));
     const list = readAttempts();
     const same = list.filter(function (a) { return a.fp === fp; })[0];
     if (same) return same.key;
-    const unknownOne = list.filter(function (a) { return a.unknown; })[0];
-    if (unknownOne && !unknownOne.warned) {
-      unknownOne.warned = true;
+    const unwarned = list.filter(function (a) { return a.unknown && !a.warned; });
+    if (unwarned.length) {
+      unwarned.forEach(function (a) { a.warned = true; });
       saveAttempts(list);
       return null;
     }
     const key = randomKey();
-    list.push({ key: key, fp: fp, at: Date.now(), unknown: false, warned: false });
+    list.push({ key: key, fp: fp, at: Date.now(), unknown: true, warned: false });
     while (list.length > ORDER_ATTEMPT_MAX) {
       const settled = list.filter(function (a) { return !a.unknown; })[0];
       if (!settled) break;
@@ -1890,28 +1933,33 @@ const SUBITO_CART_CONFIG = {
     if (current) current.disabled = disabled;
   }
 
-  // Lignes du panier qui ne font pas partie de l'envoi, avec leurs quantités (comparaison ligne à ligne).
+  // Unités du panier qui ne font pas partie de l'envoi : pour chaque ligne, quantité actuelle moins quantité
+  // envoyée (par identifiant de ligne). Seules les unités réellement envoyées sont retirées.
   function unsentLines(sent, current) {
-    const remaining = sent.map(function (l) { return JSON.stringify(l); });
-    return current.filter(function (l) {
-      const i = remaining.indexOf(JSON.stringify(l));
-      if (i === -1) return true;
-      remaining.splice(i, 1);
-      return false;
+    const sentQty = {};
+    sent.forEach(function (l) { sentQty[l.id] = (sentQty[l.id] || 0) + l.qty; });
+    const rest = [];
+    current.forEach(function (l) {
+      const left = l.qty - (sentQty[l.id] || 0);
+      if (left > 0) rest.push(Object.assign({}, l, { qty: left }));
     });
+    return rest;
   }
 
-  // Commande enregistrée : on retire sa seule clé, puis le panier. Un article ajouté pendant l'envoi (autre
-  // onglet) reste dans le panier : il n'est ni vidé ni présenté comme commandé.
-  function finishOrder(key, sentLines, orderId) {
+  // Commande enregistrée : on retire sa seule clé, puis les unités envoyées du panier. Ce qui a été ajouté
+  // pendant l'envoi reste dans le panier. Le client est conduit au suivi, où il voit ce qui s'est passé
+  // (commande déjà enregistrée, articles restants) : le message ne dépend pas du tiroir.
+  function finishOrder(key, sentLines, orderId, replayed) {
     let leftover = [];
+    try { removeAttempt(key); } catch (e) { /* stockage bloqué : la commande existe */ }
     try {
-      removeAttempt(key);
       // Aucune intention de commande ne doit survivre à une commande enregistrée.
       clearPendingPaymentState();
       sessionStorage.removeItem(PENDING_ORDER_KEY);
       sessionStorage.removeItem(PENDING_ORDER_MODE_KEY);
       sessionStorage.removeItem(PENDING_CART_KEY);
+    } catch (e) { /* stockage bloqué : rien à effacer */ }
+    try {
       leftover = unsentLines(sentLines, readCart());
       if (leftover.length) writeCart(leftover);
       else clearCart();
@@ -1919,14 +1967,10 @@ const SUBITO_CART_CONFIG = {
       // Stockage bloqué après l'enregistrement : la commande existe, la suite ne doit pas être bloquée.
       leftover = [];
     }
-    if (leftover.length) {
-      orderBusy = false;
-      setCheckoutDisabled(false);
-      setOrderStatus("Votre commande est partie. Des articles ajoutés pendant l’envoi restent dans votre panier : ils ne font pas partie de cette commande. <a href=\"commande.html?id=" + encodeURIComponent(orderId) + "\">Voir ma commande</a>.", "ok");
-      return;
-    }
-    // Vraie page de suivi (récapitulatif, attente d'acceptation, puis minuteur une fois le délai transmis).
-    window.location.href = "commande.html?id=" + encodeURIComponent(orderId);
+    clearFlight(key);
+    window.location.href = "commande.html?id=" + encodeURIComponent(orderId) + (replayed ? "&deja=1" : "") + (leftover.length ? "&reste=1" : "");
+    // Filet de sécurité : si la navigation tarde, le bouton redevient utilisable (le panier est déjà à jour).
+    setTimeout(function () { orderBusy = false; setCheckoutDisabled(false); }, 8000);
   }
 
   function submitOrder() {
@@ -1960,9 +2004,17 @@ const SUBITO_CART_CONFIG = {
       setOrderStatus(SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + ' Votre commande précédente n’est peut-être pas partie : vérifiez <a href="compte.html">Mon compte</a> avant de la renvoyer. Si elle n’y figure pas, appuyez de nouveau sur « Commander en ligne ».', "error");
       return;
     }
-    // Avant le départ, la tentative est marquée « inconnue » : une coupure, ou un changement de panier dans un
-    // autre onglet, ne peut plus faire perdre la clé.
+    // Sans enregistrement de la tentative, un renvoi ne pourrait pas être dédoublonné : on n'envoie pas.
+    if (!attemptStored(key)) {
+      orderBusy = false;
+      setCheckoutDisabled(false);
+      setOrderStatus(SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Commande non envoyée : votre navigateur n’enregistre pas les données qui évitent un doublon. Appelez-nous au 03 21 20 00 33.", "error");
+      return;
+    }
+    // Avant le départ, la tentative est marquée « inconnue » et l'envoi est signalé aux autres onglets : une
+    // coupure, ou un changement de panier ailleurs, ne peut plus faire perdre la clé.
     setAttemptUnknown(key, true);
+    setFlight(key);
     // Lignes envoyées, telles qu'elles étaient dans le panier au départ (voir finishOrder).
     const sentLines = readCart();
     setCheckoutDisabled(true);
@@ -1970,6 +2022,8 @@ const SUBITO_CART_CONFIG = {
     const payload = Object.assign({ idempotency_key: key }, content);
 
     function fail(err) {
+      // La requête est terminée : l'envoi n'est plus en vol.
+      clearFlight(key);
       if (err.code === "unauthorized") {
         // Refus avant toute création de commande : la tentative est terminée.
         setAttemptUnknown(key, false);
@@ -2002,7 +2056,7 @@ const SUBITO_CART_CONFIG = {
         if (res.status === 200 || res.status === 201) {
           // Le panier n'est vidé qu'avec une confirmation réelle (commande enregistrée).
           if (!data || !data.order || data.order.id == null) { fail({ code: "network" }); return; }
-          finishOrder(key, sentLines, data.order.id);
+          finishOrder(key, sentLines, data.order.id, data.replayed === true);
           return;
         }
         const code = res.status >= 500 ? "network" : ((data && data.error) || ("http_" + res.status));

@@ -51,6 +51,22 @@
   color: var(--green-dark);
 }
 
+.order-track-status--ready {
+  background: #D3EFDD;
+  color: var(--green-dark);
+  border: 2px solid var(--green);
+  animation: order-ready-pulse 1.4s ease-out 2;
+}
+
+@keyframes order-ready-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(31, 122, 77, 0.45); }
+  100% { box-shadow: 0 0 0 16px rgba(31, 122, 77, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-track-status--ready { animation: none; }
+}
+
 .order-track-status--info {
   background: var(--green-tint);
   color: var(--dark);

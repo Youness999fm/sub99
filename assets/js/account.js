@@ -41,9 +41,11 @@ window.SubitoAccount = (function () {
     return fetch(API_BASE + path, opts).then(function (res) {
       return res.json().then(function (parsed) {
         return { res: res, data: parsed };
-      }, function () {
-        // Coupure ou délai pendant la lecture du corps : panne réseau, pas une réponse vide.
+      }, function (err) {
+        // Coupure ou délai pendant la lecture du corps : panne réseau. Seul un corps illisible (JSON invalide)
+        // est une réponse sans données.
         if (controller && controller.signal.aborted) throw networkError();
+        if (err && err.name !== "SyntaxError") throw networkError();
         return { res: res, data: null };
       });
     }, function () {

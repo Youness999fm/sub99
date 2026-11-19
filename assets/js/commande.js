@@ -6,7 +6,9 @@
    juste après l'envoi).
 
    Sonde /api/order_status.php toutes les 4s tant que la commande est
-   "new" (en attente) ; s'arrête dès qu'elle est acceptée ou refusée.
+   "new" (en attente), puis toutes les 5s une fois "accepted" (le restaurant
+   peut la marquer "ready" = prête) ; s'arrête dès qu'elle est prête ou
+   refusée. L'écran se met à jour tout seul à chaque changement.
    Une fois acceptée, un minuteur compte le délai annoncé par le
    restaurant, jusqu'à "Votre commande est prête !".
 
@@ -42,6 +44,7 @@
   // Sondage séquentiel : une requête à la fois, délai qui grandit après un échec (30 s au plus),
   // arrêt après 30 minutes sans changement d'état.
   const POLL_BASE_MS = 4000;
+  const POLL_ACCEPTED_MS = 5000;
   const POLL_MAX_MS = 30000;
   const POLL_STALE_MS = 30 * 60 * 1000;
   let polling = false;
@@ -163,7 +166,10 @@
 
   function scheduleNext() {
     if (!polling) return;
-    if (Date.now() - lastChangeAt > POLL_STALE_MS) {
+    // Pause après 30 minutes sans réponse du restaurant (« new » inchangé). Une commande déjà acceptée reste
+    // suivie jusqu'à « prête » (un délai de 60 min dépasse 30 min) : son minuteur et l'expiration, 2 h après
+    // l'heure prévue, bornent déjà la durée du suivi.
+    if (lastStatus !== "accepted" && Date.now() - lastChangeAt > POLL_STALE_MS) {
       stopPolling();
       const body = qs("orderTrackBody");
       if (body && !qs("orderTrackNotice")) {
@@ -176,9 +182,36 @@
       }
       return;
     }
-    const delay = Math.min(POLL_MAX_MS, POLL_BASE_MS * Math.pow(2, pollFailures));
+    const base = lastStatus === "accepted" ? POLL_ACCEPTED_MS : POLL_BASE_MS;
+    const delay = Math.min(POLL_MAX_MS, base * Math.pow(2, pollFailures));
     pollTimer = setTimeout(fetchStatus, delay);
   }
+
+  // Signal d'un changement d'état détecté pendant le suivi (jamais au premier affichage). L'écran est déjà mis
+  // à jour tout seul ; en plus : titre de l'onglet si la page est en arrière-plan, vibration si le navigateur
+  // l'autorise, et notification système seulement si la permission a déjà été accordée (aucune demande ici).
+  const baseTitle = document.title;
+  function signalChange(order) {
+    const ready = order.status === "ready";
+    const title = ready ? "Votre commande est prête !" : order.status === "accepted" ? "Commande acceptée" : "Commande refusée";
+    const body = ready
+      ? (order.mode === "delivery" ? "Votre livreur arrive chez vous." : "Vous pouvez venir la récupérer au restaurant.")
+      : order.status === "accepted" ? "Le restaurant prépare votre commande." : "Merci d’appeler le restaurant pour plus d’informations.";
+    try {
+      if (typeof navigator.vibrate === "function" && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) {
+        navigator.vibrate(ready ? [300, 150, 300] : [200]);
+      }
+    } catch (e) { /* ignoré */ }
+    if (document.hidden) document.title = "● " + title + " — Subito Pizza";
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body: body, tag: "subito-commande-" + orderId });
+      }
+    } catch (e) { /* non pris en charge */ }
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) document.title = baseTitle;
+  });
 
   function render(order) {
     lastCustomerName = order.customer_name || null;
@@ -190,6 +223,13 @@
       return;
     }
 
+    const preparedMs = order.status === "ready" && order.prepared_at ? Date.parse(order.prepared_at) : NaN;
+    if (!isNaN(preparedMs) && (serverNow() - preparedMs) > EXPIRE_AFTER_READY_MS) {
+      renderExpired(order);
+      return;
+    }
+
+    const previousStatus = lastStatus;
     if (order.status !== lastStatus) { lastStatus = order.status; lastChangeAt = Date.now(); }
 
     // Sondage régulier : on ne reconstruit la page que si la commande a changé
@@ -218,6 +258,12 @@
           '<p class="order-track-hint">' + (order.mode === "delivery" ? "Votre livreur arrive dans ce délai." : "Votre commande sera prête dans ce délai.") + '</p>' +
           '<p class="order-track-sorry" id="orderSorry" hidden></p>' +
         '</div>';
+    } else if (order.status === "ready") {
+      statusHtml =
+        '<div class="order-track-status order-track-status--ready" role="status">' +
+          '<p class="order-track-status__title">' + SubitoIcons.svg('circle-check', '1em', 'subito-icon--ok') + ' Votre commande est prête !</p>' +
+          '<p class="order-track-hint">' + (order.mode === "delivery" ? "Votre livreur arrive chez vous." : "Vous pouvez venir la récupérer au restaurant.") + '</p>' +
+        '</div>';
     } else if (order.status === "refused") {
       statusHtml =
         '<div class="order-track-status order-track-status--error" role="status">' +
@@ -243,10 +289,15 @@
       countdownTimer = null;
     }
 
-    // Une fois traitée (acceptée ou refusée), le statut ne changera plus :
-    // inutile de continuer à solliciter l'API toutes les 4 secondes. Le
-    // minuteur, lui, continue de tourner localement jusqu'à l'expiration.
-    if (order.status !== "new") stopPolling();
+    body.setAttribute("data-order-status", order.status);
+
+    // Changement d'état pendant le suivi : signal en plus de la mise à jour de l'écran.
+    if (previousStatus !== null && previousStatus !== order.status) signalChange(order);
+
+    // Une fois prête ou refusée, le statut ne changera plus : inutile de continuer à solliciter l'API.
+    // Tant qu'elle est « new » ou « accepted », le sondage continue. Le minuteur, lui, continue de
+    // tourner localement jusqu'à l'expiration.
+    if (order.status === "ready" || order.status === "refused") stopPolling();
   }
 
   // Commande introuvable dans ce compte (ou à un autre client) : on n'insiste pas.
@@ -318,13 +369,26 @@
       if (body) body.innerHTML = '<p class="account-error" role="alert">Aucune commande à afficher — ce lien n’est pas valide.</p>';
       return;
     }
+    // Informations venues de l'envoi (commande déjà enregistrée, articles restés dans le panier) : affichées
+    // hors du conteneur du suivi, qui est réécrit à chaque état.
+    const notes = [];
+    if (params.get("deja") === "1") notes.push("Cette commande avait déjà été enregistrée : aucune nouvelle commande n’a été créée.");
+    if (params.get("reste") === "1") notes.push("Des articles ajoutés pendant l’envoi restent dans votre panier : ils ne font pas partie de cette commande.");
+    notes.forEach(function (texte) {
+      if (!body || !body.parentNode) return;
+      const p = document.createElement("p");
+      p.className = "account-hint";
+      p.setAttribute("role", "status");
+      p.textContent = texte;
+      body.parentNode.insertBefore(p, body);
+    });
     polling = true;
     fetchStatus();
     // Sur mobile, l'onglet est souvent mis en veille : on revérifie dès
     // qu'il redevient visible plutôt que d'attendre le prochain sondage.
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState !== "visible" || inFlight) return;
-      if (lastStatus !== null && lastStatus !== "new") return;
+      if (lastStatus === "ready" || lastStatus === "refused") return;
       lastChangeAt = Date.now();
       polling = true;
       fetchStatus();

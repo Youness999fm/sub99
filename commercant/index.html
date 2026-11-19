@@ -32,12 +32,8 @@
     <p class="login-kicker">Espace commerçant</p>
     <p class="login-error" id="login-error" role="alert" aria-live="assertive"></p>
     <div class="field">
-      <label for="login-email">E-mail</label>
-      <input type="email" id="login-email" name="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" required>
-    </div>
-    <div class="field">
-      <label for="login-password">Mot de passe</label>
-      <input type="password" id="login-password" name="password" autocomplete="current-password" required>
+      <label for="login-password">Code</label>
+      <input type="password" id="login-password" name="code" autocomplete="current-password" autocapitalize="none" spellcheck="false" required>
     </div>
     <label class="check">
       <input type="checkbox" id="login-remember" name="remember">
@@ -92,6 +88,14 @@
         </div>
       </div>
       <div class="queue" id="queue" aria-label="File des commandes en attente"></div>
+    </div>
+
+    <div class="queue-strip prep-strip" id="prep-strip" hidden>
+      <div class="strip-head">
+        <h2>En préparation</h2>
+        <p class="strip-hint">Touchez une commande quand elle est prête : le client est prévenu.</p>
+      </div>
+      <div class="queue" id="prep-queue" aria-label="Commandes acceptées, en préparation"></div>
     </div>
   </section>
 

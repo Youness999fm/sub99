@@ -136,7 +136,6 @@
     boot: $('#boot'),
     loginView: $('#login-view'),
     loginForm: $('#login-form'),
-    loginEmail: $('#login-email'),
     loginPassword: $('#login-password'),
     loginRemember: $('#login-remember'),
     loginSubmit: $('#login-submit'),
@@ -250,7 +249,14 @@
   function openOrders() {
     return state.orders.filter(o => o.status === 'new');
   }
+  // Recette du jour : commandes acceptées, qu'elles soient encore en préparation ou déjà prêtes.
   function recapOrders() {
+    return state.orders
+      .filter(o => (o.status === 'accepted' || o.status === 'ready') && o.service_day === state.serviceDay)
+      .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
+  }
+  // En préparation : acceptées du jour, pas encore marquées prêtes.
+  function prepOrders() {
     return state.orders
       .filter(o => o.status === 'accepted' && o.service_day === state.serviceDay)
       .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
@@ -310,7 +316,7 @@
     el.loginError.textContent = message || '';
     el.loginSubmit.disabled = false;
     el.loginPassword.value = '';
-    setTimeout(() => (el.loginEmail.value ? el.loginPassword : el.loginEmail).focus(), 0);
+    setTimeout(() => el.loginPassword.focus(), 0);
   }
   function showApp() {
     showBoot(false);
@@ -374,18 +380,17 @@
   el.loginForm.addEventListener('submit', async e => {
     e.preventDefault();
     if (el.loginSubmit.disabled) return;
-    const email = el.loginEmail.value.trim();
-    const password = el.loginPassword.value;
-    if (!email || !password) {
-      el.loginError.textContent = 'Saisissez votre e-mail et votre mot de passe.';
-      (email ? el.loginPassword : el.loginEmail).focus();
+    const code = el.loginPassword.value;
+    if (!code) {
+      el.loginError.textContent = 'Saisissez votre code.';
+      el.loginPassword.focus();
       return;
     }
     el.loginSubmit.disabled = true;
     el.loginSubmit.textContent = 'Connexion…';
     el.loginError.textContent = '';
     try {
-      const r = await api('owner_login.php', { method: 'POST', body: { email, password, remember: el.loginRemember.checked }, allow401: true, noGen: true });
+      const r = await api('owner_login.php', { method: 'POST', body: { code, remember: el.loginRemember.checked }, allow401: true, noGen: true });
       el.loginPassword.value = '';
       if (r.ok) {
         startApp();
@@ -393,7 +398,7 @@
       }
       const err = r.data.error;
       if (err === 'invalid_credentials') {
-        el.loginError.textContent = 'Email ou mot de passe incorrect.';
+        el.loginError.textContent = 'Code incorrect.';
       } else if (err === 'too_many_attempts') {
         const min = Math.max(1, Math.ceil((Number(r.data.retry_after_seconds) || 60) / 60));
         el.loginError.textContent = `Trop de tentatives. Réessayez dans ${min} minute${min > 1 ? 's' : ''}.`;
@@ -678,6 +683,44 @@
     }
   }
 
+  // Marque une commande acceptée « prête » : le suivi du client l'affiche tout seul, sans qu'il recharge.
+  async function markReady(id) {
+    const key = String(id);
+    if (state.sending.has(key)) return;
+    const o = findOrder(id);
+    if (!o || o.status !== 'accepted') return;
+    const name = customerLabel(o);
+    state.sending.add(key);
+    state.mutationSeq += 1;
+    scheduleRender();
+    try {
+      const r = await api('owner_order_decide.php', { method: 'POST', body: { id: o.id, action: 'ready' } });
+      if (r.unauth) return;
+      if (r.ok) {
+        replaceOrder(r.data.order);
+        closeDialog();
+        toast(`Commande de ${name} prête · le client est prévenu`);
+      } else if (r.data.error === 'already_decided') {
+        const cur = findOrder(id);
+        if (cur) cur.status = r.data.status || cur.status;
+        closeDialog();
+        toast(`La commande de ${name} n'est plus en préparation.`);
+      } else if (r.data.error === 'not_found') {
+        alertMsg(`La commande de ${name} est introuvable.`);
+      } else {
+        alertMsg(r.data.message || 'Le changement n\'a pas pu être enregistré. Réessayez.');
+      }
+    } catch (e) {
+      if (e instanceof StaleError) return;
+      alertMsg('Connexion impossible : le changement n\'a pas été envoyé. Réessayez.');
+    } finally {
+      state.sending.delete(key);
+      state.mutationSeq += 1;
+      scheduleRender();
+      if (state.authed) poll();
+    }
+  }
+
   // ---------- Réglages ----------
   async function loadSettings() {
     try {
@@ -731,6 +774,7 @@
     const map = {
       new: ['pill-new', 'Nouvelle'],
       accepted: ['pill-accepted', 'Acceptée'],
+      ready: ['pill-ready', 'Prête'],
       refused: ['pill-refused', 'Refusée']
     };
     const [cls, label] = map[status] || ['pill-refused', String(status)];
@@ -759,6 +803,24 @@
       }).join('') || `<p class="queue-empty">Aucune commande en attente.</p>`;
     }
     setHTML(el.queue, html);
+  }
+
+  // « En préparation » : commandes acceptées, à marquer prêtes (le suivi du client se met à jour tout seul).
+  function renderPrep() {
+    const strip = document.getElementById('prep-strip');
+    const box = document.getElementById('prep-queue');
+    if (!strip || !box) return;
+    const list = prepOrders();
+    strip.hidden = list.length === 0;
+    setHTML(box, list.map(o => {
+      const ready = toDate(o.ready_at);
+      return `
+        <button type="button" class="qchip is-prep" data-action="prep-open" data-id="${esc(o.id)}"
+          aria-label="Commande de ${esc(customerLabel(o))}, en préparation, ${esc(eur(o.total_cents))}. Ouvrir pour la marquer prête">
+          <span class="qchip-title">${esc(customerLabel(o))}</span>
+          <span class="qchip-sub">${ready ? 'Prête vers ' + esc(hm(ready)) + ' · ' : ''}${esc(eur(o.total_cents))}</span>
+        </button>`;
+    }).join(''));
   }
 
   function itemTitle(it) {
@@ -1130,7 +1192,7 @@
         <button type="button" class="rcard" data-action="print-order" data-id="${esc(o.id)}" aria-label="Ticket de ${esc(customerLabel(o))}">
           <span class="rc-num">${esc(customerLabel(o))}</span>
           <span class="rc-info">
-            <span>Acceptée à ${esc(toDate(o.accepted_at) ? hm(toDate(o.accepted_at)) : '—')}</span>
+            <span>Acceptée à ${esc(toDate(o.accepted_at) ? hm(toDate(o.accepted_at)) : '—')}${o.status === 'ready' ? ' · Prête' : ''}</span>
             <span class="rc-delay">Délai ${esc(delayLabel(o.delay_minutes))}</span>
           </span>
           <span class="rc-amt">${esc(eur(o.total_cents))}</span>
@@ -1292,6 +1354,7 @@
     if (sb) sb.textContent = state.soundOn ? 'Couper le son' : 'Réactiver le son';
     renderNotifSlot();
     renderQueue();
+    renderPrep();
     renderDetail();
     if (state.view === 'avail') renderAvail();
     if (state.view === 'patron') renderPatron();
@@ -1361,14 +1424,17 @@
         <div class="t-line"><strong>TOTAL</strong><strong>${esc(eur(o.total_cents))}</strong></div>
         ${o.delay_minutes ? `<div class="t-line"><span>Délai annoncé</span><span>${esc(delayLabel(o.delay_minutes))}</span></div>` : ''}
         ${ready ? `<div class="t-line"><span>Prête vers</span><span>${esc(hm(ready))}</span></div>` : ''}
+        ${o.status === 'ready' ? `<div class="t-line"><span>État</span><span>Prête</span></div>` : ''}
       </div>`;
   }
 
   function openOrderTicket(o) {
+    const busy = state.sending.has(String(o.id));
     openDialog(`
       <h3>Ticket — ${esc(customerLabel(o))}</h3>
       ${ticketHtml(o)}
       <div class="dlg-actions">
+        ${o.status === 'accepted' ? `<button type="button" class="btn btn-accept" data-action="mark-ready" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>${busy ? 'Envoi…' : 'Commande prête · prévenir le client'}</button>` : ''}
         <button type="button" class="btn btn-accept" data-action="print-ticket" data-id="${esc(o.id)}">Imprimer le ticket</button>
         <button type="button" class="btn btn-ghost" data-action="dlg-close">Fermer</button>
       </div>
@@ -1575,11 +1641,15 @@
       case 'print-recap':
         printInto(recapPrintHtml());
         return;
-      case 'print-order': {
+      case 'print-order':
+      case 'prep-open': {
         const o = findOrder(id);
         if (o) openOrderTicket(o);
         return;
       }
+      case 'mark-ready':
+        markReady(id);
+        return;
       case 'print-ticket': {
         const o = findOrder(id);
         if (o) printInto(ticketHtml(o));

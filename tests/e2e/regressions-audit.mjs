@@ -346,25 +346,15 @@ try {
     await a.evaluate("document.getElementById('checkoutOrder').click()");
     // La première requête reste en attente : la commande est créée côté serveur, la réponse n'arrive pas encore.
     const enAttente = await tryWait(a, "typeof window.__r18Liberer === 'function'", 6000);
-    // Autre onglet, pendant l'envoi : un article de plus apparaît dans le panier partagé, puis il est retiré à la
-    // corbeille (le panier revient exactement au même contenu que celui déjà envoyé). Le retrait passe par writeCart.
-    const b = await newPage(chrome.port, 'about:blank');
-    await b.navigate(BASE + '/menu.html');
-    await b.evaluate("localStorage.setItem('subito_cart_v1', JSON.stringify(JSON.parse(localStorage.getItem('subito_cart_v1') || '[]').concat([{ id: 'test-coca', name: 'Coca', variant: '', basePrice: 2.5, qty: 1, removed: [], extras: [], half: null, note: '' }])))");
-    await b.navigate(BASE + '/menu.html');
-    await b.evaluate(OUVRIR_TIROIR);
-    await tryWait(b, "!document.getElementById('cartOverlay').hidden", 5000);
-    await b.evaluate("(() => { const ligne = [...document.querySelectorAll('.cart-line')].filter(function (l) { return /Coca/.test(l.textContent); })[0]; if (!ligne) throw new Error('ligne Coca introuvable'); ligne.querySelector('.cart-line__remove').click(); return true; })()");
-    await sleep(300);
-    // La réponse se perd (coupure) ; le client renvoie le même panier depuis le premier onglet.
+    // (Une modification du panier par un autre onglet pendant ce vol est refusée : voir R24 ; après l'échec : R29.)
+    // La réponse se perd (coupure) ; le client renvoie le même panier.
     await a.evaluate("window.__r18Liberer()");
     const coupure = await tryWait(a, "/Connexion interrompue/.test(document.getElementById('checkoutOrderStatus').textContent)", 6000);
     await a.evaluate("document.getElementById('checkoutOrder').click()");
     const suivi = await tryWait(a, "location.pathname === '/commande.html'", 8000);
     const crees = await a.evaluate("Object.keys(JSON.parse(localStorage.getItem('r18_commandes') || '{}')).length");
-    check('R18 deux onglets : modification pendant l’envoi puis coupure, une seule commande créée', enAttente && coupure && suivi && crees === 1, 'en attente=' + enAttente + ' · coupure=' + coupure + ' · suivi=' + suivi + ' · commandes créées=' + crees);
+    check('R18 envoi : coupure en vol puis renvoi du même contenu, une seule commande créée', enAttente && coupure && suivi && crees === 1, 'en attente=' + enAttente + ' · coupure=' + coupure + ' · suivi=' + suivi + ' · commandes créées=' + crees);
     a.close();
-    b.close();
   }
 
   // R19 — suivi : une requête de suivi suspendue (réseau mobile) est abandonnée après 10 s ; le suivi ne reste pas bloqué.
@@ -410,9 +400,10 @@ try {
     await page.evaluate(OUVRIR_TIROIR);
     await tryWait(page, "!document.getElementById('cartOverlay').hidden", 5000);
     await page.evaluate("document.getElementById('checkoutOrder').click()");
-    const message = await tryWait(page, "/Votre commande est partie/.test(document.getElementById('checkoutOrderStatus').textContent)", 8000);
-    const etat = await page.evaluate("(() => ({ url: location.pathname + location.search, panier: JSON.parse(localStorage.getItem('subito_cart_v1') || '[]').map(function (l) { return l.name; }) }))()");
-    check('R22 envoi : un article ajouté pendant l’envoi reste dans le panier, sans redirection', message && etat.url === '/menu.html' && JSON.stringify(etat.panier) === '["Coca"]', JSON.stringify(etat));
+    // Le client est conduit au suivi, qui lui dit que l'article ajouté reste dans le panier (le message ne dépend pas du tiroir).
+    const suivi = await tryWait(page, "location.pathname === '/commande.html' && /ne font pas partie de cette commande/.test(document.body.textContent)", 8000);
+    const etat = await page.evaluate("(() => ({ url: location.pathname + location.search, panier: JSON.parse(localStorage.getItem('subito_cart_v1') || '[]').map(function (l) { return l.name + ' x' + l.qty; }) }))()");
+    check('R22 envoi : un article ajouté pendant l’envoi reste dans le panier, et le suivi le signale', suivi && /reste=1/.test(etat.url) && JSON.stringify(etat.panier) === '["Coca x1"]', JSON.stringify(etat));
     page.close();
   }
   // R23 — reprise après connexion : un panier modifié depuis la demande n'est pas envoyé à la place du client.
@@ -427,6 +418,109 @@ try {
     const etat = await page.evaluate("(() => ({ url: location.pathname + location.search, message: (document.getElementById('checkoutOrderStatus') || { textContent: '' }).textContent }))()");
     check('R23 reprise : un panier modifié depuis la demande n’est pas envoyé à la place du client', etat.url === '/menu.html' && /Votre panier a changé/.test(etat.message), JSON.stringify(etat).slice(0, 160));
     page.close();
+  }
+
+  // Mise en place commune de R24 à R28 : panier d'une pizza, session simulée, serveur de commande simulé (script en paramètre).
+  async function pageCommande(script) {
+    const p = await newPage(chrome.port, 'about:blank');
+    await p.navigate(BASE + '/menu.html');
+    await p.evaluate("localStorage.clear()");
+    await p.evaluate(PANIER_TEST);
+    await p.navigate(BASE + '/menu.html');
+    await p.evaluate(SESSION_TEST);
+    await p.evaluate(script);
+    await p.evaluate(OUVRIR_TIROIR);
+    await tryWait(p, "!document.getElementById('cartOverlay').hidden", 5000);
+    return p;
+  }
+  const FETCH = "const realFetch = window.fetch; const json = { 'Content-Type': 'application/json' }; window.fetch = function (url, opts) { if (String(url).indexOf('order_create') === -1) return realFetch(url, opts); const corps = JSON.parse(opts.body); ";
+
+  // R24 — verrou entre onglets : pendant qu'un envoi est en vol, l'autre onglet ne peut ni renvoyer ni modifier le panier.
+  {
+    const a = await pageCommande("(() => { " + FETCH + "localStorage.setItem('r24_envois', String(Number(localStorage.getItem('r24_envois') || '0') + 1)); return new Promise(function (resolve, reject) { window.__r24Liberer = function () { reject(new TypeError('Failed to fetch (simulée)')); }; }); }; return true; })()");
+    await a.evaluate("document.getElementById('checkoutOrder').click()");
+    const enAttente = await tryWait(a, "typeof window.__r24Liberer === 'function'", 6000);
+    const b = await newPage(chrome.port, 'about:blank');
+    await b.navigate(BASE + '/menu.html');
+    await b.evaluate(OUVRIR_TIROIR);
+    await tryWait(b, "!document.getElementById('cartOverlay').hidden", 5000);
+    await b.evaluate("document.getElementById('checkoutOrder').click()");
+    await sleep(600);
+    const messageB = await b.evaluate("document.getElementById('checkoutOrderStatus').textContent");
+    await b.evaluate("document.querySelector('.cart-line__remove').click()");
+    await sleep(300);
+    const lignes = await b.evaluate("JSON.parse(localStorage.getItem('subito_cart_v1') || '[]').length");
+    const envois = await b.evaluate("localStorage.getItem('r24_envois')");
+    await a.evaluate("window.__r24Liberer()");
+    check('R24 deux onglets : pendant l’envoi, l’autre onglet ne renvoie rien et ne modifie pas le panier', enAttente && /autre onglet/.test(messageB) && lignes === 1 && envois === '1', 'en attente=' + enAttente + ' · message=' + String(messageB).trim().slice(0, 60) + ' · lignes=' + lignes + ' · envois=' + envois);
+    a.close();
+    b.close();
+  }
+
+  // R25 — une quantité augmentée dans un autre onglet pendant l'envoi : seule l'unité envoyée est retirée du panier.
+  {
+    const a = await pageCommande("(() => { " + FETCH + "const panier = JSON.parse(localStorage.getItem('subito_cart_v1')); panier[0].qty = 2; localStorage.setItem('subito_cart_v1', JSON.stringify(panier)); return Promise.resolve(new Response(JSON.stringify({ ok: true, order: { id: 6002 } }), { status: 201, headers: json })); }; return true; })()");
+    await a.evaluate("document.getElementById('checkoutOrder').click()");
+    const suivi = await tryWait(a, "location.pathname === '/commande.html'", 8000);
+    const etat = await a.evaluate("(() => ({ url: location.search, panier: JSON.parse(localStorage.getItem('subito_cart_v1') || '[]').map(function (l) { return l.qty; }) }))()");
+    check('R25 envoi : une quantité ajoutée pendant l’envoi ne laisse que l’unité non commandée', suivi && /reste=1/.test(etat.url) && JSON.stringify(etat.panier) === '[1]', JSON.stringify(etat));
+    a.close();
+  }
+
+  // R26 — cinq issues inconnues déjà gardées : la clé d'un nouvel envoi dont la réponse se perd est bien conservée.
+  {
+    const a = await pageCommande("(() => { " + FETCH + "localStorage.setItem('r26_cle', corps.idempotency_key); return Promise.reject(new TypeError('Failed to fetch (simulée)')); }; const liste = [1, 2, 3, 4, 5].map(function (i) { return { key: 'r26-' + i, fp: 'f' + i, at: Date.now(), unknown: true, warned: true }; }); localStorage.setItem('subito_order_attempt', JSON.stringify(liste)); return true; })()");
+    await a.evaluate("document.getElementById('checkoutOrder').click()");
+    const coupure = await tryWait(a, "/Connexion interrompue/.test(document.getElementById('checkoutOrderStatus').textContent)", 6000);
+    const etat = await a.evaluate("(() => { const liste = JSON.parse(localStorage.getItem('subito_order_attempt') || '[]'); const cle = localStorage.getItem('r26_cle'); return { longueur: liste.length, gardee: liste.some(function (x) { return x.key === cle && x.unknown; }) }; })()");
+    check('R26 tentatives : la clé du sixième envoi perdu est conservée, jamais évincée', coupure && etat.gardee === true && etat.longueur === 6, JSON.stringify(etat));
+    a.close();
+  }
+
+  // R27 — commande rejouée par le serveur (même clé, même contenu) : le suivi dit qu'aucune nouvelle commande n'a été créée.
+  {
+    const a = await pageCommande("(() => { " + FETCH + "return Promise.resolve(new Response(JSON.stringify({ ok: true, replayed: true, order: { id: 7001 } }), { status: 200, headers: json })); }; return true; })()");
+    await a.evaluate("document.getElementById('checkoutOrder').click()");
+    const suivi = await tryWait(a, "location.pathname === '/commande.html' && /déjà été enregistrée/.test(document.body.textContent)", 8000);
+    const url = await a.evaluate("location.search");
+    check('R27 envoi : une commande rejouée par le serveur est signalée, sans confirmation neuve', suivi && /deja=1/.test(url), url);
+    a.close();
+  }
+
+  // R28 — une issue inconnue de plus de 24 h garde sa clé : le même contenu renvoyé après 25 h reprend la même clé.
+  {
+    const a = await pageCommande("(() => { " + FETCH + "const cles = JSON.parse(localStorage.getItem('r28_cles') || '[]'); cles.push(corps.idempotency_key); localStorage.setItem('r28_cles', JSON.stringify(cles)); if (cles.length === 1) return Promise.reject(new TypeError('Failed to fetch (simulée)')); return Promise.resolve(new Response(JSON.stringify({ ok: true, replayed: true, order: { id: 7002 } }), { status: 200, headers: json })); }; return true; })()");
+    await a.evaluate("document.getElementById('checkoutOrder').click()");
+    await tryWait(a, "/Connexion interrompue/.test(document.getElementById('checkoutOrderStatus').textContent)", 6000);
+    await a.evaluate("(() => { const liste = JSON.parse(localStorage.getItem('subito_order_attempt') || '[]'); liste.forEach(function (x) { x.at = Date.now() - 25 * 3600 * 1000; }); localStorage.setItem('subito_order_attempt', JSON.stringify(liste)); return true; })()");
+    await a.evaluate("document.getElementById('checkoutOrder').click()");
+    await tryWait(a, "location.pathname === '/commande.html'", 8000);
+    const cles = await a.evaluate("JSON.parse(localStorage.getItem('r28_cles') || '[]')");
+    check('R28 tentatives : une issue inconnue de 25 h reprend sa clé (pas de seconde commande)', cles.length === 2 && cles[0] === cles[1], JSON.stringify(cles.map(function (c) { return String(c).slice(0, 8); })));
+    a.close();
+  }
+
+  // R29 — perte de réponse, puis modification du panier dans l'autre onglet APRÈS l'échec, puis renvoi : une seule commande.
+  {
+    const SERVEUR_R29 = "(() => { " + FETCH + "const commandes = JSON.parse(localStorage.getItem('r29_commandes') || '{}'); if (commandes[corps.idempotency_key]) return Promise.resolve(new Response(JSON.stringify({ ok: true, replayed: true, order: { id: commandes[corps.idempotency_key] } }), { status: 200, headers: json })); const id = 7101 + Object.keys(commandes).length; commandes[corps.idempotency_key] = id; localStorage.setItem('r29_commandes', JSON.stringify(commandes)); if (!window.__r29Perdue) { window.__r29Perdue = true; return Promise.reject(new TypeError('Failed to fetch (simulée)')); } return Promise.resolve(new Response(JSON.stringify({ ok: true, order: { id: id } }), { status: 201, headers: json })); }; return true; })()";
+    const a = await pageCommande(SERVEUR_R29);
+    await a.evaluate("document.getElementById('checkoutOrder').click()");
+    const coupure = await tryWait(a, "/Connexion interrompue/.test(document.getElementById('checkoutOrderStatus').textContent)", 6000);
+    // L'envoi est terminé : l'autre onglet peut modifier le panier (un article de plus, retiré à la corbeille).
+    const b = await newPage(chrome.port, 'about:blank');
+    await b.navigate(BASE + '/menu.html');
+    await b.evaluate("localStorage.setItem('subito_cart_v1', JSON.stringify(JSON.parse(localStorage.getItem('subito_cart_v1') || '[]').concat([{ id: 'test-coca', name: 'Coca', variant: '', basePrice: 2.5, qty: 1, removed: [], extras: [], half: null, note: '' }])))");
+    await b.navigate(BASE + '/menu.html');
+    await b.evaluate(OUVRIR_TIROIR);
+    await tryWait(b, "!document.getElementById('cartOverlay').hidden", 5000);
+    await b.evaluate("(() => { const ligne = [...document.querySelectorAll('.cart-line')].filter(function (l) { return /Coca/.test(l.textContent); })[0]; ligne.querySelector('.cart-line__remove').click(); return true; })()");
+    await sleep(300);
+    await a.evaluate("document.getElementById('checkoutOrder').click()");
+    const suivi = await tryWait(a, "location.pathname === '/commande.html'", 8000);
+    const crees = await a.evaluate("Object.keys(JSON.parse(localStorage.getItem('r29_commandes') || '{}')).length");
+    check('R29 deux onglets : perte, modification après l’échec, renvoi : une seule commande', coupure && suivi && crees === 1, 'coupure=' + coupure + ' · suivi=' + suivi + ' · commandes créées=' + crees);
+    a.close();
+    b.close();
   }
 
 } finally {

@@ -159,7 +159,7 @@
       holder.innerHTML = '<p class="account-hint">Aucune commande pour le moment.</p>';
       return;
     }
-    const statusLabel = { new: "En attente", accepted: "Acceptée", refused: "Refusée" };
+    const statusLabel = { new: "En attente", accepted: "Acceptée", ready: "Prête", refused: "Refusée" };
     holder.innerHTML = orders.map(function (o) {
       // Statut limité à une liste connue : il sert aussi de nom de classe CSS.
       // Lien vers la page de suivi (commande.html) : en attente, acceptée ou

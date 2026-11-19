@@ -251,6 +251,6 @@ Ces points ne sont pas techniques : ils relèvent du propriétaire, et aucun tex
 ## 9. Avant toute publication sur le domaine principal
 
 - Publier les **fichiers du site**, pas le dépôt entier : mêmes exclusions que la section 3 (`tests/`, `tools/`, `reports/`, `subito-popup/`, `concours.html`, `grand-tirage.html`, `assets/js/tirage/`, `assets/js/winners-data.js`, `api/README.md`). Utiliser le `robots.txt` et le `.htaccess` **du dépôt** : le `robots.txt` autorise l'indexation des pages publiques, et le `.htaccess` n'a pas les lignes de préproduction.
-- Le `.htaccess` du dépôt n'a pas de redirection HTTP vers HTTPS. Si l'hébergeur ne la force pas, ajouter les lignes 2 à 7 du `.htaccess` du paquet (la redirection) avant de publier.
+- Le `.htaccess` du dépôt n'a pas de redirection HTTP vers HTTPS. Si l'hébergeur ne la force pas, ajouter les lignes 2 à 8 du `.htaccess` du paquet (la redirection, jusqu'à la ligne `</IfModule>` incluse) avant de publier. Copier seulement les lignes 2 à 7 laisse un bloc ouvert et provoque une erreur 500 sur tout le site.
 - Vérifier une dernière fois `api/` et supprimer tout fichier de test ou de diagnostic qui s'y trouverait (`api/_phpinfo.php`, `api/_dbtest.php`).
 - Rappel : la publication se fait sur accord explicite de l'utilisateur.
