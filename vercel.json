@@ -1,0 +1,22 @@
+{
+  "regions": ["dub1"],
+  "rewrites": [
+    { "source": "/api/(.*)\\.php", "destination": "/api/$1" }
+  ],
+  "installCommand": "npm ci --omit=dev",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 10,
+      "includeFiles": "{serveur,api/data}/**"
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+# Fichiers qui ne doivent pas être publiés par Vercel.
+
+# Ancien backend PHP (OVH) : jamais servi comme fichiers statiques.
+api/*.php
+api/lib/
+api/tools/
+api/.htaccess
+api/.user.ini
+api/README.md
+api/config.sample.php
+
+# Tests, outils, rapports, démonstrations, pages exclues de la publication.
+tests/
+tools/
+reports/
+subito-popup/
+concours.html
+grand-tirage.html
+assets/js/tirage/
+assets/js/winners-data.js
+assets/css/tirage.css
+supabase/
+serveur/outils/
+.claude/
+.env
+.env.*

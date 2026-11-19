@@ -1,0 +1,21 @@
+{
+  "name": "subito-pizza",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Site Subito Pizza Hénin-Beaumont : pages statiques + fonctions serveur Vercel (api/commande.js, api/patron/*.js) + base Supabase.",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "test:serveur": "node --test \"tests/serveur/*.test.mjs\"",
+    "hash-code": "node serveur/outils/hash-code.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.0"
+  }
+}
