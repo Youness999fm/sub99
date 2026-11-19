@@ -58,6 +58,10 @@ export async function newPage(port, url = 'about:blank') {
   await cdp.open();
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
+  // Tests hermétiques : les polices et la carte Google ne sont pas chargées (le site doit s'afficher sans elles,
+  // et l'événement « load » ne doit pas dépendre d'un service externe).
+  await cdp.send('Network.enable');
+  await cdp.send('Network.setBlockedURLs', { urls: ['*fonts.googleapis.com*', '*fonts.gstatic.com*', '*www.google.com*', '*maps.googleapis.com*'] });
   return cdp;
 }
 

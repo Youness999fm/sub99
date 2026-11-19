@@ -321,9 +321,9 @@ try {
   const SESSION_TEST = "window.SubitoAccount.me = function () { return Promise.resolve({ city: 'Hénin-Beaumont', first_name: 'Test', last_name: 'Client' }); }; true;";
   const OUVRIR_TIROIR = "(() => { document.getElementById('cartBarOpen').click(); return true; })()";
 
-  // R18 — deux onglets : une coupure pendant l'envoi (commande créée côté serveur, réponse perdue), puis une
-  // modification du panier dans l'autre onglet, ne doit pas créer une seconde commande identique. Le serveur est
-  // simulé avec un dédoublonnage par clé (même clé = même commande, comme le contrat).
+  // R18 — deux onglets : pendant l'envoi, l'autre onglet modifie le panier puis la réponse se perd ; le renvoi du
+  // même contenu ne doit pas créer une seconde commande. Le serveur est simulé avec un dédoublonnage par clé
+  // (même clé = même commande, comme le contrat) ; la première requête est créée côté serveur, puis gardée en attente.
   {
     const SERVEUR_R18 = "(() => { const realFetch = window.fetch; const json = { 'Content-Type': 'application/json' };"
       + " window.fetch = function (url, opts) {"
@@ -331,7 +331,7 @@ try {
       + " const corps = JSON.parse(opts.body); const commandes = JSON.parse(localStorage.getItem('r18_commandes') || '{}');"
       + " if (commandes[corps.idempotency_key]) return Promise.resolve(new Response(JSON.stringify({ ok: true, order: { id: commandes[corps.idempotency_key] } }), { status: 200, headers: json }));"
       + " const id = 7001 + Object.keys(commandes).length; commandes[corps.idempotency_key] = id; localStorage.setItem('r18_commandes', JSON.stringify(commandes));"
-      + " if (!window.__r18Coupure) { window.__r18Coupure = true; return Promise.reject(new TypeError('Failed to fetch (réponse perdue, simulée)')); }"
+      + " if (!window.__r18Premiere) { window.__r18Premiere = true; return new Promise(function (resolve, reject) { window.__r18Liberer = function () { reject(new TypeError('Failed to fetch (réponse perdue, simulée)')); }; }); }"
       + " return Promise.resolve(new Response(JSON.stringify({ ok: true, order: { id: id } }), { status: 201, headers: json }));"
       + " }; })();";
     const a = await newPage(chrome.port, 'about:blank');
@@ -344,21 +344,25 @@ try {
     await a.evaluate(OUVRIR_TIROIR);
     await tryWait(a, "!document.getElementById('cartOverlay').hidden", 5000);
     await a.evaluate("document.getElementById('checkoutOrder').click()");
-    const coupure = await tryWait(a, "/Connexion interrompue/.test(document.getElementById('checkoutOrderStatus').textContent)", 6000);
-    // Autre onglet : une pizza de plus, puis retirée (le panier revient exactement au même contenu).
+    // La première requête reste en attente : la commande est créée côté serveur, la réponse n'arrive pas encore.
+    const enAttente = await tryWait(a, "typeof window.__r18Liberer === 'function'", 6000);
+    // Autre onglet, pendant l'envoi : un article de plus apparaît dans le panier partagé, puis il est retiré à la
+    // corbeille (le panier revient exactement au même contenu que celui déjà envoyé). Le retrait passe par writeCart.
     const b = await newPage(chrome.port, 'about:blank');
+    await b.navigate(BASE + '/menu.html');
+    await b.evaluate("localStorage.setItem('subito_cart_v1', JSON.stringify(JSON.parse(localStorage.getItem('subito_cart_v1') || '[]').concat([{ id: 'test-coca', name: 'Coca', variant: '', basePrice: 2.5, qty: 1, removed: [], extras: [], half: null, note: '' }])))");
     await b.navigate(BASE + '/menu.html');
     await b.evaluate(OUVRIR_TIROIR);
     await tryWait(b, "!document.getElementById('cartOverlay').hidden", 5000);
-    await b.evaluate("document.querySelector('.cart-line__inc').click()");
+    await b.evaluate("(() => { const ligne = [...document.querySelectorAll('.cart-line')].filter(function (l) { return /Coca/.test(l.textContent); })[0]; if (!ligne) throw new Error('ligne Coca introuvable'); ligne.querySelector('.cart-line__remove').click(); return true; })()");
     await sleep(300);
-    await b.evaluate("document.querySelector('.cart-line__dec').click()");
-    await sleep(300);
-    // Retour dans le premier onglet : renvoi du même contenu.
+    // La réponse se perd (coupure) ; le client renvoie le même panier depuis le premier onglet.
+    await a.evaluate("window.__r18Liberer()");
+    const coupure = await tryWait(a, "/Connexion interrompue/.test(document.getElementById('checkoutOrderStatus').textContent)", 6000);
     await a.evaluate("document.getElementById('checkoutOrder').click()");
     const suivi = await tryWait(a, "location.pathname === '/commande.html'", 8000);
     const crees = await a.evaluate("Object.keys(JSON.parse(localStorage.getItem('r18_commandes') || '{}')).length");
-    check('R18 deux onglets : coupure puis modification dans l’autre onglet, une seule commande créée', coupure && suivi && crees === 1, 'coupure=' + coupure + ' · suivi=' + suivi + ' · commandes créées=' + crees);
+    check('R18 deux onglets : modification pendant l’envoi puis coupure, une seule commande créée', enAttente && coupure && suivi && crees === 1, 'en attente=' + enAttente + ' · coupure=' + coupure + ' · suivi=' + suivi + ' · commandes créées=' + crees);
     a.close();
     b.close();
   }
@@ -411,6 +415,20 @@ try {
     check('R22 envoi : un article ajouté pendant l’envoi reste dans le panier, sans redirection', message && etat.url === '/menu.html' && JSON.stringify(etat.panier) === '["Coca"]', JSON.stringify(etat));
     page.close();
   }
+  // R23 — reprise après connexion : un panier modifié depuis la demande n'est pas envoyé à la place du client.
+  {
+    const page = await newPage(chrome.port, 'about:blank');
+    await page.send('Page.addScriptToEvaluateOnNewDocument', { source: SRC_SESSION_COMMANDE });
+    await page.navigate(BASE + '/menu.html');
+    await page.evaluate("sessionStorage.setItem('subito_resume_ok', '1')");
+    await page.evaluate("sessionStorage.setItem('subito_pending_cart', JSON.stringify([]))");
+    await page.navigate(BASE + '/menu.html?subito_resume=1');
+    await sleep(2500);
+    const etat = await page.evaluate("(() => ({ url: location.pathname + location.search, message: (document.getElementById('checkoutOrderStatus') || { textContent: '' }).textContent }))()");
+    check('R23 reprise : un panier modifié depuis la demande n’est pas envoyé à la place du client', etat.url === '/menu.html' && /Votre panier a changé/.test(etat.message), JSON.stringify(etat).slice(0, 160));
+    page.close();
+  }
+
 } finally {
   chrome.proc.kill();
 }

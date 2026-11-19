@@ -17,7 +17,7 @@ Ce rapport n'est pas une certification. Aucune formation n'est revendiquée. Les
 ## Résumé
 
 - **Front client** : fonctionne en local avec une API simulée (prix, promotions, minimums, frais, panier, double clic, erreurs réseau, redirections, compte, suivi, fenêtre d'accueil). Parcours : 15 contrôles sur 18 ; les 3 échecs sont des constats réels (horaires, disponibilité, cibles tactiles).
-- **Corrections sûres appliquées** : compte client (erreurs réseau, retour limité au même site, échappement, validation), panier (stockage refusé, verrou pendant l'envoi), suivi, fenêtre d'accueil (focus clavier), accessibilité (libellés, rôles, contrastes, cibles), référencement, fichiers de configuration. Régression : 19 contrôles sur 19. Accessibilité automatique (axe-core) : 0 violation sur 17 contrôles.
+- **Corrections sûres appliquées** : compte client (erreurs réseau, retour limité au même site, échappement, validation), panier (stockage refusé, verrou pendant l'envoi), suivi, fenêtre d'accueil (focus clavier), accessibilité (libellés, rôles, contrastes, cibles), référencement, fichiers de configuration. Envoi de commande (troisième série) : double commande entre onglets évitée, article ajouté pendant l'envoi conservé, reprise après connexion conditionnée au panier inchangé. Régression : 25 contrôles sur 25. Accessibilité automatique (axe-core) : 0 violation sur 17 contrôles.
 - **Bloquant 1** : le backend (`api/`) a été construit pendant l'audit. Il a été exécuté en local (PHP 8.3.36 portable, base SQLite de test), mais les tests API sont **instables et non concluants** (échecs de connexion au serveur de test, échecs en cascade ; section 6.2). MySQL n'a pas été testé. La commande réelle n'est donc pas prouvée.
 - **Bloquant 2** : prix, horaires et disponibilité ne sont pas appliqués côté serveur.
 - **Bloquant 3** : mentions légales, politique de confidentialité, information sur les allergènes et conditions de commande sont absentes.
@@ -128,7 +128,7 @@ Gravité : **critique** (bloque la mise en ligne), **élevé** (à traiter avant
 | P-04 | Critique | Mentions obligatoires et information des personnes absentes | `mentions-legales.html` sans RCS, SIRET ni TVA ; aucune politique de confidentialité ; aucun allergène sur les pages | Écarts possibles avec les obligations de vente à distance et de protection des données (textes à confirmer, annexe) | Rédiger avec un professionnel ; fournir les allergènes produit par produit | Décision du propriétaire et validation humaine |
 | P-05 | Élevé | Prix, frais, minimum et total calculés par le navigateur | `cart.js` envoie `unit_price`, `delivery_fee` et `total_cents`. Le contrat en construction prévoit un refus en cas d'écart (`price_mismatch`) | Montants modifiables tant que le serveur ne recalcule pas | Recalcul serveur à partir d'une grille de référence, refus en cas d'écart | Ouvert, lot backend |
 | P-06 | Élevé | Horaires non appliqués | T13 : commande possible alors que le bandeau indique « fermé », contrôlé à plusieurs heures de la journée. Trois versions : « 18h–23h » (`index.html:186`), fin à 22 h 47 (`main.js:307-308`), livraison « 19h–22h » | Commandes hors service ; textes contradictoires | Décision sur les horaires, puis application côté serveur | Décision du propriétaire |
-| P-07 | Élevé | Disponibilité non appliquée de bout en bout | T14 : une pizza marquée indisponible part dans la commande. `vegetarien.html` et `composer.html` ne chargent pas `disponibilite.js` | Produit indisponible commandé | Étendre aux pages et à l'envoi (chantier disponibilité, autre intervenant) | Ouvert, hors de cet audit |
+| P-07 | Élevé | Disponibilité non appliquée de bout en bout | T14 : le client envoie une pizza marquée indisponible (le test mesure l'envoi côté client). Le serveur refuse ce cas (422 `unavailable_items`, `api/lib/orders.php`), non exécuté de façon fiable. `vegetarien.html` et `composer.html` ne chargent pas `disponibilite.js` | Produit indisponible commandé | Étendre aux pages et à l'envoi (chantier disponibilité, autre intervenant) | Ouvert, hors de cet audit |
 | P-08 | Élevé | Frais de livraison contradictoires | `faq.html:54` et `faq.html:126` : « livraison offerte, sans frais supplémentaires ». Accueil et panier : 5,50 € ou 8 € sans pizza | Information de prix fausse, reprise dans les données structurées | Aligner la FAQ sur la règle décidée | Décision du propriétaire (texte) |
 | P-09 | Élevé | Durée de conservation des commandes non décidée et contradictoire | Plan : purge quotidienne. Décision du 19/11 : historique consultable dans « Mon compte » | Les deux exigences ne peuvent pas coexister ; durée RGPD indéfinie | Trancher : durée, anonymisation ou purge | Décision du propriétaire |
 | P-10 | Élevé | Fichiers de diagnostic PHP dans `api/` | `api/_phpinfo.php` (affiche la configuration PHP) et `api/_dbtest.php` (test de connexion). Protégés en théorie par `api/.htaccess`, non testable ici | Exposition de la configuration si la protection échoue | Exclure de tout envoi ; suppression après accord (cadrage du 19/11) ; vérifier la protection chez OVH | Décision du propriétaire |
@@ -138,7 +138,7 @@ Gravité : **critique** (bloque la mise en ligne), **élevé** (à traiter avant
 | P-14 | Élevé | Son bloqué sans geste de l'utilisateur | Règle de Chrome : un `AudioContext` créé sans geste démarre suspendu (annexe) | Pas de son au démarrage de la maquette | Bouton « activer le son » ; test sur téléphone réel | Ouvert, lot commerçant |
 | P-15 | Élevé | Compte obligatoire sans « mot de passe oublié » ni envoi d'e-mail | Aucune route ni texte de récupération ; aucun enregistrement SPF, DKIM ou DMARC prévu | Client bloqué s'il oublie son mot de passe | Parcours par e-mail (avec SPF, DKIM, DMARC) ou repli par téléphone | Décision du propriétaire |
 | P-16 | Élevé | Version PHP du contrat non supportée | Contrat : « PHP 8.1+ ». php.net (19/11/2026) : 8.1 n'apparaît plus dans les branches supportées ; 8.2 en sécurité seule jusqu'au 31/12/2026 ; 8.3 en sécurité jusqu'au 31/12/2027 ; 8.4 actif jusqu'au 31/12/2026, sécurité jusqu'au 31/12/2028 ; 8.5 actif jusqu'au 31/12/2027, sécurité jusqu'au 31/12/2029 | Pas de correctifs de sécurité sur une branche arrêtée | Viser PHP 8.4 ou 8.5 si OVH le permet, 8.3 au minimum ; vérifier la version réelle | Décision du propriétaire et vérification chez l'hébergeur |
-| P-17 | Élevé | Google Maps et Google Fonts sans information ni consentement | `index.html:258` (iframe Google Maps). 14 pages chargent Google Fonts | Transfert de données à un tiers sans information | Image statique de la carte ; polices hébergées sur le site ; ou consentement | Décision du propriétaire |
+| P-17 | Élevé | Google Maps et Google Fonts sans information ni consentement | `index.html:258` (iframe Google Maps). 14 pages chargent Google Fonts | Transfert de données à un tiers sans information ; feuille de polices bloquante : sans accès à Google, la page reste en attente (constaté pendant les tests) | Image statique de la carte ; polices hébergées sur le site ; ou consentement | Décision du propriétaire |
 | P-18 | Élevé | HTTPS forcé, HSTS et CSP absents du dépôt | `.htaccess` ne contient ni redirection HTTPS, ni HSTS, ni CSP | Trafic en clair possible si OVH ne force pas HTTPS | Vérifier chez l'hébergeur, puis ajouter les règles après test | Décision du propriétaire et vérification |
 | P-19 | Élevé | Impression : modèle et mode de connexion non tranchés | Maquette du 18/11 : SUNMI. Plan : Epson TM-m30III (ePOS). Une page HTTPS ne peut pas appeler une imprimante du réseau local sans contrainte (contenu mixte, accès au réseau privé) | Impression impossible en l'état | Confirmer le modèle ; prototype avant la phase impression | Décision du propriétaire |
 | P-20 | Élevé | Modifications concurrentes pendant l'audit | Au moins 4 fichiers JavaScript, plusieurs pages et des fichiers `api/` modifiés par d'autres intervenants | Écrasement possible, corrections contradictoires | Une branche par chantier ; commit avant correction ; un responsable par fichier | Décision du propriétaire |
@@ -157,7 +157,7 @@ Gravité : **critique** (bloque la mise en ligne), **élevé** (à traiter avant
 | P-33 | Moyen | Réponse réussie sans JSON traitée comme client invité, puis mise en cache | `account.js` : `json().catch(() => ({}))` | Client connecté envoyé vers la connexion pour toute la durée de la page | Code `bad_response` ; réponse sans `customer` refusée | **Corrigé**, contrôles R01 et R01b |
 | P-34 | Moyen | Suivi qui ne se termine pas 2 h après l'heure prévue quand le sondage est arrêté | `commande.js` : contrôle seulement dans `render()` | Onglet resté ouvert : suivi périmé affiché | Contrôle appliqué dans le minuteur | **Corrigé** |
 | P-35 | Moyen | Compte à rebours relu en continu par les lecteurs d'écran | Compte à rebours dans une zone `role="status"` | Annonces répétées chaque seconde (à confirmer avec un lecteur d'écran) | `aria-live="off"` sur le compte à rebours | **Corrigé** ; effet au lecteur d'écran non confirmé |
-| P-36 | Moyen | Textes dorés et états sous 4,5:1 | `order-launch.css`, `cart.css`, `commande.css`, `compte.css` | Lisibilité insuffisante | Teintes foncées (section 5.2) | **Corrigé** pour les composants listés ; voir P-37 |
+| P-36 | Moyen | Textes dorés et états sous 4,5:1 | `order-launch.css`, `cart.css`, `commande.css`, `compte.css` | Lisibilité insuffisante | Teintes foncées (section 5.2) | **Corrigé** pour les composants listés et pour le survol du widget (5.2) ; P-37 et P-62 ouverts |
 | P-37 | Moyen | Date dorée de la section finale sur un dégradé clair (environ 1,9:1 au mieux) | `style.css` : `.finale__date`, pré-existant | Lisibilité insuffisante | Décision de design : fond ou couleur | **Ouvert** |
 | P-38 | Moyen | Tab sort du tiroir du panier (dialogue `aria-modal` sans piège de focus) | `cart.js` : aucune gestion de Tab, pré-existant | Clavier : le focus passe à la page derrière | Piège de focus dans le tiroir | **Ouvert** |
 | P-39 | Faible | Couverture des tests incomplète | R09 ne couvre ni Maj+Tab ni la croix ; T15b ne mesure ni la fenêtre ni le tiroir | Régression possible non vue | Étendre les contrôles | **Ouvert** |
@@ -165,18 +165,31 @@ Gravité : **critique** (bloque la mise en ligne), **élevé** (à traiter avant
 | P-41 | Faible | Quantité du panier lue sans contrôle de type | `cart.js` : `readCart` | Une quantité texte se concatène (« 1 » + 1 = « 11 ») | Normalisation en entier positif | **Corrigé** |
 | P-42 | Faible | Quantité affichée sur le suivi non échappée | `commande.js` : rendu des lignes | Défense en profondeur (la quantité est déjà validée par l'API) | Échappement | **Corrigé** |
 | P-43 | Faible | Fenêtre d'accueil réapparaissant après « Créer mon compte » | `order-launch.js` : seule la fermeture marquait la fenêtre comme vue | Dérangement au retour sur l'accueil | Le lien marque la fenêtre comme vue | **Corrigé** |
-| P-44 | Élevé | Commande pouvant partir en double entre deux onglets ou après une réponse perdue | La clé d'envoi était en `sessionStorage` (propre à l'onglet), le panier en `localStorage` (partagé). Constat de la re-vérification, confirmé par le juge | Deux commandes pour un même panier | Clé d'envoi partagée entre onglets (`localStorage`, 24 h), liée à l'empreinte du contenu. Le serveur doit dédoublonner par clé : **à valider sur le backend réel** | **Corrigé côté interface** ; validation serveur ouverte |
-| P-45 | Moyen | Panier figé sans limite pendant la vérification du compte | `account.js` : aucun délai sur les requêtes de compte, alors que le verrou d'envoi est posé avant | Panier bloqué jusqu'au délai réseau du navigateur | Délai de 10 s, traité comme une panne réseau | **Corrigé** |
-| P-46 | Moyen | Intention de commande qui survit à une déconnexion, à une commande directe ou à un abandon | `subito_pending_order_redirect` n'était purgée qu'au retour réussi | Une connexion ultérieure pouvait relancer une commande sans clic | Intention horodatée, valable 30 minutes ; purge à la déconnexion, après une commande directe et en cas de reprise non autorisée | **Corrigé** |
-| P-47 | Moyen | Limite de 2 h du suivi non appliquée dans un onglet resté ouvert | Le minuteur s'arrêtait à zéro ; le contrôle des 2 h ne tournait plus. **Le rapport annonçait à tort ce point comme corrigé** | Suivi périmé affiché sans fin | Minuteur maintenu après « prête » ; limite de 2 h appliquée | **Corrigé** (correction annoncée à tort précédemment) |
+| P-44 | Élevé | Commande pouvant partir en double entre deux onglets ou après une réponse perdue | La clé d'envoi était en `sessionStorage` (propre à l'onglet), le panier en `localStorage` (partagé). Constat de la re-vérification, confirmé par le juge | Deux commandes pour un même panier | Clé d'envoi partagée entre onglets (`localStorage`, 24 h), liée à l'empreinte du contenu. Le serveur doit dédoublonner par clé : **à valider sur le backend réel** | **Corrigé côté interface, testé (R18)** ; validation serveur ouverte (dédoublonnage par clé à vérifier sur le backend réel) |
+| P-45 | Moyen | Panier figé sans limite pendant la vérification du compte | `account.js` : aucun délai sur les requêtes de compte, alors que le verrou d'envoi est posé avant | Panier bloqué jusqu'au délai réseau du navigateur | Délai de 10 s couvrant aussi le corps de réponse, traité comme une panne réseau (R20). La revue n°2 avait relevé qu'il était annulé dès les en-têtes | **Corrigé**, testé |
+| P-46 | Moyen | Intention de commande qui survit à une déconnexion, à une commande directe ou à un abandon | `subito_pending_order_redirect` n'était purgée qu'au retour réussi | Une connexion ultérieure pouvait relancer une commande sans clic | Intention horodatée, valable 30 minutes ; purge à la déconnexion (même si elle échoue), après une commande directe et en cas de reprise non autorisée. La clé d'envoi n'est pas purgée à la déconnexion : un renvoi après reconnexion reste dédoublonné par le serveur pour le même client (choix) | **Corrigé** |
+| P-47 | Moyen | Limite de 2 h du suivi non appliquée dans un onglet resté ouvert | Le minuteur s'arrêtait à zéro ; le contrôle des 2 h ne tournait plus. **Le rapport annonçait à tort ce point comme corrigé** | Suivi périmé affiché sans fin | Minuteur maintenu après « prête » ; limite de 2 h appliquée | **Corrigé**, testé (R21) ; la correction avait été annoncée à tort précédemment |
 | P-48 | Moyen | Fin du compte à rebours non annoncée aux lecteurs d'écran | Le compte à rebours portait `aria-live="off"` | Le lecteur ne signale pas que la commande est prête | Annonce une seule fois à la fin (`aria-live` passe à `polite`) | **Corrigé** ; effet au lecteur d'écran à confirmer |
 | P-49 | Faible | Gardes incomplètes pendant l'envoi | `SubitoCart.clear` et le rappel téléphonique (`checkCallFollowup`) vidaient le panier sans garde | Panier vidé pendant l'envoi | Gardes ajoutées | **Corrigé** |
 | P-50 | Faible | Verrou et bouton non relâchés après un 401 ou un retour arrière | `fail()` et le gestionnaire `pageshow` | Bouton bloqué jusqu'au rechargement | Remise à zéro du verrou et du bouton | **Corrigé** |
-| P-51 | Faible | Vidange par un autre onglet après une réponse positive | `clearCart` efface aussi les lignes ajoutées ailleurs pendant l'envoi | Article perdu sans message | Comparer le contenu envoyé avant de vider | **Ouvert** |
+| P-51 | Moyen | Vidange par un autre onglet après une réponse positive | `clearCart` efface aussi les lignes ajoutées ailleurs pendant l'envoi ; la clé d'un autre envoi pouvait aussi être effacée (revue n°2, confirmé par le juge) | Article perdu sans message ; doublon possible | Seules les lignes envoyées sont retirées, le reste reste dans le panier, sans redirection (R22) | **Corrigé**, testé |
 | P-52 | Faible | Quantité sans plafond côté interface | Le serveur refuse plus de 20 exemplaires par ligne, avec un message générique | Commande refusée sans explication | Décider du plafond affiché et du message | **Ouvert**, règle à confirmer |
-| P-53 | Décision propriétaire | Envoi au premier clic, sans récapitulatif ni confirmation, et reprise automatique après connexion | Constat de la re-vérification (choix produit pré-existant) | Envoi involontaire possible | Ajouter une confirmation avant envoi, ou assumer le choix | **Décision du propriétaire** |
+| P-53 | Décision propriétaire | Envoi au premier clic, sans récapitulatif ni confirmation, et reprise automatique après connexion | Constat de la re-vérification (choix produit du chantier en cours : ce parcours n'existe pas dans HEAD) | Envoi involontaire possible | Ajouter une confirmation avant envoi, ou assumer le choix | **Décision du propriétaire** |
 | P-54 | Faible | Cookie de session non conservé par le navigateur | Hypothèse : la connexion réussit mais la session reste absente ; pas de message dédié | Boucle sans issue visible | Test sur navigateur réel | **Non vérifié** (hypothèse) |
 | P-55 | Élevé | Suite de tests API instable en local : résultats différents d'une passe à l'autre | `node --test tests/api/` sur une copie du dépôt (PHP 8.3.36 portable, SQLite). Passe 1 : 44 réussies, 13 échouées sur 57 entrées. Passe 2 (séquentielle) : 36 réussies, 21 échouées. Échecs `connect ETIMEDOUT 127.0.0.1`, puis cascades probables : un test qui échoue avant son nettoyage peut laisser un verrou aux suivants. Quatre requêtes successives réussissent dans un test isolé | Aucune conclusion fiable sur le produit. Cause non établie (serveur `php -S` mono-processus sous Windows, base SQLite partagée : hypothèses non confirmées) | Serveur de test isolé, tests indépendants, base réinitialisée à chaque cas ; relancer | Ouvert, lot backend |
+| P-56 | Élevé | Reprise après connexion d'un panier modifié dans les 30 minutes | `resumeOrderIfNeeded` relançait l'envoi du panier courant avec les anciens mode, moyens de paiement et billet, sans comparaison (revue n°2, confirmé par le juge) | Commande différente de celle voulue, sans confirmation | Reprise seulement si le panier brut est identique à celui de la demande (`PENDING_CART_KEY`) ; sinon message « vérifiez votre panier ». Le cas « panier modifié » doit être couvert par un test | **Corrigé** ; reprise pour panier inchangé à arbitrer (P-53) |
+| P-57 | Moyen | Délai de 10 s sur les écrans de compte traité comme une panne | `compte.js` : une réponse lente à l'inscription donne « Connexion impossible », puis « Un compte existe déjà » au nouvel essai ; une connexion lente affiche le formulaire (revue n°2) | Confusion ; compte créé sans retour clair | Délai plus long pour connexion et inscription, avec message d'attente ; ou nouvel essai idempotent | Ouvert, décision produit |
+| P-58 | Faible | Déconnexion en échec : aucun message | `compte.js` : un échec de déconnexion ne change pas l'écran et n'explique rien | Le client ne sait pas s'il est déconnecté | Message d'erreur dédié | Ouvert (les intentions sont purgées dans tous les cas) |
+| P-59 | Moyen | Billet non contrôlé côté serveur | `api/lib/orders.php` : seule l'appartenance à 0, 10, 20, 50 ou 100 est vérifiée, pas la couverture du total (revue n°2) | Paiement en espèces avec un billet insuffisant accepté | Contrôle serveur : billet supérieur ou égal au total (backend, non exécuté) | Ouvert, lot backend |
+| P-60 | Faible | Branche de succès sans protection contre les exceptions | `finishOrder` : une exception de stockage après l'enregistrement bloquait la redirection et le bouton (revue n°2) | Doublon possible si le client renvoie le panier | Protégée : la commande enregistrée n'est pas bloquée par le stockage | **Corrigé**, non testé |
+| P-61 | Faible | Documentation et tests de second rang | Rapport calzone mentionne `public_token` (autre contributeur) ; R14 et R15 sans compteur d'envoi ; T13 dépend de l'heure ; T15b compte les liens en ligne | Faux sentiment de couverture | Corriger la documentation ; compteur d'envoi ; T15b à arbitrer | Ouvert |
+| P-62 | Moyen | Libellé doré `.finale__days-label` sur dégradé (estimé 3,3 à 4,1:1) | `style.css` (revue n°2) : estimation de mise en page, non mesurée | Lisibilité insuffisante possible | Mesurer au navigateur ; décision de design | Ouvert, à mesurer |
+| P-63 | Faible | Code mort dans cart.js | `replaceLine` n'a aucun appelant (revue n°2) | Aucune | Supprimer | Ouvert |
+| P-64 | Faible | Stockage refusé : la protection entre essais ne tient plus | `writeAttempt` avale l'erreur (revue n°2). Le panier lui-même ne peut pas non plus fonctionner dans ce cas | Cas rare | Aucune correction isolée | Note |
+| P-65 | Moyen | Cart.js modifié par une autre session pendant l'audit | À 13 h 07, une autre session a réécrit `cart.js` (fins de ligne Windows) et retiré un bloc de travail en cours (remise d'échange). Les corrections d'envoi sont présentes et les suites ont été relancées après cette écriture | Risque d'écrasement des corrections par une version ancienne | Une seule source de vérité pour ce fichier ; relancer les suites après toute réécriture | Décision propriétaire (coordination) |
+| P-66 | Moyen | Suivi sans délai ni relance : une requête suspendue bloque tout le suivi | `commande.js` : `fetch` sans délai ; `inFlight` reste vrai, aucune relance, ni au retour sur l'onglet (revue n°2, confirmé par le juge) | Page figée sur « Chargement… » ou sur un état périmé | Délai de 10 s avec AbortController ; le suivi reprend (R19) | **Corrigé**, testé |
+| P-67 | Faible | Règles sans test : aria-live et « Votre commande est prête ! » | Aucun test ne couvre l'attribut `aria-live` ni le texte « prête » ; les mutants correspondants survivent (revue n°2) | Régression silencieuse possible | Ajouter un test ; l'annonce réelle au lecteur d'écran reste à vérifier (NR5) | Ouvert |
+| P-68 | Faible | Erreurs de console à l'ouverture de l'accueil | Appel automatique à `navigator.vibrate` avant tout geste de l'utilisateur (refusé par Chrome, message d'erreur) ; une ressource externe refusée dans l'environnement de mesure (sans accès réseau externe ; probablement la carte ou les polices, à confirmer). Lighthouse « errors-in-console » échoue sur l'accueil (passe du 13 h 32) | Bruit en console ; l'effet d'intro ne peut pas vibrer | Ne tenter la vibration qu'après un geste ; identifier la ressource externe | Ouvert |
 
 Corrigés pendant l'audit (détail en section 5) : libellés d'en-tête, titres, rôles d'alerte, contrastes, cibles tactiles, canonique, données structurées de moyens de paiement, page 404, `robots.txt`, fichiers de configuration, commentaires contenant des codes.
 
@@ -205,7 +218,7 @@ Corrigés pendant l'audit (détail en section 5) : libellés d'en-tête, titres,
 | `assets/css/compte.css` | Message d'erreur en `--red-dark` | Contraste (5.2) | Calcul |
 | `assets/css/cart.css` | Bouton « retirer » et « vider le panier » à 24 px au moins | Cible tactile (2.5.8, AA) | Mesure en navigateur |
 | `tests/README.md` (nouveau) | Mode d'emploi des tests et garanties | Traçabilité | Lecture |
-| `tests/e2e/regressions-audit.mjs` (nouveau) | 19 contrôles de régression | Traçabilité | Exécuté, 19/19 |
+| `tests/e2e/regressions-audit.mjs` (nouveau) | 25 contrôles de régression | Traçabilité | Exécuté, 25/25 |
 | `tests/e2e/parcours-commande.mjs` | Attentes T08 à T10 et T09 alignées sur le contrat en vigueur (message réseau distinct, identifiant numérique de commande) | Attentes périmées | Exécuté, 15/18 |
 | `assets/js/compte.js` (suite) | `safeReturnUrl` refuse les chemins commençant par `//` ; le retour légitime après connexion pose `subito_resume_ok` | Redirection hors site ; reprise sans clic (P-29, P-30) | R04b, R13, R14 |
 | `assets/js/cart.js` (suite) | `resumeOrderIfNeeded` ne relance rien sans `subito_resume_ok` (drapeau consommé) ; `setCheckoutDisabled` ; `addLine` et « Vider le panier » refusés pendant l'envoi ; `readCart` normalise la quantité | Reprise ; panier figé ; bouton ; quantité (P-30 à P-32, P-41) | R13, R14 ; T07 à T11 |
@@ -213,13 +226,21 @@ Corrigés pendant l'audit (détail en section 5) : libellés d'en-tête, titres,
 | `assets/js/commande.js` (suite) | Limite de 2 h dans le minuteur (`renderExpired`) ; `aria-live="off"` sur le compte à rebours ; quantité échappée | Suivi périmé ; annonces ; échappement (P-34, P-35, P-42) | R10, R11, R12 |
 | `assets/js/order-launch.js` (suite) | Le lien « Créer mon compte » marque la fenêtre comme vue | Réapparition de la fenêtre (P-43) | R09 (ce cas n'est pas couvert) |
 | `assets/css/order-launch.css`, `cart.css`, `commande.css`, `compte.css` (suite) | Couleurs foncées pour les textes dorés et les états ; boutons du tiroir à 24 px au moins | Contrastes et cibles (P-36) | Calcul ; axe |
-| `tests/e2e/regressions-audit.mjs` (suite) | R04 : domaine `.invalid` (jamais résolu) ; R04b ; R13 ; R14 | Tests non hermétiques ; reprise non couverte (P-29, P-30) | Exécuté, 19/19 |
+| `tests/e2e/regressions-audit.mjs` (suite) | R04 : domaine `.invalid` (jamais résolu) ; R04b ; R13 ; R14 | Tests non hermétiques ; reprise non couverte (P-29, P-30) | Exécuté, 25/25 |
 | `tests/e2e/parcours-commande.mjs` (suite) | T05b (statut positif), T12 (drapeau de reprise), T13 (concordance indicateur et bouton), T14 (envoi sans produit, ou blocage avec message) | Assertions pouvant passer à vide (revue) | Voir section 6.2 |
 | `assets/js/cart.js` (2e passe) | Clé d'envoi partagée entre onglets (`localStorage`, 24 h, empreinte du contenu) ; intention de commande horodatée, purgée à la déconnexion, après une commande directe et en cas de reprise non autorisée ; verrou et bouton relâchés après un 401 et au retour arrière ; `SubitoCart.clear` et le rappel téléphonique gardés pendant l'envoi | P-44, P-46, P-49, P-50 | R13, R14, R15 ; T07 à T12 |
 | `assets/js/compte.js` (2e passe) | Intention de commande valable 30 minutes ; purge des clés de commande à la déconnexion | P-46 | R04, R04b, R05, R15 |
 | `assets/js/account.js` (2e passe) | Délai de 10 s sur les requêtes de compte, traité comme une panne réseau | P-45 | R02, R16 |
 | `assets/js/commande.js` (2e passe) | Minuteur maintenu après « prête » (limite de 2 h appliquée) ; fin annoncée une seule fois (`aria-live` passe à `polite`) | P-47, P-48 | R10, R11 |
 | `tests/e2e/regressions-audit.mjs` (2e passe) | R04 et R04b : navigations du document enregistrées ; R06 : fixture alignée sur le contrat ; R15 (chaîne réelle connexion → panier → envoi) ; R16 (200 sans JSON ou sans `customer`) ; R17 (« Créer mon compte ») | P-29, P-30, P-33, P-43 | Voir section 6.2 |
+| `assets/js/cart.js` (3e passe) | Tentatives d'envoi en liste (5 au plus, 24 h) ; une entrée est marquée « inconnue » avant le départ ; une écriture de panier n'efface que les entrées terminées ; un succès ne retire que sa propre clé ; une réponse définitive termine la tentative | Double commande entre onglets ou après une réponse perdue (P-44) ; clé d'un autre envoi effacée (P-51) | R18 ; T07 à T12 |
+| `assets/js/cart.js` (3e passe) | Après un succès, seules les lignes envoyées sont retirées ; les autres restent, sans redirection, avec un message. Reprise après connexion conditionnée au panier brut de la demande (`PENDING_CART_KEY`) ; succès protégé contre les exceptions de stockage | Article perdu (P-51) ; reprise d'un panier modifié (P-56) ; P-60 | R22 ; R13, R14, R15 |
+| `assets/js/account.js` (3e passe) | Délai de 10 s couvrant aussi la lecture du corps de réponse ; coupure pendant la lecture traitée comme panne réseau ; `sessionFrom` : connexion ou inscription sans client refusée | Panier figé si le corps ne vient jamais (P-45) ; session incomplète acceptée | R20 ; R01, R02, R03, R16 |
+| `assets/js/commande.js` (3e passe) | Délai de 10 s sur la requête de suivi (AbortController) : une requête suspendue ne bloque plus le suivi | Suivi figé sur une requête suspendue | R19 |
+| `assets/js/compte.js` (3e passe) | Déconnexion : purge des intentions (dont `subito_pending_cart`) même en cas d'échec ; écran inchangé si la déconnexion n'est pas confirmée | Intention qui survit à une déconnexion ratée | À couvrir (P-58) |
+| `assets/css/cart.css` (3e passe) | Survol et focus de `.pizza-widget__toggle` : texte `var(--dark)` au lieu du blanc sur or (5.2) | Contraste insuffisant, invisible à axe-core (P-36) | Calcul ; axe : 0 violation |
+| `tests/e2e/regressions-audit.mjs` (3e passe) | R18 (deux onglets, une seule commande), R19 (délai du suivi), R20 (délai du corps de réponse du compte), R21 (limite de 2 h, page ouverte), R22 (article ajouté pendant l'envoi) ; R23 (reprise avec panier modifié) ; R06 : fixture sans `public_token`, champ que l'API ne renvoie pas ; R14 et R15 : intention accompagnée du panier brut | Tests absents pour les règles nouvelles ; fixture hors contrat (revue n°2) | Exécuté : 25/25 ; contrôle de mutation (6.2) |
+| `tests/e2e/lib/cdp.mjs` (3e passe) | Helper de test : blocage des hôtes Google (polices, carte) à l'ouverture de chaque page, pour que l'événement « load » ne dépende pas du réseau externe | R09 bloqué par des services externes (6.4) | Parcours, régression et axe relancés |
 
 ### 5.2 Contrastes (valeurs calculées, formule WCAG)
 
@@ -233,6 +254,7 @@ Corrigés pendant l'audit (détail en section 5) : libellés d'en-tête, titres,
 | Titre de groupe du tiroir (`.cart-group-label`) et bandeau « Nouveau » | 2,08:1 | 5,03:1 | `#D4AF64` → `#8A6A2C`, sur blanc |
 | Avertissement « il manque… » (`.delivery-status--warn`) et statut « En attente » | 4,26:1 | 6,23:1 | `#9A6B00` → `#7A5300`, sur `#FFF3DA` |
 | « Commande refusée », « Impossible de vérifier votre adresse » | 4,38:1 | 6,39:1 | `#D62828` → `#A81E1E`, sur `#FCECEC` |
+| Survol et focus de `.pizza-widget__toggle` (texte) | 1,4:1 à 2,1:1 (blanc sur or `#D4AF64` à `#FFD166`) | 8,3:1 à 11,9:1 (`#1C1B19` sur le même dégradé) | `#FFFFFF` → `var(--dark)` ; calcul WCAG (troisième série, revue n°2) |
 
 L'audit initial donnait 2,82:1 pour l'indice, sur un autre point du dégradé. Le calcul retenu ici est le pire cas.
 
@@ -272,22 +294,23 @@ Ces points relèvent d'une décision du propriétaire, ou d'un autre chantier :
 | Suite | Commande | Résultat | Échecs |
 |---|---|---|---|
 | Parcours de commande | `node tests/e2e/parcours-commande.mjs` | **15/18** | T13 horaires ; T14 disponibilité ; T15b cibles tactiles (5 liens dans une phrase) |
-| Régression ajoutée | `node tests/e2e/regressions-audit.mjs` | **19/19** | — |
+| Régression ajoutée | `node tests/e2e/regressions-audit.mjs` | **25/25** après la troisième série de corrections (R18 à R23 ajoutés) | — |
+| Contrôle de mutation | Même suite sur la sauvegarde d'avant correction | 20 réussis sur 25 : R18 (deux commandes créées), R19, R20, R22 et R23 échouent ; R21 réussit (garde-fou, règle déjà correcte) | Défauts reproduits |
 | Accessibilité automatique | `node tests/accessibilite/axe-pages.mjs` | **0 violation** sur 17 contrôles (14 pages en bureau, 3 en téléphone) | — |
 | Tests API (serveur de test local) | `node --test --test-concurrency=1 tests/api/`, sur une copie, PHP 8.3.36 portable, SQLite | **Non concluant** : passe 1 (`node --test tests/api/`) 44 réussies, 13 échouées ; passe 2 (séquentielle) 36 réussies, 21 échouées (sur 57 entrées) | Échecs `ETIMEDOUT`, cascades entre tests (P-55) |
 | Performance et accessibilité | `node tests/accessibilite/lighthouse.mjs` | Voir 6.3 | — |
 
-Les suites finales ont été exécutées sur des copies du dossier `tests/`. Seul changement par rapport au dépôt : le port Chrome, pour ne pas entrer en conflit avec des instances restées ouvertes ; profils neufs. Dates (heure de Paris) : régression et Lighthouse de 12 h 25 à 12 h 26 ; parcours et axe de 12 h 31 à 12 h 32. Aucun fichier du site n'a été modifié après 12 h 22 : ces résultats portent donc sur l'état final du site.
+Les suites finales ont été exécutées sur des copies du dossier `tests/`. Seul changement par rapport au dépôt : le port Chrome, pour ne pas entrer en conflit avec des instances restées ouvertes ; profils neufs. Dates (heure de Paris), après la troisième série de corrections et le blocage des services Google dans les tests : régression (25/25) de 13 h 38 à 13 h 39 ; parcours (15/18) de 13 h 39 à 13 h 40 ; axe (0 violation) de 13 h 40 à 13 h 41 ; contrôle de mutation de 13 h 41 à 13 h 42 ; Lighthouse terminé à 13 h 32. `cart.js` a été réécrit par une autre session à 13 h 07 (P-65) ; nos corrections sont présentes dans la version qui a été testée, et les suites ont été relancées après cette écriture.
 
 ### 6.3 Lighthouse (émulation mobile, serveur local)
 
 | Page | Performance | Accessibilité | Bonnes pratiques | SEO | Remarques |
 |---|---|---|---|---|---|
-| `index.html` | 74 | 100 | 96 | 100 | LCP 4,7 s ; temps de blocage 270 ms ; images sans dimensions ; CSS et JavaScript non minifiés |
-| `menu.html` | 89 | 100 | 100 | 100 | LCP 2,7 s ; temps de blocage 208 ms |
-| `commande.html` | 98 | 100 | 100 | 66 | LCP 2,0 s ; SEO 66 attendu : page volontairement non indexable (`noindex`) |
+| `index.html` | 76 | 100 | 96 | 100 | LCP 3,8 s ; temps de blocage 0 ms ; images sans dimensions ; CSS et JavaScript non minifiés ; erreurs de console (P-68) |
+| `menu.html` | 92 | 100 | 100 | 100 | LCP 2,7 s ; temps de blocage 80 ms |
+| `commande.html` | 98 | 100 | 100 | 66 | LCP 1,8 s ; SEO 66 attendu : page volontairement non indexable (`noindex`) |
 
-Passe finale, la dernière faite après toutes les corrections : `index.html` 74, `menu.html` 89, `commande.html` 98. Une passe intermédiaire avait donné 56 pour le suivi, avec un LCP de 8,0 s ; une re-mesure isolée avait donné 98. Cette valeur isolée est jugée probablement due au bruit de mesure pendant la chaîne de tests, non démontré. Les scores de l'accueil ont varié de 73 à 84 selon les passes ; ils ne sont donc à lire qu'à quelques points près.
+Passe finale (13 h 32, après la troisième série de corrections) : `index.html` 76, `menu.html` 92, `commande.html` 98. Les passes de 12 h 26 donnaient 74, 89 et 98. Une passe intermédiaire avait donné 56 pour le suivi, avec un LCP de 8,0 s ; une re-mesure isolée avait donné 98. Cette valeur isolée est jugée probablement due au bruit de mesure pendant la chaîne de tests, non démontré. Les scores de l'accueil ont varié de 73 à 84 selon les passes ; ils ne sont donc à lire qu'à quelques points près.
 
 Mesure avant corrections (première passe) : `index.html` 81, `menu.html` 92, `commande.html` 97 (SEO 66).
 
@@ -297,7 +320,8 @@ Mesure avant corrections (première passe) : `index.html` 81, `menu.html` 92, `c
 - R01 suit le contrat (invité = réponse 200 avec client `null`). R10 à R12 utilisent des identifiants numériques.
 - R04 utilise le domaine `retour-test.invalid`, qui ne se résout jamais : aucun site public n'est contacté, même si le garde-fou régressait. R04b, R13 et R14 ont été ajoutés (section 5.1).
 - Les assertions T05b, T12, T13 et T14 ont été renforcées à la suite de la revue. T13 compare désormais l'indicateur « fermé » et le bouton : il échoue hors horaires tant que le défaut est présent. T14 n'est plus validée quand aucune commande n'est envoyée sans message explicite. T12 vérifie le drapeau de reprise posé avant la connexion. T05b exige le statut positif.
-- R09 ne couvre ni Maj+Tab ni la croix de la fenêtre (P-39).
+- R09 ne couvre ni Maj+Tab ni la croix de la fenêtre (P-39). R09 a échoué deux fois pendant l'audit : la page d'accueil attendait les services Google (feuille de style de polices bloquante, carte en iframe), que l'environnement sans accès externe ne rend jamais disponibles, donc l'événement « load » n'arrivait pas. Le helper de test bloque désormais ces hôtes (tests hermétiques) ; R09 passe depuis.
+- R23 (reprise après connexion avec panier modifié, P-56) a été ajouté après la revue n°2. Il passe sur le code corrigé et échoue sur la sauvegarde d'origine (6.2). La revue n°3 a porté sur les 24 contrôles d'avant R23 ; ce test est un ajout mécanique, à relire avec le reste.
 - R05 : à 12 h 23, le test posait l'ancien format de l'intention de commande (« 1 »), désormais refusé comme périmé (P-46). Le test a été aligné sur le format horodaté ; le produit n'a pas été modifié pour ce test. Passe suivante : 19/19 à 12 h 25.
 - Tests API : résultats non concluants (section 6.2). Les cas en échec ne sont pas corrigés ici, le backend relevant d'un autre chantier. Le harnais suppose un serveur PHP de test et une base SQLite temporaire ; il ne couvre pas MySQL.
 - Captures : le test parcours enregistre deux captures d'écran (menu et panier, 375 px). Elles ont été relues (section 6.7).
@@ -314,18 +338,58 @@ Une première revue confiée à un agent indépendant n'a pas abouti. Elle a ét
 
 **Re-vérification indépendante** : deux adversaires ciblés et un juge ont relu ces corrections, sans navigateur. Le résultat de cette re-vérification est présenté ci-dessous (section 6.6). Tant qu'il n'est pas rendu, les corrections ne sont pas validées au sens strict.
 
-### 6.6 Re-vérification indépendante
+### 6.6 Seconde revue indépendante : verdict et suites
 
-En cours au moment de cette version (12 h 38) : deux adversaires ciblés (sécurité et flux de commande, tests, accessibilité et CSS) sont actifs ; le juge, qui statuera point par point sur les blocages de la revue, n'est pas encore lancé. Le résultat sera intégré ici dès son retour.
+**Verdict du juge, avant correction : CORRECTIONS NON VALIDÉES.** Deux constats restaient vrais : la double commande était possible entre onglets ou après une réponse perdue (point 3), et le texte du survol de `.pizza-widget__toggle` ne respectait pas le contraste (point 7). Le juge a relevé en outre que plusieurs éléments étaient dits « préexistants » alors qu'ils n'existent pas dans HEAD (parcours d'envoi, reprise, délai de 10 s : travail en cours).
+
+Statut par point (rapport du juge) :
+
+| Point | Statut avant correction | Suite |
+|---|---|---|
+| 1. Redirection hors site (`/.//hôte`) | Corrigé (vérifié par exécution) | Aucune |
+| 2. Reprise après connexion | Partiel : panier modifié repris dans les 30 minutes | Corrigé (P-56) ; reprise pour panier inchangé : décision (P-53) |
+| 3. Double commande | Partiel : entre onglets et après réponse perdue, non corrigé | Corrigé et testé (R18, P-44) ; validation serveur ouverte |
+| 4. Panier figé après panne | Corrigé, sans test dédié | Inchangé ; test dédié à ajouter |
+| 5. Assertions pouvant passer à vide | Partiel : T14 mesure l'envoi côté client ; T13 dépend de l'heure ; R14 et R15 sans compteur d'envoi | T14 reste un défaut (P-07) ; T13 et compteurs : P-61 |
+| 6. Réponse 200 sans JSON | Corrigé (R16) ; réserve sur connexion et inscription | Réserve corrigée (`sessionFrom`) |
+| 7. Contrastes | Partiel : survol de `.pizza-widget__toggle` non déclaré | Corrigé (5.2) ; `.finale__days-label` à mesurer (P-62) |
+| 8. Points ouverts assumés | T13, T14 et T15b inchangés | Inchangés (6.2) |
+
+Constats du juge, NR1 à NR16 :
+
+- NR1 (double commande) : partiel. Corrigé pour les cas inter-onglets et réponse perdue (R18) ; validation serveur ouverte (P-44).
+- NR2 (délai du corps, compte) : partiel. Corrigé (R20, P-45).
+- NR3 (reprise dans les 30 minutes) : partiel. Corrigé (P-56) ; décision P-53.
+- NR4 (limite de 2 h sans test) : corrigé et testé (R21).
+- NR5 (double annonce du message d'excuse) : non vérifiable sans lecteur d'écran ; ouvert.
+- NR6 (vidange par un autre onglet, P-51) : corrigé et testé (R22), gravité moyenne.
+- NR7 (gardes incomplètes) : corrigé ; la réserve sur les onglets distincts est couverte par R18 et R22.
+- NR8 (verrou après 401) : corrigé.
+- NR9 (quantité sans plafond, P-52) : ouvert, règle à décider.
+- NR10 (R14 pose le drapeau à la main) : corrigé pour R15 ; R14 reste un témoin, commentaire corrigé.
+- NR11 (réponse 200 sans JSON sans test) : corrigé (R16).
+- NR12 (fixture R06 hors contrat) : corrigé (`public_token` retiré).
+- NR13 (assertions) : partiel ; P-61.
+- NR14 (clic « Créer mon compte ») : corrigé (R17).
+- NR15 (cookie de session, P-54) : ouvert, non vérifié.
+- NR16 (libellé « préexistant », P-53) : corrigé dans le rapport.
+
+Nouvelles régressions signalées par le juge : suivi sans délai ni relance (P-66, corrigé, R19) ; règles sans test (2 h corrigée et testée, R21 ; aria-live et « prête » : P-67) ; délai de 10 s sur les écrans de compte (P-57) ; déconnexion sans gestion de rejet (P-58) ; succès sans protection (P-60) ; billet non contrôlé côté serveur (P-59) ; documentation obsolète et tests de second rang (P-61) ; contraste du survol (corrigé, 5.2) ; contraste de `.finale__days-label` (P-62).
+
+Après ces corrections, une troisième revue indépendante est lancée (section 6.8).
 
 ### 6.7 Audit de bout en bout : technique, interface, parcours
 
 Le dépôt demande un passage technique, un passage d'interface et un passage de parcours, avec une boucle de correction et de re-test bornée à cinq cycles.
 
-- **Technique** : 0 erreur JavaScript captée pendant le parcours ; 0 violation axe-core sur 17 contrôles. Les envois de commande sont interceptés par le test (API simulée) : aucune réponse réelle du serveur n'a été observée.
+- **Technique** : 0 erreur JavaScript captée pendant le parcours ; 0 violation axe-core sur 17 contrôles. Les envois de commande sont interceptés par le test (API simulée) : aucune réponse réelle du serveur n'a été observée. Console du navigateur intégré (menu, serveur local) : aucune erreur JavaScript ; deux avertissements, attendus en local : le serveur statique renvoie les fichiers PHP en texte brut, et la disponibilité bascule alors sur son fichier de secours (à vérifier sur l'hébergement, où PHP doit s'exécuter).
 - **Interface** : deux captures à 375 px (menu, panier) relues. Pas de défilement horizontal (T15 : 0 px). Deux constats : (1) le menu affiche « Commandes fermées » pendant que le bouton « Commander en ligne » du panier reste actif (défaut T13 visible) ; (2) la notification « ajouté ✓ » recouvre le titre du tiroir pendant quelques secondes (faible, à arbitrer).
 - **Parcours** : trois échecs confirmés (T13 horaires, T14 disponibilité, T15b cibles tactiles). Le texte « Un compte gratuit est nécessaire pour commander (30 secondes à la création) », affiché sur le menu, est à valider par le propriétaire.
-- **Boucle** : deux cycles de correction et de re-test depuis la première passe complète (11 h 48), dans la limite de cinq. Passes finales : régression 19/19 (12 h 25), Lighthouse (12 h 26), parcours et axe (12 h 32). Les défauts restants sont classés en section 4 et ne sont pas validés.
+- **Boucle** : deux cycles de correction et de re-test depuis la première passe complète (11 h 48), dans la limite de cinq. Passes finales : régression 25/25 (13 h 39), parcours 15/18 et axe (13 h 40), Lighthouse (13 h 32). Les défauts restants sont classés en section 4 et ne sont pas validés ; la revue n°3 n'était pas close au moment de cette version.
+
+### 6.8 Troisième revue indépendante (après les corrections de la seconde)
+
+Trois adversaires (concurrence et idempotence ; flux et régressions ; preuves et contraste) puis un juge, sur les corrections de la troisième série : clé d'envoi, contenu envoyé, reprise, délai du compte et du suivi, contraste du survol, tests R18 à R22. Lecture seule ; aucune modification du dépôt pendant la revue. Résultat : en attente au moment de cette version (il sera intégré ici).
 
 ## 7. Résultats de charge
 
@@ -354,7 +418,7 @@ Arithmétique (calculée, non mesurée) :
 
 ## 8. Conclusion distincte par composant
 
-- **Site client** : le comportement de l'interface est vérifié en local, avec une API simulée. Échecs connus : horaires, disponibilité, cibles en ligne de texte. Accessibilité automatique : 0 violation. Mentions légales, politique de confidentialité, allergènes et CGV absents. **Non publiable en l'état.**
+- **Site client** : le comportement de l'interface est vérifié en local, avec une API simulée. Échecs connus : horaires, disponibilité, cibles en ligne de texte. Envoi : double commande entre onglets et article perdu corrigés et testés (R18, R22) ; validation serveur restant à faire. Accessibilité automatique : 0 violation. Mentions légales, politique de confidentialité, allergènes et CGV absents. **Non publiable en l'état.**
 - **Backend** : code en construction dans `api/`. Exécution locale tentée (PHP 8.3 portable, SQLite) : résultats instables, non concluants (P-55). La garde en ligne de commande des outils est présente (P-11 retiré). Les protections prévues (`.htaccess`, contrôle des sessions) ne sont pas vérifiées sur l'hébergement ; MySQL n'a pas été testé. **Non vérifiable de façon fiable.**
 - **Écran commerçant** : la maquette est branchée sur la connexion propriétaire par e-mail et mot de passe. Les codes d'accès ne figurent plus dans le code source de la maquette. Non testé de bout en bout, ni sur téléphone réel. Pas de persistance tant que le backend n'est pas testé.
 - **Alertes** : l'alarme ne fonctionne que si l'onglet est ouvert. Le son est suspendu sans geste de l'utilisateur. Aucune notification hors de l'écran. **Non fiable hors écran** ; décision à prendre.
@@ -381,6 +445,7 @@ Preuves :
 - Un test local ne prouve aucune capacité en production.
 - Le dépôt a été modifié pendant l'audit : les constats documentent un état daté.
 - Aucun test sur téléphone réel, tablette, ni navigateurs iOS et Android : les comportements d'alarme, d'impression et de notification restent à vérifier.
+- Les tests de concurrence (R18, R22) jouent deux onglets du même profil dans Chrome sans fenêtre, avec un serveur de commande simulé qui dédoublonne par clé. Ils ne prouvent pas le comportement du serveur réel ni d'un navigateur grand public.
 
 ## 11. Coûts et réglages de compte
 
@@ -418,6 +483,9 @@ Preuves :
 - [ ] Durée de conservation des commandes décidée (P-09 : historique ou purge).
 - [ ] Impression : modèle confirmé et prototype validé, ou abandon de l'impression automatique.
 - [ ] Canal d'alerte du commerçant décidé (tablette sans veille, notification, SMS de secours), et son activé par un geste de l'utilisateur.
+- [ ] Envoi entre onglets : double commande évitée par le serveur (dédoublonnage par clé vérifié sur la base réelle).
+- [ ] Hébergement : les fichiers `.php` sont exécutés et jamais servis en texte brut (constaté en local, serveur statique).
+- [ ] Accueil : plus d'erreur de console à l'ouverture (vibration appelée seulement après un geste ; P-68).
 - [ ] Tous les tests rejoués sur la version finale, résultats joints.
 
 **Recommandé, non bloquant**
@@ -440,7 +508,10 @@ Preuves :
    - mot de passe oublié ;
    - Google Maps et polices ;
    - suppression des sondes PHP et exclusion des outils ;
-   - retrait des identifiants du README.
+   - retrait des identifiants du README ;
+   - coordination des sessions sur `cart.js` (P-65) : une seule source pour ce fichier ;
+   - délai de connexion et d'inscription, qui ne doit pas se confondre avec une panne (P-57) ;
+   - décision de conserver la reprise automatique après connexion pour un panier inchangé (P-53).
 2. **Lot backend** : stabiliser la suite de tests API (serveur de test isolé, tests indépendants, base réinitialisée à chaque cas), la faire tourner sur MySQL ou MariaDB (SQLite ne suffit pas pour le schéma MySQL), corriger les échecs réels, puis passer en préproduction chez OVH.
 3. **Lot disponibilité** : étendre aux pages et à l'envoi (T14).
 4. **Lot commerçant** : protection serveur réellement testée, son activé par un geste, canal d'alerte choisi.
