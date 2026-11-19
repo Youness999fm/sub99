@@ -419,6 +419,7 @@
     showApp();
     renderAll();
     loadSettings();
+    state.ordersLoaded = true;
     poll();
   }
 
