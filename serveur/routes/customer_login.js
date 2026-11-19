@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { allowMethods, readJsonBody, fail, ok } from '../core.js';
 import { one, exec } from '../db.js';
 import { createSession, currentSession, revokeSession, dummyPasswordHash } from '../auth.js';
-import { throttleGuard, throttleHit, throttleRefund, throttleIpKey } from '../throttle.js';
+import { throttleEnforce, throttleRefund, throttleIpKey } from '../throttle.js';
 import { customerView } from '../customers.js';
 import { nowUtc } from '../util.js';
 
@@ -17,10 +17,9 @@ export default async function customerLogin(c) {
   // Verrou par adresse IP seulement : aucun verrou par e-mail, pour qu'un tiers ne puisse pas bloquer
   // la connexion d'un client. IPv6 : seau par préfixe /64.
   const ipBucket = 'customer_login:ip:' + throttleIpKey(c.ip);
-  await throttleGuard([ipBucket]);
-  // Chaque tentative est comptée avant la vérification (verrou à 5 échecs en 15 min) ;
-  // une réussite est décomptée ensuite, sans remettre le compteur à zéro.
-  await throttleHit(ipBucket, 5, 900, 900);
+  // Chaque tentative est comptée (atomiquement) avant la vérification : seules les 5 premières d'une fenêtre de
+  // 15 min sont vérifiées, même envoyées en même temps ; une réussite est décomptée ensuite.
+  await throttleEnforce(ipBucket, 5, 900, 900);
 
   const cust = email !== '' && Buffer.byteLength(email) <= 190 ? await one('SELECT * FROM customers WHERE email = ?', [email]) : null;
   const hash = cust !== null ? String(cust.password_hash) : await dummyPasswordHash();

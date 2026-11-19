@@ -10,7 +10,7 @@ Tout tourne en local, dans un seul processus par script : pages du site + API Ja
 node tests/massif/lancer.mjs tests/massif/00-socle.mjs
 ```
 
-Le lanceur attribue un port libre (`SUBITO_TEST_PORT`), limite à **5 scripts simultanés** sur la machine, applique un délai maximal (`--timeout=600`) et garde la sortie dans `%TEMP%\subito-massif-logs`.
+Le lanceur attribue un port libre (`SUBITO_TEST_PORT`), limite à **3 scripts simultanés** sur la machine (au-delà, des dizaines de milliers de connexions locales restent en TIME_WAIT et faussent les mesures), applique un délai maximal (`--timeout=600`) et garde la sortie dans `%TEMP%\subito-massif-logs`.
 
 ## Briques (`tests/massif/lib/`)
 

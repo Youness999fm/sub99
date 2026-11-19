@@ -22,7 +22,8 @@ export default async function ownerAvailability(c) {
       err.status = 'Statut attendu : available, out_today ou out_manual.';
     }
     const name = typeof b.name === 'string' ? cleanSpaces(b.name) : '';
-    if (name === '' || strChars(name) > 120) {
+    // Le caractère NUL est refusé (Postgres ne le stocke pas) : 422 plutôt qu'une erreur 500.
+    if (name === '' || strChars(name) > 120 || name.includes('\0')) {
       err.name = 'Nom attendu (1 à 120 caractères).';
     }
     if (Object.keys(err).length) failValidation(err);

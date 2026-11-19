@@ -2,8 +2,8 @@
 import bcrypt from 'bcryptjs';
 import { allowMethods, readJsonBody, fail, failValidation, ok } from '../core.js';
 import { one, insert, estViolationUnique } from '../db.js';
-import { createSession } from '../auth.js';
-import { throttleGuard, throttleHit, throttleIpKey } from '../throttle.js';
+import { createSession, currentSession, revokeSession } from '../auth.js';
+import { throttleGuard, throttleEnforce, throttleIpKey } from '../throttle.js';
 import { customerView, validateProfile, normalizeEmail, validateAddress } from '../customers.js';
 import { nowUtc } from '../util.js';
 
@@ -25,7 +25,7 @@ export default async function customerSignup(c) {
   const [street, city] = validateAddress(b, err);
   if (Object.keys(err).length) failValidation(err);
 
-  await throttleHit(ipBucket, 10, 3600);
+  await throttleEnforce(ipBucket, 10, 3600);
 
   if ((await one('SELECT id FROM customers WHERE email = ?', [email])) !== null) {
     fail(409, 'email_taken', 'Un compte existe déjà avec cette adresse e-mail.');
@@ -43,6 +43,9 @@ export default async function customerSignup(c) {
     throw e;
   }
 
+  // Une seule session client active par navigateur : l'ancienne est révoquée (comme à la connexion).
+  const precedente = await currentSession(c, 'customer');
+  if (precedente !== null) await revokeSession(Number(precedente.id));
   await createSession(c, 'customer', id, true);
   const customer = await one('SELECT * FROM customers WHERE id = ?', [id]);
   return ok({ customer: customerView(customer) }, 201);

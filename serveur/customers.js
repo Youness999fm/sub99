@@ -54,6 +54,11 @@ export function validateAddress(b, errors) {
   if (city === null) city = '';
   if (typeof street !== 'string') { errors.street = 'Adresse invalide.'; street = ''; }
   if (typeof city !== 'string') { errors.city = 'Ville invalide.'; city = ''; }
+  // Postgres refuse le caractère NUL dans un texte : refus propre (422) plutôt qu'une erreur 500.
+  if (street.includes('\0') || city.includes('\0')) {
+    errors.street = errors.street || 'Adresse invalide.';
+    return [null, null];
+  }
   street = cleanSpaces(street);
   city = city.trim();
   if (strChars(street) > 150) errors.street = 'Adresse trop longue (150 caractères au plus).';

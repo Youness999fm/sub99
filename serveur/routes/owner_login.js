@@ -4,7 +4,7 @@
 import bcrypt from 'bcryptjs';
 import { allowMethods, readJsonBody, bodyBool, fail, ok } from '../core.js';
 import { createSession, OWNER_ID } from '../auth.js';
-import { throttleGuard, throttleHit, throttleRefund, throttleIpKey } from '../throttle.js';
+import { throttleEnforce, throttleRefund, throttleIpKey } from '../throttle.js';
 
 export default async function ownerLogin(c) {
   allowMethods(c, ['POST']);
@@ -19,8 +19,7 @@ export default async function ownerLogin(c) {
   // Verrou par adresse IP seulement : aucun verrou global, pour qu'un tiers ne puisse pas bloquer le patron.
   // Chaque tentative est comptée AVANT la vérification (verrou à 5 échecs en 15 min) ; une réussite est décomptée ensuite.
   const ipBucket = 'owner_login:ip:' + throttleIpKey(c.ip);
-  await throttleGuard([ipBucket]);
-  await throttleHit(ipBucket, 5, 900, 900);
+  await throttleEnforce(ipBucket, 5, 900, 900);
 
   const valid = code !== '' && Buffer.byteLength(code) <= 4096 && (await bcrypt.compare(code, hash));
   if (!valid) fail(401, 'invalid_credentials', 'Code incorrect.');

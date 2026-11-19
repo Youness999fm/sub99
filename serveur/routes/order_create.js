@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { allowMethods, readJsonBody, fail, ok } from '../core.js';
 import { one, transaction, estViolationUnique } from '../db.js';
 import { requireCustomer } from '../auth.js';
-import { throttleGuard, throttleHit } from '../throttle.js';
+import { throttleEnforce } from '../throttle.js';
 import { DELIVERY_ZONES, nowUtc, serviceDay } from '../util.js';
 import {
   validateOrderBody, orderPayloadHash, orderEnforceCatalogue, computeOrderTotals, orderViews, orderLoad, phpTrim
@@ -42,8 +42,7 @@ export default async function orderCreate(c) {
 
   // Limitation de débit après le contrôle de la clé : un rejeu répond 200 même après 20 envois.
   const bucket = 'order_create:customer:' + customerId;
-  await throttleGuard([bucket]);
-  await throttleHit(bucket, 20, 600);
+  await throttleEnforce(bucket, 20, 600);
 
   // 4. Catalogue (article connu, prix unitaire au centime près) puis disponibilités.
   //    Les prix envoyés par le navigateur ne sont acceptés que s'ils sont ceux de la carte.

@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-const MAX_SIMULTANES = 5;
+const MAX_SIMULTANES = 3; // 34 000 connexions en TIME_WAIT constatées avec 5 : la pile TCP locale sature
 const DOSSIER = path.join(os.tmpdir(), 'subito-massif-scripts');
 fs.mkdirSync(DOSSIER, { recursive: true });
 const journaux = path.join(os.tmpdir(), 'subito-massif-logs');
