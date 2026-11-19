@@ -2,8 +2,8 @@
 
 Destinée à l'utilisateur (ou à son prestataire), à exécuter **sur le sous-domaine de préproduction**. Aucun accès OVH ni serveur n'a été utilisé pour préparer ce document. Rien n'est publié tant que cette checklist n'est pas terminée et que les points bloquants du rapport de mission ne sont pas tranchés.
 
-**Version figée du paquet (19/11/2026)** : arbre git `a31340b2eaba262e6e69da72cec5773c24ec0896` (contenu du site, hors `reports/`).
-- Archive `preproduction-subito-2026-11-19.zip` : 172 fichiers, SHA-256 `74b4b6d06b6bd6473a3e76c044f6a006e9f1c62092c1fc565ac1f8e8cb58c7fd`.
+**Version figée du paquet (19/11/2026)** : commit `d19c4c7` (arbre git `a31340b2eaba262e6e69da72cec5773c24ec0896`, même contenu hors `reports/`) (contenu du site, hors `reports/`).
+- Archive `preproduction-subito-2026-11-19.zip` : 172 fichiers, SHA-256 `839c6dce04f7dc8d1ead9e1337c285bdb8ce68b92c492ac8252a5addddd785ad`.
 - Manifeste `preproduction-MANIFESTE-SHA256.txt` : une empreinte par fichier (172 lignes), à vérifier (section 0).
 
 **Éléments non figés, à revalider avant publication** : publication des gagnants du concours (question en cours) ; noms des avis (`avis.html`, `index.html`), réduits à prénom et initiale ; galerie de la page d'accueil (`index.html`), sans agrandissement ; moitié-moitié du composeur, décidée mais pas encore implémentée (après le commit). Les prix des desserts et des boissons, les minimums par ville et la règle d'échange (une portion par pizza) sont validés.
@@ -20,7 +20,7 @@ Destinée à l'utilisateur (ou à son prestataire), à exécuter **sur le sous-d
 Get-FileHash 'CHEMIN\preproduction-subito-2026-11-19.zip' -Algorithm SHA256
 ```
 
-Résultat attendu : `74b4b6d06b6bd6473a3e76c044f6a006e9f1c62092c1fc565ac1f8e8cb58c7fd`. Si l'empreinte diffère, ne pas décompresser ni téléverser.
+Résultat attendu : `839c6dce04f7dc8d1ead9e1337c285bdb8ce68b92c492ac8252a5addddd785ad`. Si l'empreinte diffère, ne pas décompresser ni téléverser.
 
 **0.2 Décompresser l'archive dans un dossier vide** (par exemple `CHEMIN\preproduction-decompressee`), puis contrôler chaque fichier contre le manifeste.
 
