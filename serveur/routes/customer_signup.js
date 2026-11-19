@@ -25,7 +25,7 @@ export default async function customerSignup(c) {
   const [street, city] = validateAddress(b, err);
   if (Object.keys(err).length) failValidation(err);
 
-  await throttleEnforce(ipBucket, 10, 3600);
+  await throttleEnforce(ipBucket, 100, 3600);
 
   if ((await one('SELECT id FROM customers WHERE email = ?', [email])) !== null) {
     fail(409, 'email_taken', 'Un compte existe déjà avec cette adresse e-mail.');
