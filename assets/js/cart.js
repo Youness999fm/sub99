@@ -1908,6 +1908,11 @@ const SUBITO_CART_CONFIG = {
         return alertIcon + 'Il manque votre numéro de téléphone pour commander : <a href="compte.html">Mon compte</a>.';
       case "idempotency_conflict":
         return alertIcon + "Un incident est survenu pendant l’envoi. Appuyez de nouveau sur « Commander en ligne » pour renvoyer votre commande.";
+      case "closed": {
+        const opens = typeof data.opens_at === "string" ? escapeHtml(data.opens_at) : "";
+        const closes = typeof data.closes_at === "string" ? escapeHtml(data.closes_at) : "";
+        return alertIcon + "Les commandes en ligne sont fermées pour le moment." + (opens && closes ? " Elles sont ouvertes tous les jours de " + opens + " à " + closes + "." : "") + " Votre panier reste enregistré.";
+      }
       case "empty_cart":
         return alertIcon + "Votre panier est vide.";
       case "validation":

@@ -3,8 +3,9 @@ import crypto from 'node:crypto';
 import { allowMethods, readJsonBody, fail, ok } from '../core.js';
 import { one, transaction, estViolationUnique } from '../db.js';
 import { requireCustomer } from '../auth.js';
-import { throttleEnforce } from '../throttle.js';
+import { throttleGuard, throttleHit } from '../throttle.js';
 import { DELIVERY_ZONES, nowUtc, serviceDay } from '../util.js';
+import { creneauActif, commandesOuvertes, minutesParis, libelleHeure } from '../horaires.js';
 import {
   validateOrderBody, orderPayloadHash, orderEnforceCatalogue, computeOrderTotals, orderViews, orderLoad, phpTrim
 } from '../orders.js';
@@ -40,9 +41,19 @@ export default async function orderCreate(c) {
   const existing = await one('SELECT * FROM orders WHERE customer_id = ? AND idempotency_key = ?', [customerId, o.idempotency_key]);
   if (existing !== null) return replayOrConflict(existing);
 
-  // Limitation de débit après le contrôle de la clé : un rejeu répond 200 même après 20 envois.
+  // Horaires : en dehors du créneau, aucune commande nouvelle (personne ne la verrait). Un rejeu reste accepté (étape 3).
+  const creneau = creneauActif();
+  if (!commandesOuvertes(creneau, minutesParis())) {
+    fail(422, 'closed', 'Les commandes en ligne sont fermées pour le moment.', {
+      opens_at: libelleHeure(creneau.debut),
+      closes_at: libelleHeure(creneau.fin)
+    });
+  }
+
+  // Limitation de débit : seules les commandes CRÉÉES sont comptées (dans la transaction ci-dessous). Un rejeu
+  // répond 200 même après 20 commandes, et une requête refusée (catalogue, total…) ne consomme pas le quota.
   const bucket = 'order_create:customer:' + customerId;
-  await throttleEnforce(bucket, 20, 600);
+  await throttleGuard([bucket]);
 
   // 4. Catalogue (article connu, prix unitaire au centime près) puis disponibilités.
   //    Les prix envoyés par le navigateur ne sont acceptés que s'ils sont ceux de la carte.
@@ -119,6 +130,12 @@ export default async function orderCreate(c) {
             it.half === null ? null : JSON.stringify(it.half), it.note
           ]
         );
+      }
+      // Compté dans la même transaction : des créations simultanées se succèdent sur la ligne du seau (pas de dépassement),
+      // et un rejeu ou un conflit (violation d'unicité) n'arrive jamais ici. Au-delà de 20 : annulation de tout.
+      const n = await throttleHit(bucket, 20, 600, null, tx);
+      if (n > 20) {
+        fail(429, 'too_many_attempts', 'Trop de commandes. Réessayez plus tard.', { retry_after_seconds: 600 }, { 'Retry-After': '600' });
       }
       return id;
     });
