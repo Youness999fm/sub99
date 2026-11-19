@@ -32,10 +32,24 @@ const TEMPO_TIMING = {
 // rechargements de page donnent le même résultat, tout en évitant que les
 // 30 révélations soient visuellement identiques.
 const DECOR_FLAVORS = [
-  ['🍕', '🍕'],
+  ['pizza', 'pizza'],
   ['✦', '✦'],
-  ['🍕', '✦'],
+  ['pizza', '✦'],
 ];
+
+// Élément décoratif : icône du jeu commun si son nom existe (pizza), sinon
+// le caractère tel quel.
+function decorHtml(symbol) {
+  return SubitoIcons.svg(symbol) || symbol;
+}
+
+// Pictogramme d'un lot, en icônes du jeu commun. PRIZES.emoji reste une
+// donnée (data.js) ; seul son affichage est remplacé ici.
+export function prizeIconHtml(prizeKey) {
+  return prizeKey === 'pizza'
+    ? SubitoIcons.svg('pizza') + SubitoIcons.svg('pizza')
+    : SubitoIcons.svg('cake-slice');
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
@@ -84,7 +98,7 @@ export class RevealEngine {
     const el = document.createElement('div');
     el.className = 'tirage-suspense';
     el.innerHTML = `
-      <span class="tirage-suspense__ticket" aria-hidden="true">🎟️</span>
+      <span class="tirage-suspense__ticket" aria-hidden="true">${SubitoIcons.svg('ticket')}</span>
       <p class="tirage-suspense__text">Et le gagnant est…</p>`;
     return el;
   }
@@ -94,12 +108,12 @@ export class RevealEngine {
     const el = document.createElement('div');
     el.className = `tirage-winner-card tirage-winner-card--${winner.prize} tirage-winner-card--${tempo}${isUltimate ? ' tirage-winner-card--ultimate' : ''}`;
     el.innerHTML = `
-      <span class="tirage-winner-card__decor tirage-winner-card__decor--left" aria-hidden="true">${flavor[0]}</span>
-      <span class="tirage-winner-card__decor tirage-winner-card__decor--right" aria-hidden="true">${flavor[1]}</span>
+      <span class="tirage-winner-card__decor tirage-winner-card__decor--left" aria-hidden="true">${decorHtml(flavor[0])}</span>
+      <span class="tirage-winner-card__decor tirage-winner-card__decor--right" aria-hidden="true">${decorHtml(flavor[1])}</span>
       <p class="tirage-winner-card__badge">${isUltimate ? '★ Dernier gagnant ★' : '★ Gagnant ★'}</p>
       <p class="tirage-winner-card__name">${winner.pseudo}</p>
       <p class="tirage-winner-card__prize">
-        <span class="tirage-winner-card__prize-icon" aria-hidden="true">${prize.emoji}</span>
+        <span class="tirage-winner-card__prize-icon" aria-hidden="true">${prizeIconHtml(winner.prize)}</span>
         <span class="tirage-winner-card__prize-label">${prize.label}</span>
       </p>`;
     return el;
@@ -113,7 +127,7 @@ export class RevealEngine {
     const prize = PRIZES[winner.prize];
     const item = document.createElement('div');
     item.className = 'tirage-live-item';
-    item.innerHTML = `<span class="tirage-live-item__icon" aria-hidden="true">${prize.emoji}</span><span class="tirage-live-item__name">${winner.pseudo}</span><span class="tirage-live-item__prize">${prize.label}</span>`;
+    item.innerHTML = `<span class="tirage-live-item__icon" aria-hidden="true">${prizeIconHtml(winner.prize)}</span><span class="tirage-live-item__name">${winner.pseudo}</span><span class="tirage-live-item__prize">${prize.label}</span>`;
     this.liveListEl.prepend(item);
 
     if (!this.reduceMotion) {

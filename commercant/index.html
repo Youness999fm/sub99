@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Espace commerçant — Subito Pizza</title>
+<meta name="theme-color" content="#0E3B27">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Commerçant">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="../assets/img/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/img/icons/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="../assets/css/commercant.css">
+<script src="../assets/js/commercant.js" defer></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Aller au contenu</a>
+
+<p class="boot" id="boot" role="status">Chargement…</p>
+
+<section class="login-view" id="login-view" aria-labelledby="login-title" hidden>
+  <form class="login-card" id="login-form" novalidate>
+    <span class="cm-logo login-logo"><img src="../assets/img/logo.jpg" alt="" width="64" height="64"></span>
+    <h1 class="login-title" id="login-title">Subito Pizza</h1>
+    <p class="login-kicker">Espace commerçant</p>
+    <p class="login-error" id="login-error" role="alert" aria-live="assertive"></p>
+    <div class="field">
+      <label for="login-email">E-mail</label>
+      <input type="email" id="login-email" name="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" required>
+    </div>
+    <div class="field">
+      <label for="login-password">Mot de passe</label>
+      <input type="password" id="login-password" name="password" autocomplete="current-password" required>
+    </div>
+    <label class="check">
+      <input type="checkbox" id="login-remember" name="remember">
+      <span>Rester connecté sur cet appareil</span>
+    </label>
+    <button type="submit" class="btn btn-accept login-submit" id="login-submit">Se connecter</button>
+  </form>
+</section>
+
+<header class="cm-top" id="app-top" hidden>
+  <div class="cm-brand">
+    <span class="cm-logo"><img src="../assets/img/logo.jpg" alt="" width="36" height="36"></span>
+    <div class="cm-brand-text">
+      <h1 class="cm-title">Subito Pizza</h1>
+      <p class="cm-kicker">Espace commerçant</p>
+    </div>
+  </div>
+
+  <nav class="cm-tabs" aria-label="Espaces">
+    <button type="button" class="tab" data-action="view" data-view="orders" aria-pressed="true">Commandes</button>
+    <button type="button" class="tab" data-action="view" data-view="avail" aria-pressed="false">Disponibilité</button>
+    <button type="button" class="tab" data-action="view" data-view="patron" aria-pressed="false">Espace patron</button>
+  </nav>
+
+  <div class="cm-top-right">
+    <p class="cm-clock" id="clock" aria-live="off">--:--:--</p>
+    <button type="button" class="btn btn-top" data-action="sound-toggle" id="sound-btn">Couper le son</button>
+    <button type="button" class="btn btn-top" data-action="logout">Se déconnecter</button>
+  </div>
+</header>
+
+<main id="main" class="cm-main" hidden>
+
+  <p class="net-banner" id="net-banner" role="alert" hidden>Connexion perdue, nouvelle tentative…</p>
+
+  <section class="view view-orders" id="view-orders" aria-label="Commandes entrantes">
+    <div class="orders-stage">
+      <div class="detail-col">
+        <article class="order-detail" id="order-detail"></article>
+      </div>
+      <aside class="decide-col">
+        <div class="decision" id="decision"></div>
+      </aside>
+    </div>
+
+    <div class="queue-strip">
+      <div class="strip-head">
+        <h2>À traiter</h2>
+        <div class="col-actions">
+          <button type="button" class="btn btn-soft btn-sm" data-action="default-delay-open" id="default-delay-btn">Délai par défaut</button>
+          <span id="notif-slot"></span>
+        </div>
+      </div>
+      <div class="queue" id="queue" aria-label="File des commandes en attente"></div>
+    </div>
+  </section>
+
+  <section class="view view-avail" id="view-avail" aria-label="Disponibilité des produits" hidden>
+    <div class="avail-wrap">
+      <div class="avail-head">
+        <h2>Disponibilité des produits</h2>
+      </div>
+      <nav class="cat-tabs" id="cat-tabs" aria-label="Catégories du menu"></nav>
+      <div class="cat-bar">
+        <h3 id="cat-title"></h3>
+        <button type="button" class="btn btn-soft btn-sm" data-action="avail-all-in" id="avail-all-in">Tout remettre disponible</button>
+      </div>
+      <p class="avail-msg" id="avail-msg" role="status"></p>
+      <div class="prod-grid" id="prod-grid"></div>
+    </div>
+  </section>
+
+  <section class="view view-patron" id="view-patron" aria-label="Espace patron" hidden>
+    <div id="patron-body"></div>
+  </section>
+
+</main>
+
+<p class="sr-only" id="live" aria-live="assertive"></p>
+<p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+
+<dialog id="dlg" class="cm-dialog" aria-labelledby="dlg-title">
+  <div class="dlg-body" id="dlg-body"></div>
+</dialog>
+
+<noscript><p class="noscript">L'espace commerçant nécessite JavaScript.</p></noscript>
+
+<div id="print-area" aria-hidden="true"></div>
+
+</body>
+</html>

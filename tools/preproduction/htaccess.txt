@@ -1,0 +1,80 @@
+# ---------- PREPRODUCTION (copie locale uniquement, jamais dans le depot) ----------
+# Redirection HTTP vers HTTPS pour le sous-domaine de preproduction.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# ---------- Protections (memes regles que api/.htaccess) ----------
+# Pas de liste des dossiers.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Validation HTTPS (Let's Encrypt) : /.well-known/ n'est jamais bloque.
+  RewriteCond %{REQUEST_URI} !^/\.well-known/
+  # Fichiers et dossiers caches, configuration, documentation, sauvegardes.
+  RewriteRule (^|/)\. - [F,L]
+  RewriteRule (^|/)config[^/]*$ - [F,L]
+  RewriteRule \.(md|bak|old|orig|swp|sql|log)$ - [F,L]
+  RewriteRule ~$ - [F,L]
+</IfModule>
+
+# Seconde barriere, meme sans mod_rewrite.
+<FilesMatch "^(\..*|config.*|.*\.(md|bak|old|orig|swp|sql|log)|.*~)$">
+  Require all denied
+</FilesMatch>
+
+ErrorDocument 404 /404.html
+
+# ---------- Compression (reduit le poids transfere de HTML/CSS/JS/SVG) ----------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml application/xml
+  AddOutputFilterByType DEFLATE application/javascript text/javascript application/json
+  AddOutputFilterByType DEFLATE image/svg+xml application/manifest+json
+</IfModule>
+
+# ---------- Cache navigateur ----------
+# Les images/fonts/icones ont un nom stable (pas de hash de build) : cache
+# long mais raisonnable, pas "immutable" pour rester capable de les
+# remplacer (ex. nouvelle photo) sans devoir renommer le fichier.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
+  ExpiresByType text/javascript "access plus 1 week"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/x-icon "access plus 1 month"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType application/manifest+json "access plus 1 week"
+</IfModule>
+
+# ---------- En-tetes de securite (site statique, sans backend : gratuits,
+# sans risque de regression fonctionnelle) ----------
+<IfModule mod_headers.c>
+  # Preproduction : aucune indexation par les moteurs de recherche.
+  Header set X-Robots-Tag "noindex, nofollow"
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "geolocation=(), camera=(), microphone=()"
+  Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
+# Redirections depuis les anciennes URLs WordPress (encore indexees par
+# Google au moment de la bascule vers ce site statique) vers les sections
+# equivalentes du menu actuel — evite de perdre le referencement deja
+# acquis sur ces pages et evite un 404 aux visiteurs qui cliquent depuis
+# un ancien resultat de recherche.
+Redirect 301 /pizzas/ /menu.html#pizzas
+Redirect 301 /pates/ /menu.html#pates
+Redirect 301 /subitowich/ /menu.html#subitowichs
+Redirect 301 /salades/ /menu.html#salades
+Redirect 301 /boissons/ /menu.html#boissons
+Redirect 301 /glaces/ /menu.html#desserts
+
+# La redirection /tirage-au-sort n'est pas dans le paquet : la page du concours
+# (grand-tirage.html) est hors preproduction (decision du responsable, 19/11/2026).

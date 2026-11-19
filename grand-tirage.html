@@ -11,9 +11,9 @@
 <meta property="og:title" content="Le Grand Tirage — les 30 gagnants du concours Subito">
 <meta property="og:description" content="15 gagnants de 2 pizzas XXL + 15 gagnants d'un tiramisu. Gagnant(e) ? Contacte-nous sur Snapchat avant le 6 septembre !">
 <meta property="og:image" content="https://www.subito-pizza-heninbeaumont.fr/assets/img/logo.jpg">
-<meta property="og:url" content="https://www.subito-pizza-heninbeaumont.fr/tirage-au-sort">
+<meta property="og:url" content="https://www.subito-pizza-heninbeaumont.fr/grand-tirage.html">
 <meta property="og:locale" content="fr_FR">
-<link rel="canonical" href="https://www.subito-pizza-heninbeaumont.fr/tirage-au-sort">
+<link rel="canonical" href="https://www.subito-pizza-heninbeaumont.fr/grand-tirage.html">
 <meta name="twitter:card" content="summary">
 <link rel="shortcut icon" href="/favicon.ico">
 <link rel="icon" href="assets/img/icons/favicon-32.png" sizes="32x32" type="image/png">
@@ -27,6 +27,8 @@
 <link rel="stylesheet" href="assets/css/cart.css">
 <link rel="stylesheet" href="assets/css/tirage.css">
 <script src="assets/js/main.js" defer></script>
+<script src="assets/js/account.js" defer></script>
+<script src="assets/js/icons.js" defer></script>
 <script src="assets/js/cart.js" defer></script>
 <script type="module" src="assets/js/tirage/main.js"></script>
 <script type="application/ld+json">
@@ -47,7 +49,7 @@
 
 <header class="site-header">
   <div class="site-header__top">
-    <a class="site-header__badge site-header__badge--hashtag" href="reseaux.html" aria-label="Partagez vos photos avec le hashtag SubitoPizza">
+    <a class="site-header__badge site-header__badge--hashtag" href="reseaux.html">
       <span class="hashtag-bubble" aria-hidden="true">#</span>
       <span class="site-header__badge-text">#SUBITOPIZZA<small>Partagez vos photos</small></span>
     </a>
@@ -56,7 +58,7 @@
       <img src="assets/img/logo.jpg" alt="Subito Pizza">
     </a>
 
-    <a class="site-header__badge site-header__badge--social" href="reseaux.html" aria-label="Suivez-nous sur nos réseaux sociaux">
+    <a class="site-header__badge site-header__badge--social" href="reseaux.html">
       <span class="site-header__badge-icon" aria-hidden="true">
         <svg viewBox="0 0 44 44" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="22" fill="#1877F2"/><path d="M24 14h2.5v-3.5h-2.7c-2.8 0-4.6 1.7-4.6 4.6v2.4h-2.7v3.9h2.7V31h4.1v-9.6h2.8l.5-3.9h-3.3v-2c0-1 .3-1.5 1.7-1.5z" fill="#fff"/></svg>
         <svg viewBox="0 0 44 44" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="igGradHdr2" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#FED576"/><stop offset="26%" stop-color="#F47133"/><stop offset="61%" stop-color="#BC3081"/><stop offset="100%" stop-color="#4C63D2"/></radialGradient></defs><circle cx="22" cy="22" r="22" fill="url(#igGradHdr2)"/><rect x="13" y="13" width="18" height="18" rx="6" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="22" cy="22" r="5" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="28.5" cy="15.5" r="1.6" fill="#fff"/></svg>
@@ -74,6 +76,7 @@
     <li><a class="site-nav__link" href="menu.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21 3 6a18 18 0 0 1 18 0Z"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></span>Menu</a></li>
     <li><a class="site-nav__link" href="avis.html#ecrire-avis"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1-5.4 3.1 1.3-6-4.6-4.1 6.1-.6L12 3Z"/></svg></span>Avis clients</a></li>
     <li><a class="site-nav__link" href="reseaux.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="5.5" r="2.2"/><circle cx="18" cy="18.5" r="2.2"/><path d="M8 10.8 16 6.7M8 13.2l8 4.1"/></svg></span>Nos réseaux</a></li>
+    <li><a class="site-nav__link" href="compte.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></span>Mon compte</a></li>
   </ul>
 </nav>
 
@@ -81,7 +84,7 @@
 
   <div id="tirage-announcer" class="visually-hidden" aria-live="polite"></div>
 
-  <button type="button" id="tirage-sound-toggle" class="tirage-sound-toggle" aria-pressed="true">🔊 Son</button>
+  <button type="button" id="tirage-sound-toggle" class="tirage-sound-toggle" aria-pressed="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" /><path d="M16 9a5 5 0 0 1 0 6" /><path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></svg> Son</button>
 
   <section class="tirage-stage-wrapper" id="tirage-stage-wrapper" aria-hidden="false">
     <canvas id="tirage-canvas" aria-hidden="true"></canvas>
@@ -91,35 +94,35 @@
 
       <p class="tirage-hero__eyebrow">Subito Pizza · Hénin-Beaumont</p>
 
-      <p class="tirage-heritage-pill">🍕 Depuis 1999 · <span id="tirage-heritage-years">27</span> ans de fidélité</p>
+      <p class="tirage-heritage-pill"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Depuis 1999 · <span id="tirage-heritage-years">27</span> ans de fidélité</p>
 
       <h1 class="tirage-hero__title">Le Grand Tirage</h1>
       <p class="tirage-hero__tagline">Depuis 1999, c'est vous qui nous faites tourner.<br>Aujourd'hui, Subito vous dit merci — en grand.</p>
 
       <div class="tirage-stats" aria-label="Chiffres du concours">
         <div class="tirage-stat">
-          <span class="tirage-stat__icon" aria-hidden="true">👥</span>
+          <span class="tirage-stat__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><path d="M16 3.128a4 4 0 0 1 0 7.744" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><circle cx="9" cy="7" r="4" /></svg></span>
           <span class="tirage-stat__number" id="tirage-stat-participants" data-count-to="250">0</span>
           <span class="tirage-stat__label">participants</span>
         </div>
         <div class="tirage-stat">
-          <span class="tirage-stat__icon" aria-hidden="true">🏆</span>
+          <span class="tirage-stat__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2" /><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2" /><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3" /><path d="M4 22h16" /><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z" /><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3" /></svg></span>
           <span class="tirage-stat__number" id="tirage-stat-winners" data-count-to="30">0</span>
           <span class="tirage-stat__label">gagnants</span>
         </div>
         <div class="tirage-stat">
-          <span class="tirage-stat__icon" aria-hidden="true">🎁</span>
+          <span class="tirage-stat__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14" /><path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" /><path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5" /><rect x="3" y="7" width="18" height="4" rx="1" /></svg></span>
           <span class="tirage-stat__number" id="tirage-stat-gifts" data-count-to="45">0</span>
           <span class="tirage-stat__label">cadeaux</span>
         </div>
       </div>
 
       <div class="tirage-prizes-chips">
-        <span class="tirage-prize-chip">🍕🍕 2 Pizzas XXL</span>
-        <span class="tirage-prize-chip tirage-prize-chip--tiramisu">🍰 1 Tiramisu</span>
+        <span class="tirage-prize-chip"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> 2 Pizzas XXL</span>
+        <span class="tirage-prize-chip tirage-prize-chip--tiramisu"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 13H3" /><path d="M16 17H3" /><path d="m7.2 7.9-3.388 2.5A2 2 0 0 0 3 12.01V20a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-8.654c0-2-2.44-6.026-6.44-8.026a1 1 0 0 0-1.082.057L10.4 5.6" /><circle cx="9" cy="7" r="2" /></svg> 1 Tiramisu</span>
       </div>
 
-      <button type="button" id="tirage-lever" class="tirage-lever" aria-label="Activer la machine et découvrir les gagnants">
+      <button type="button" id="tirage-lever" class="tirage-lever" aria-label="Tirer le levier : activer la machine et découvrir les gagnants">
         <span class="tirage-lever__rig" aria-hidden="true">
           <span class="tirage-lever__base"></span>
           <span class="tirage-lever__arm"><span class="tirage-lever__knob"></span></span>
@@ -127,7 +130,7 @@
         <span class="tirage-lever__label">Tirer le levier</span>
       </button>
 
-      <p class="tirage-hero__trust">🍕 Jeu organisé par Subito Pizza — 333 rue Elie Gruyelle, Hénin-Beaumont</p>
+      <p class="tirage-hero__trust"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Jeu organisé par Subito Pizza — 333 rue Elie Gruyelle, Hénin-Beaumont</p>
 
       <a href="#tirage-resultats" id="tirage-skip" class="tirage-skip">Passer directement aux résultats →</a>
     </div>
@@ -147,14 +150,14 @@
     </div>
 
     <div class="tirage-curtain" id="tirage-curtain" hidden aria-hidden="true">
-      <span class="tirage-curtain__emoji">🍰</span>
+      <span class="tirage-curtain__emoji"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 13H3" /><path d="M16 17H3" /><path d="m7.2 7.9-3.388 2.5A2 2 0 0 0 3 12.01V20a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-8.654c0-2-2.44-6.026-6.44-8.026a1 1 0 0 0-1.082.057L10.4 5.6" /><circle cx="9" cy="7" r="2" /></svg></span>
       <p class="tirage-curtain__title">Mode Tiramisu activé</p>
     </div>
 
     <div class="tirage-final" id="tirage-final" hidden aria-hidden="true">
       <span class="tirage-final__line" data-final-line>30 GAGNANTS</span>
       <span class="tirage-final__line" data-final-line>45 CADEAUX</span>
-      <span class="tirage-final__line" data-final-line>MERCI AUX 250 PARTICIPANTS ❤️</span>
+      <span class="tirage-final__line" data-final-line>MERCI AUX 250 PARTICIPANTS <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" /></svg></span>
       <span class="tirage-final__line tirage-final__signature" id="tirage-final-signature" data-final-line>SUBITO</span>
     </div>
   </section>
@@ -165,24 +168,24 @@
       <p class="tirage-data-warning" id="tirage-data-warning" hidden></p>
 
       <div class="tirage-claim-banner">
-        <p class="tirage-claim-banner__eyebrow">⏰ Gagnants, attention</p>
+        <p class="tirage-claim-banner__eyebrow"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M5 3 2 6" /><path d="m22 6-3-3" /><path d="M6.38 18.7 4 21" /><path d="M17.64 18.67 20 21" /></svg> Gagnants, attention</p>
         <p class="tirage-claim-banner__title">Contacte-nous avant le <strong>6 septembre</strong></p>
         <p class="tirage-claim-banner__countdown" id="tirage-claim-countdown" aria-live="polite">Plus que 7 jours</p>
       </div>
 
       <div class="tirage-claim-steps">
-        <h3 class="tirage-claim-steps__title">🎁 Comment récupérer ton cadeau ?</h3>
+        <h3 class="tirage-claim-steps__title"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14" /><path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" /><path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5" /><rect x="3" y="7" width="18" height="4" rx="1" /></svg> Comment récupérer ton cadeau ?</h3>
         <ol class="tirage-claim-steps__list">
-          <li><span class="tirage-claim-steps__icon" aria-hidden="true">🎉</span><span>Tu as gagné — ton pseudo est dans la liste ci-dessous.</span></li>
-          <li><span class="tirage-claim-steps__icon" aria-hidden="true">📲</span><span>Envoie-nous un message sur Snapchat <strong>avant le 6 septembre</strong>.</span></li>
-          <li><span class="tirage-claim-steps__icon" aria-hidden="true">🔑</span><span>On te transmet ton <strong>code gagnant</strong>.</span></li>
-          <li><span class="tirage-claim-steps__icon" aria-hidden="true">🎁</span><span>Tu présentes ton code pour récupérer ton cadeau.</span></li>
+          <li><span class="tirage-claim-steps__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.8 11.3 2 22l10.7-3.79" /><path d="M4 3h.01" /><path d="M22 8h.01" /><path d="M15 2h.01" /><path d="M22 20h.01" /><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" /><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17" /><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7" /><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z" /></svg></span><span>Tu as gagné — ton pseudo est dans la liste ci-dessous.</span></li>
+          <li><span class="tirage-claim-steps__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></svg></span><span>Envoie-nous un message sur Snapchat <strong>avant le 6 septembre</strong>.</span></li>
+          <li><span class="tirage-claim-steps__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" /><circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></svg></span><span>On te transmet ton <strong>code gagnant</strong>.</span></li>
+          <li><span class="tirage-claim-steps__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14" /><path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" /><path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5" /><rect x="3" y="7" width="18" height="4" rx="1" /></svg></span><span>Tu présentes ton code pour récupérer ton cadeau.</span></li>
         </ol>
-        <a class="btn-solid tirage-claim-steps__cta" href="https://www.snapchat.com/add/subito_henin" target="_blank" rel="noopener">👻 Envoyer un message sur Snapchat</a>
+        <a class="btn-solid tirage-claim-steps__cta" href="https://www.snapchat.com/add/subito_henin" target="_blank" rel="noopener"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10v1" /><path d="M7.528 20.472a1.6 1.6 0 012.277 0l1.057 1.056a1.6 1.6 0 002.276 0l1.057-1.056a1.6 1.6 0 012.277 0l1.114 1.114a1.4 1.4 0 002.414-1V10a8 8 0 00-16 0v10.586a1.4 1.4 0 002.414 1z" /><path d="M9 10v1" /></svg> Envoyer un message sur Snapchat</a>
       </div>
 
       <div class="tirage-search">
-        <p class="tirage-search__title">🔎 Tu veux savoir si tu as gagné ?</p>
+        <p class="tirage-search__title"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg> Tu veux savoir si tu as gagné ?</p>
         <form id="tirage-search-form" class="tirage-search__form">
           <label class="visually-hidden" for="tirage-search-input">Ton pseudo</label>
           <input type="text" id="tirage-search-input" name="pseudo" placeholder="Entre ton pseudo…" autocomplete="off" required>
@@ -193,17 +196,17 @@
 
       <div class="tirage-results-grid">
         <div class="tirage-results-column">
-          <h3>🍕 2 pizzas XXL — 15 gagnants</h3>
+          <h3><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> 2 pizzas XXL — 15 gagnants</h3>
           <ul id="tirage-list-pizza"></ul>
         </div>
         <div class="tirage-results-column">
-          <h3>🍰 1 tiramisu — 15 gagnants</h3>
+          <h3><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 13H3" /><path d="M16 17H3" /><path d="m7.2 7.9-3.388 2.5A2 2 0 0 0 3 12.01V20a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-8.654c0-2-2.44-6.026-6.44-8.026a1 1 0 0 0-1.082.057L10.4 5.6" /><circle cx="9" cy="7" r="2" /></svg> 1 tiramisu — 15 gagnants</h3>
           <ul id="tirage-list-tiramisu"></ul>
         </div>
       </div>
 
       <div class="tirage-replay-wrap">
-        <button type="button" id="tirage-replay" class="btn-outline">🔁 Revoir le show</button>
+        <button type="button" id="tirage-replay" class="btn-outline"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></svg> Revoir le show</button>
       </div>
     </div>
   </section>
@@ -220,8 +223,8 @@
 </main>
 
 <footer class="site-footer">
-  <p>🍕 Subito Pizza — 📍 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — 📞 <a href="tel:0321200033">03 21 20 00 33</a></p>
-  <p class="site-footer__legal">🥗 Pour votre santé, mangez au moins cinq fruits et légumes par jour. <a href="https://www.mangerbouger.fr" target="_blank" rel="noopener">www.mangerbouger.fr</a> — <a href="faq.html">FAQ</a> — <a href="mentions-legales.html">Mentions légales</a></p>
+  <p><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Subito Pizza — <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /><circle cx="12" cy="10" r="3" /></svg> 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" /></svg> <a href="tel:0321200033">03 21 20 00 33</a></p>
+  <p class="site-footer__legal"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.496 12a2.5 2.5 0 00.399-2.214A2 2 0 0020.32 6.5 2 2 0 0019 3a2 2 0 00-1.5.68 2 2 0 00-3.287.424 2.5 2.5 0 00-3.189 2.06A3 3 0 0012 12l4-4" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M7 21h10" /><path d="M9.85 6.907A3.5 3.5 0 005.05 12" /></svg> Pour votre santé, mangez au moins cinq fruits et légumes par jour. <a href="https://www.mangerbouger.fr" target="_blank" rel="noopener">www.mangerbouger.fr</a> — <a href="faq.html">FAQ</a> — <a href="mentions-legales.html">Mentions légales</a></p>
   <p class="site-footer__signature"><strong>SUBITO PIZZA</strong> — depuis le 1ᵉʳ avril 1999</p>
 </footer>
 

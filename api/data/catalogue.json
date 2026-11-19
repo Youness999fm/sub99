@@ -1,0 +1,2021 @@
+{
+  "schema": 1,
+  "sources": [
+    "menu.html",
+    "supplements.html",
+    "composer.html",
+    "assets/js/cart.js",
+    "assets/js/commercant.js"
+  ],
+  "sizes": [
+    {
+      "name": "Solo",
+      "price_cents": 1100
+    },
+    {
+      "name": "Duo",
+      "price_cents": 1600
+    },
+    {
+      "name": "Quatro",
+      "price_cents": 2300
+    },
+    {
+      "name": "XXL",
+      "price_cents": 3300
+    }
+  ],
+  "products": [
+    {
+      "name": "Végétarienne",
+      "line_name": "Végétarienne",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "poivrons",
+        "champignons",
+        "oignons",
+        "olives"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "poivrons",
+          "champignons",
+          "oignons",
+          "olives"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "3 Jambons",
+      "line_name": "3 Jambons",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "jambon",
+        "mortadelle",
+        "chorizo"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "jambon",
+          "mortadelle",
+          "chorizo"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "4 Saisons",
+      "line_name": "4 Saisons",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "jambon",
+        "champignons",
+        "poivrons",
+        "olives",
+        "artichauts"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "jambon",
+          "champignons",
+          "poivrons",
+          "olives",
+          "artichauts"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Calzone (soufflée)",
+      "line_name": "Calzone (soufflée)",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "jaune d’œuf"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "jaune d’œuf"
+        ],
+        "choice": [
+          "jambon",
+          "thon",
+          "kebab",
+          "viande hachée",
+          "poulet"
+        ]
+      },
+      "choice": {
+        "label": "Garniture au choix",
+        "options": [
+          "jambon",
+          "thon",
+          "kebab",
+          "viande hachée",
+          "poulet"
+        ],
+        "required": true
+      },
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Campione",
+      "line_name": "Campione",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "viande hachée",
+        "champignons"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "viande hachée",
+          "champignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Kebab",
+      "line_name": "Kebab",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "kebab",
+        "oignons"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "kebab",
+          "oignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Napolitaine",
+      "line_name": "Napolitaine",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "anchois",
+        "câpres"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "anchois",
+          "câpres"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Régina",
+      "line_name": "Régina",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "jambon",
+        "champignons"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "jambon",
+          "champignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Chicken",
+      "line_name": "Chicken",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "poulet",
+        "poivrons",
+        "champignons"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "poulet",
+          "poivrons",
+          "champignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Kefta",
+      "line_name": "Kefta",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "oignons",
+        "viande hachée",
+        "oeuf"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "oignons",
+          "viande hachée",
+          "oeuf"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Neptune",
+      "line_name": "Neptune",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "thon",
+        "olives",
+        "oignons"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "thon",
+          "olives",
+          "oignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "4 Fromages",
+      "line_name": "4 Fromages",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "brie",
+        "bleu",
+        "parmesan"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "brie",
+          "bleu",
+          "parmesan"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Carnivora",
+      "line_name": "Carnivora",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "viande hachée",
+        "merguez",
+        "chorizo"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "viande hachée",
+          "merguez",
+          "chorizo"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "L'Extravagante",
+      "line_name": "L'Extravagante",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "jambon",
+        "chorizo",
+        "merguez",
+        "champignons",
+        "oeuf"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "jambon",
+          "chorizo",
+          "merguez",
+          "champignons",
+          "oeuf"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Fruits de mer",
+      "line_name": "Fruits de mer",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "cocktail de fruits de mer",
+        "ail",
+        "persil"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "cocktail de fruits de mer",
+          "ail",
+          "persil"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Orientale",
+      "line_name": "Orientale",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "merguez",
+        "oignons",
+        "poivrons",
+        "oeuf"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "merguez",
+          "oignons",
+          "poivrons",
+          "oeuf"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Pacifico",
+      "line_name": "Pacifico",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "saumon fumé",
+        "crème fraîche"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "saumon fumé",
+          "crème fraîche"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Subito",
+      "line_name": "Subito",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Sauce tomate",
+        "fromage",
+        "viande hachée",
+        "chorizo",
+        "oeuf",
+        "oignons"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "fromage",
+          "viande hachée",
+          "chorizo",
+          "oeuf",
+          "oignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Venezia",
+      "line_name": "Venezia",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "fromage",
+        "saumon fumé"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "fromage",
+          "saumon fumé"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Chèvre miel",
+      "line_name": "Chèvre miel",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "fromage",
+        "fromage de chèvre",
+        "miel"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "fromage",
+          "fromage de chèvre",
+          "miel"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Chicken Chika",
+      "line_name": "Chicken Chika",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "fromage",
+        "poulet",
+        "poivrons",
+        "oignons"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "fromage",
+          "poulet",
+          "poivrons",
+          "oignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Milano",
+      "line_name": "Milano",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "fromage",
+        "jambon",
+        "oignons",
+        "pommes de terre"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "fromage",
+          "jambon",
+          "oignons",
+          "pommes de terre"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Normande",
+      "line_name": "Normande",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "fromage",
+        "bleu",
+        "fromage de chèvre",
+        "parmesan"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "fromage",
+          "bleu",
+          "fromage de chèvre",
+          "parmesan"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Fajitas",
+      "line_name": "Fajitas",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "fromage de chèvre",
+        "viande hachée",
+        "poivrons",
+        "oignons"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "fromage de chèvre",
+          "viande hachée",
+          "poivrons",
+          "oignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Maroilles",
+      "line_name": "Maroilles",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "fromage",
+        "maroilles"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "fromage",
+          "maroilles"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Pollame",
+      "line_name": "Pollame",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "fromage",
+        "jambon",
+        "poulet",
+        "kebab"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "fromage",
+          "jambon",
+          "poulet",
+          "kebab"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Savoyarde",
+      "line_name": "Savoyarde",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "lardons",
+        "pommes de terre",
+        "oignons",
+        "reblochons"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "lardons",
+          "pommes de terre",
+          "oignons",
+          "reblochons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Suisse",
+      "line_name": "Suisse",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Crème fraîche",
+        "jambon",
+        "pommes de terre",
+        "oignons",
+        "fromage à raclette"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "jambon",
+          "pommes de terre",
+          "oignons",
+          "fromage à raclette"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Indienne",
+      "line_name": "Indienne",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Base crème fraîche/curry",
+        "fromage",
+        "poulet",
+        "oignons"
+      ],
+      "availability": {
+        "fixed": [
+          "base crème fraîche/curry",
+          "fromage",
+          "poulet",
+          "oignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Carolina",
+      "line_name": "Carolina",
+      "category": "pizzas",
+      "kind": "pizza",
+      "ingredients": [
+        "Base barbecue",
+        "fromage",
+        "viande hachée",
+        "poivrons"
+      ],
+      "availability": {
+        "fixed": [
+          "base barbecue",
+          "fromage",
+          "viande hachée",
+          "poivrons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": true,
+      "half_flavor": true,
+      "prices_by_size": {
+        "Solo": 1100,
+        "Duo": 1600,
+        "Quatro": 2300,
+        "XXL": 3300
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "menu.html"
+    },
+    {
+      "name": "Bolognaise",
+      "line_name": "Pâtes Bolognaise",
+      "category": "pates",
+      "kind": "product",
+      "ingredients": [
+        "Sauce tomate",
+        "viande hachée",
+        "oignons"
+      ],
+      "availability": {
+        "fixed": [
+          "sauce tomate",
+          "viande hachée",
+          "oignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 850,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "3 fromages",
+      "line_name": "Pâtes 3 fromages",
+      "category": "pates",
+      "kind": "product",
+      "ingredients": [
+        "Crème fraîche",
+        "brie",
+        "bleu",
+        "parmesan"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "brie",
+          "bleu",
+          "parmesan"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 850,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Saumon",
+      "line_name": "Pâtes Saumon",
+      "category": "pates",
+      "kind": "product",
+      "ingredients": [
+        "Crème fraîche",
+        "saumon"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "saumon"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 850,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Carbonara",
+      "line_name": "Pâtes Carbonara",
+      "category": "pates",
+      "kind": "product",
+      "ingredients": [
+        "Crème fraîche",
+        "lardons"
+      ],
+      "availability": {
+        "fixed": [
+          "crème fraîche",
+          "lardons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 850,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Milano",
+      "line_name": "Subitowich Milano",
+      "category": "subitowichs",
+      "kind": "product",
+      "ingredients": [
+        "Fromage",
+        "poulet"
+      ],
+      "availability": {
+        "fixed": [
+          "fromage",
+          "poulet"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 600,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Vesuvio",
+      "line_name": "Subitowich Vesuvio",
+      "category": "subitowichs",
+      "kind": "product",
+      "ingredients": [
+        "Fromage",
+        "viande hachée"
+      ],
+      "availability": {
+        "fixed": [
+          "fromage",
+          "viande hachée"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 600,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "4 fromages",
+      "line_name": "Subitowich 4 fromages",
+      "category": "subitowichs",
+      "kind": "product",
+      "ingredients": [
+        "Fromage",
+        "brie",
+        "bleu",
+        "parmesan"
+      ],
+      "availability": {
+        "fixed": [
+          "fromage",
+          "brie",
+          "bleu",
+          "parmesan"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 600,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Rome",
+      "line_name": "Subitowich Rome",
+      "category": "subitowichs",
+      "kind": "product",
+      "ingredients": [
+        "Fromage",
+        "thon"
+      ],
+      "availability": {
+        "fixed": [
+          "fromage",
+          "thon"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 600,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Venise",
+      "line_name": "Subitowich Venise",
+      "category": "subitowichs",
+      "kind": "product",
+      "ingredients": [
+        "Fromage",
+        "jambon"
+      ],
+      "availability": {
+        "fixed": [
+          "fromage",
+          "jambon"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 600,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Norvégien",
+      "line_name": "Subitowich Norvégien",
+      "category": "subitowichs",
+      "kind": "product",
+      "ingredients": [
+        "Fromage",
+        "saumon fumé"
+      ],
+      "availability": {
+        "fixed": [
+          "fromage",
+          "saumon fumé"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 600,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Kebab",
+      "line_name": "Subitowich Kebab",
+      "category": "subitowichs",
+      "kind": "product",
+      "ingredients": [
+        "Fromage",
+        "kebab"
+      ],
+      "availability": {
+        "fixed": [
+          "fromage",
+          "kebab"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 600,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Wings (5 pièces)",
+      "line_name": "Tex-Mex Wings (5 pièces)",
+      "category": "tex-mex",
+      "kind": "product",
+      "ingredients": [
+        "Ailes de poulet frites"
+      ],
+      "availability": {
+        "fixed": [
+          "ailes de poulet frites",
+          "poulet"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 500,
+      "orderable": true,
+      "price_source": "category_title",
+      "source": "menu.html"
+    },
+    {
+      "name": "Tenders (4 pièces)",
+      "line_name": "Tex-Mex Tenders (4 pièces)",
+      "category": "tex-mex",
+      "kind": "product",
+      "ingredients": [
+        "Aiguillettes de poulet panées"
+      ],
+      "availability": {
+        "fixed": [
+          "aiguillettes de poulet panées",
+          "poulet"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 500,
+      "orderable": true,
+      "price_source": "category_title",
+      "source": "menu.html"
+    },
+    {
+      "name": "Nuggets (4 pièces)",
+      "line_name": "Tex-Mex Nuggets (4 pièces)",
+      "category": "tex-mex",
+      "kind": "product",
+      "ingredients": [
+        "Nuggets de poulet panés"
+      ],
+      "availability": {
+        "fixed": [
+          "nuggets de poulet panés",
+          "poulet"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 500,
+      "orderable": true,
+      "price_source": "category_title",
+      "source": "menu.html"
+    },
+    {
+      "name": "Oignon ring (8 pièces)",
+      "line_name": "Tex-Mex Oignon ring (8 pièces)",
+      "category": "tex-mex",
+      "kind": "product",
+      "ingredients": [
+        "Rondelles d'oignon panées et frites"
+      ],
+      "availability": {
+        "fixed": [
+          "rondelles d'oignon panées et frites",
+          "oignons"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 500,
+      "orderable": true,
+      "price_source": "category_title",
+      "source": "menu.html"
+    },
+    {
+      "name": "Exotique",
+      "line_name": "Salade Exotique",
+      "category": "salades",
+      "kind": "product",
+      "ingredients": [
+        "Salade",
+        "tomates",
+        "oeuf",
+        "crevettes",
+        "maïs"
+      ],
+      "availability": {
+        "fixed": [
+          "salade",
+          "tomates",
+          "oeuf",
+          "crevettes",
+          "maïs"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 750,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Niçoise",
+      "line_name": "Salade Niçoise",
+      "category": "salades",
+      "kind": "product",
+      "ingredients": [
+        "Salade",
+        "tomates",
+        "oeuf",
+        "thon",
+        "pommes de terre"
+      ],
+      "availability": {
+        "fixed": [
+          "salade",
+          "tomates",
+          "oeuf",
+          "thon",
+          "pommes de terre"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 750,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Printanière",
+      "line_name": "Salade Printanière",
+      "category": "salades",
+      "kind": "product",
+      "ingredients": [
+        "Salade",
+        "tomates",
+        "oeuf",
+        "jambon",
+        "fromage"
+      ],
+      "availability": {
+        "fixed": [
+          "salade",
+          "tomates",
+          "oeuf",
+          "jambon",
+          "fromage"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 750,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Di Roma",
+      "line_name": "Salade Di Roma",
+      "category": "salades",
+      "kind": "product",
+      "ingredients": [
+        "Salade",
+        "tomates",
+        "oeuf",
+        "thon",
+        "artichauts"
+      ],
+      "availability": {
+        "fixed": [
+          "salade",
+          "tomates",
+          "oeuf",
+          "thon",
+          "artichauts"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 750,
+      "orderable": true,
+      "price_source": "category_note",
+      "source": "menu.html"
+    },
+    {
+      "name": "Tiramisubito Spéculoos",
+      "line_name": "Dessert Tiramisubito Spéculoos",
+      "category": "desserts",
+      "kind": "product",
+      "ingredients": [
+        "Crème mascarpone",
+        "spéculoos"
+      ],
+      "availability": {
+        "fixed": [
+          "crème mascarpone",
+          "spéculoos"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 350,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Tiramisubito Oreo",
+      "line_name": "Dessert Tiramisubito Oreo",
+      "category": "desserts",
+      "kind": "product",
+      "ingredients": [
+        "Crème mascarpone",
+        "Oreo"
+      ],
+      "availability": {
+        "fixed": [
+          "crème mascarpone",
+          "oreo"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 350,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Tiramisubito M&M's",
+      "line_name": "Dessert Tiramisubito M&M's",
+      "category": "desserts",
+      "kind": "product",
+      "ingredients": [
+        "Crème mascarpone",
+        "M&M's"
+      ],
+      "availability": {
+        "fixed": [
+          "crème mascarpone",
+          "m&m's"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 350,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Calzone Nutella",
+      "line_name": "Dessert Calzone Nutella",
+      "category": "desserts",
+      "kind": "product",
+      "ingredients": [
+        "Pâte à pizza soufflée",
+        "Nutella"
+      ],
+      "availability": {
+        "fixed": [
+          "pâte à pizza soufflée",
+          "nutella"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 650,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Part de Tarte au Daim",
+      "line_name": "Dessert Part de Tarte au Daim",
+      "category": "desserts",
+      "kind": "product",
+      "ingredients": [
+        "Biscuit croustillant",
+        "caramel",
+        "éclats de noisettes",
+        "chocolat au lait"
+      ],
+      "availability": {
+        "fixed": [
+          "biscuit croustillant",
+          "caramel",
+          "éclats de noisettes",
+          "chocolat au lait"
+        ],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 300,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Boisson 33cl",
+      "line_name": "Boisson 33cl",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [
+        "Coca Cola",
+        "Coca Cerise",
+        "Coca Zero",
+        "Oasis Tropical",
+        "Oasis Pomme Cassis Framboise",
+        "Oasis Pomme Poire",
+        "Orangina",
+        "Schweppes Agrumes",
+        "Fanta Orange",
+        "Fanta Citron",
+        "Ice Tea"
+      ],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 150,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Grande bouteille",
+      "line_name": "Boisson Grande bouteille",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [
+        "Coca Cola",
+        "Fanta",
+        "Orangina",
+        "Ice Tea"
+      ],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 300,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Marguerita (base)",
+      "line_name": "Marguerita (base)",
+      "category": "composer",
+      "kind": "pizza",
+      "ingredients": [
+        "fromage"
+      ],
+      "availability": {
+        "fixed": [
+          "fromage"
+        ],
+        "choice": [
+          "sauce tomate",
+          "crème fraîche"
+        ]
+      },
+      "choice": {
+        "label": "Base au choix",
+        "options": [
+          "sauce tomate",
+          "crème fraîche"
+        ],
+        "required": false
+      },
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": {
+        "Solo": 900,
+        "Duo": 1300,
+        "Quatro": 1750,
+        "XXL": 2550
+      },
+      "price_cents": null,
+      "orderable": true,
+      "price_source": "size_chart",
+      "source": "composer.html"
+    }
+  ],
+  "supplement_groups": [
+    {
+      "title": "Légumes et sauces",
+      "names": [
+        "Champignons",
+        "artichauts",
+        "poivrons",
+        "oignons",
+        "câpres",
+        "olives",
+        "sauce barbecue",
+        "sauce curry",
+        "sauce tomate",
+        "crème fraîche",
+        "miel"
+      ],
+      "prices_by_size": {
+        "Solo": 100,
+        "Duo": 150,
+        "Quatro": 250,
+        "XXL": 350
+      },
+      "availability_keys": {
+        "Champignons": [
+          "Champignons"
+        ],
+        "artichauts": [
+          "artichauts"
+        ],
+        "poivrons": [
+          "poivrons"
+        ],
+        "oignons": [
+          "oignons"
+        ],
+        "câpres": [
+          "câpres"
+        ],
+        "olives": [
+          "olives"
+        ],
+        "sauce barbecue": [
+          "sauce barbecue"
+        ],
+        "sauce curry": [
+          "sauce curry"
+        ],
+        "sauce tomate": [
+          "sauce tomate"
+        ],
+        "crème fraîche": [
+          "crème fraîche"
+        ],
+        "miel": [
+          "miel"
+        ]
+      }
+    },
+    {
+      "title": "Viandes, poissons et fromages",
+      "names": [
+        "Viande hachée",
+        "mortadelle",
+        "merguez",
+        "chorizo",
+        "kebab",
+        "jambon",
+        "lardons",
+        "poulet",
+        "anchois",
+        "thon",
+        "parmesan",
+        "brie",
+        "chèvre",
+        "bleu",
+        "reblochon"
+      ],
+      "prices_by_size": {
+        "Solo": 150,
+        "Duo": 200,
+        "Quatro": 300,
+        "XXL": 400
+      },
+      "availability_keys": {
+        "Viande hachée": [
+          "Viande hachée"
+        ],
+        "mortadelle": [
+          "mortadelle"
+        ],
+        "merguez": [
+          "merguez"
+        ],
+        "chorizo": [
+          "chorizo"
+        ],
+        "kebab": [
+          "kebab"
+        ],
+        "jambon": [
+          "jambon"
+        ],
+        "lardons": [
+          "lardons"
+        ],
+        "poulet": [
+          "poulet"
+        ],
+        "anchois": [
+          "anchois"
+        ],
+        "thon": [
+          "thon"
+        ],
+        "parmesan": [
+          "parmesan"
+        ],
+        "brie": [
+          "brie"
+        ],
+        "chèvre": [
+          "chèvre",
+          "fromage de chèvre"
+        ],
+        "bleu": [
+          "bleu"
+        ],
+        "reblochon": [
+          "reblochon",
+          "reblochons"
+        ]
+      }
+    }
+  ],
+  "zones": [
+    {
+      "city": "Hénin-Beaumont",
+      "minimum_cents": 1000,
+      "fee_cents": 550
+    },
+    {
+      "city": "Montigny-en-Gohelle",
+      "minimum_cents": 1500,
+      "fee_cents": 550
+    },
+    {
+      "city": "Dourges",
+      "minimum_cents": 1500,
+      "fee_cents": 550
+    },
+    {
+      "city": "Noyelles-Godault",
+      "minimum_cents": 1500,
+      "fee_cents": 550
+    },
+    {
+      "city": "Courrières",
+      "minimum_cents": 2000,
+      "fee_cents": 800
+    },
+    {
+      "city": "Billy-Montigny",
+      "minimum_cents": 2000,
+      "fee_cents": 800
+    },
+    {
+      "city": "Fouquières-lès-Lens",
+      "minimum_cents": 2500,
+      "fee_cents": 800
+    },
+    {
+      "city": "Rouvroy",
+      "minimum_cents": 2500,
+      "fee_cents": 800
+    }
+  ],
+  "notes": [
+    "« Tex-Mex Wings (5 pièces) » : prix lu dans le titre de catégorie « Nos Tex-Mex à 5 € » (la note de prix ne contient pas de prix), comme le fait cart.js ; 5,00 € par article au choix du client, validé par le propriétaire le 19/11/2026 (« Au choix » se lit avec le titre).",
+    "« Tex-Mex Tenders (4 pièces) » : prix lu dans le titre de catégorie « Nos Tex-Mex à 5 € » (la note de prix ne contient pas de prix), comme le fait cart.js ; 5,00 € par article au choix du client, validé par le propriétaire le 19/11/2026 (« Au choix » se lit avec le titre).",
+    "« Tex-Mex Nuggets (4 pièces) » : prix lu dans le titre de catégorie « Nos Tex-Mex à 5 € » (la note de prix ne contient pas de prix), comme le fait cart.js ; 5,00 € par article au choix du client, validé par le propriétaire le 19/11/2026 (« Au choix » se lit avec le titre).",
+    "« Tex-Mex Oignon ring (8 pièces) » : prix lu dans le titre de catégorie « Nos Tex-Mex à 5 € » (la note de prix ne contient pas de prix), comme le fait cart.js ; 5,00 € par article au choix du client, validé par le propriétaire le 19/11/2026 (« Au choix » se lit avec le titre)."
+  ]
+}

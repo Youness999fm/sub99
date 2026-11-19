@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /commercant/
+Disallow: /reports/
+Disallow: /tests/
+Disallow: /.claude/
+Disallow: /subito-popup/
 
 Sitemap: https://www.subito-pizza-heninbeaumont.fr/sitemap.xml

@@ -2,7 +2,7 @@ import { WINNERS, PIZZA_WINNERS, TIRAMISU_WINNERS, PRIZES, STATS, validateWinner
 import { detectQualityTier } from './state.js';
 import { soundEngine } from './audio.js';
 import { ParticleField } from './particles.js';
-import { RevealEngine } from './reveal.js';
+import { RevealEngine, prizeIconHtml } from './reveal.js';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -22,20 +22,20 @@ function renderResultsList() {
   const tiramisuList = $('tirage-list-tiramisu');
   if (pizzaList) {
     pizzaList.innerHTML = PIZZA_WINNERS.map((pseudo, i) =>
-      `<li><span class="tirage-list__rank">${i + 1}</span><span class="tirage-list__pseudo">${pseudo}</span><span class="tirage-list__prize">🍕🍕 2 pizzas XXL</span></li>`
+      `<li><span class="tirage-list__rank">${i + 1}</span><span class="tirage-list__pseudo">${pseudo}</span><span class="tirage-list__prize">${SubitoIcons.svg('pizza')}${SubitoIcons.svg('pizza')} 2 pizzas XXL</span></li>`
     ).join('');
   }
   if (tiramisuList) {
     tiramisuList.innerHTML = TIRAMISU_WINNERS.map((pseudo, i) =>
-      `<li><span class="tirage-list__rank">${i + 1}</span><span class="tirage-list__pseudo">${pseudo}</span><span class="tirage-list__prize">🍰 1 tiramisu</span></li>`
+      `<li><span class="tirage-list__rank">${i + 1}</span><span class="tirage-list__pseudo">${pseudo}</span><span class="tirage-list__prize">${SubitoIcons.svg('cake-slice')} 1 tiramisu</span></li>`
     ).join('');
   }
 }
 
 function shareText(winner) {
   const base = winner.prize === 'pizza'
-    ? "J'ai gagné 2 pizzas XXL chez Subito Pizza Hénin-Beaumont 🍕🍕🔥"
-    : "J'ai gagné un tiramisu chez Subito Pizza Hénin-Beaumont 🍰❤️";
+    ? "J'ai gagné 2 pizzas XXL chez Subito Pizza Hénin-Beaumont"
+    : "J'ai gagné un tiramisu chez Subito Pizza Hénin-Beaumont";
   return `${base} — ${location.href.split('#')[0]}`;
 }
 
@@ -69,7 +69,7 @@ function renderSearchResult(query) {
   if (!winner) {
     resultEl.innerHTML = `
       <div class="tirage-result-card tirage-result-card--miss">
-        <p class="tirage-result-card__title">Pas de chance cette fois-ci 😔</p>
+        <p class="tirage-result-card__title">Pas de chance cette fois-ci ${SubitoIcons.svg('frown')}</p>
         <p>Ce pseudo ne fait pas partie des 30 gagnants du tirage — mais merci d'avoir participé, sincèrement !</p>
         <p>Pour se rattraper un peu : l'offre <strong>1 pizza achetée = 1 offerte</strong> à emporter reste valable, tous les jours.</p>
       </div>`;
@@ -79,12 +79,12 @@ function renderSearchResult(query) {
   const prize = PRIZES[winner.prize];
   resultEl.innerHTML = `
     <div class="tirage-result-card tirage-result-card--win tirage-result-card--${winner.prize}">
-      <p class="tirage-result-card__eyebrow">🎉 C'est toi !</p>
+      <p class="tirage-result-card__eyebrow">${SubitoIcons.svg('party-popper')} C'est toi !</p>
       <p class="tirage-result-card__pseudo">${winner.pseudo}</p>
-      <p class="tirage-result-card__prize">${prize.emoji} Tu as gagné ${prize.label} !</p>
-      <p class="tirage-result-card__claim">📲 Envoie-nous un message sur Snapchat <strong>avant le 6 septembre</strong> pour recevoir ton code gagnant.</p>
+      <p class="tirage-result-card__prize">${prizeIconHtml(winner.prize)} Tu as gagné ${prize.label} !</p>
+      <p class="tirage-result-card__claim">${SubitoIcons.svg('smartphone')} Envoie-nous un message sur Snapchat <strong>avant le 6 septembre</strong> pour recevoir ton code gagnant.</p>
       <div class="tirage-result-card__actions">
-        <a class="btn-solid" href="https://www.snapchat.com/add/subito_henin" target="_blank" rel="noopener">👻 Message sur Snapchat</a>
+        <a class="btn-solid" href="https://www.snapchat.com/add/subito_henin" target="_blank" rel="noopener">${SubitoIcons.svg('ghost')} Message sur Snapchat</a>
         <button type="button" class="btn-outline tirage-share-btn">Partager ma victoire</button>
       </div>
     </div>`;
@@ -176,7 +176,8 @@ async function boot() {
     const warn = $('tirage-data-warning');
     if (warn) {
       warn.hidden = false;
-      warn.textContent = `⚠️ Contrôle des gagnants en échec : ${check.errors.join(' ')}`;
+      warn.innerHTML = `${SubitoIcons.svg('triangle-alert', '1em', 'subito-icon--warn')} `;
+      warn.append(`Contrôle des gagnants en échec : ${check.errors.join(' ')}`);
     }
     console.error('[Grand Tirage] Contrôle des données gagnants échoué :', check.errors);
   }
@@ -193,7 +194,9 @@ async function boot() {
   function syncSoundToggle() {
     if (!soundToggle) return;
     soundToggle.setAttribute('aria-pressed', String(soundEngine.isEnabled));
-    soundToggle.textContent = soundEngine.isEnabled ? '🔊 Son activé' : '🔇 Son coupé';
+    soundToggle.innerHTML = soundEngine.isEnabled
+      ? `${SubitoIcons.svg('volume-2')} Son activé`
+      : `${SubitoIcons.svg('volume-x')} Son coupé`;
   }
   if (soundToggle) {
     syncSoundToggle();
@@ -286,7 +289,7 @@ async function boot() {
     await sleep(900);
     if (cancelled) { soundEngine.stopRumble(rumble); return; }
 
-    falseEndingText.textContent = '… OU PAS 👀';
+    falseEndingText.innerHTML = `… OU PAS ${SubitoIcons.svg('eye')}`;
     soundEngine.stinger(0.9);
     particleField?.setIntensity(0.2);
     await sleep(1300);
@@ -441,7 +444,7 @@ async function boot() {
       clicks += 1;
       if (clicks === 5) {
         signature.setAttribute('data-secret', '1');
-        announce('Merci d\'avoir vécu Le Grand Tirage jusqu\'au bout. 🍕');
+        announce('Merci d\'avoir vécu Le Grand Tirage jusqu\'au bout.');
       }
     });
   }

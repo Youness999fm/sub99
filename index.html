@@ -24,8 +24,12 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
 <link rel="stylesheet" href="assets/css/style.css">
 <link rel="stylesheet" href="assets/css/cart.css">
+<link rel="stylesheet" href="assets/css/order-launch.css">
 <script src="assets/js/main.js" defer></script>
+<script src="assets/js/account.js" defer></script>
+<script src="assets/js/icons.js" defer></script>
 <script src="assets/js/cart.js" defer></script>
+<script src="assets/js/order-launch.js" defer></script>
 <script>
   try {
     if (sessionStorage.getItem('subitoIntroSeen') === '1') {
@@ -78,7 +82,7 @@
     { "@type": "City", "name": "Fouquières-lès-Lens" },
     { "@type": "City", "name": "Rouvroy" }
   ],
-  "paymentAccepted": "Cash, Credit Card",
+  "paymentAccepted": "Cash, Credit Card, Ticket Restaurant",
   "accessibilityFeature": "wheelchairAccessible",
   "amenityFeature": {
     "@type": "LocationFeatureSpecification",
@@ -120,7 +124,7 @@
 
 <header class="site-header">
   <div class="site-header__top">
-    <a class="site-header__badge site-header__badge--hashtag" href="reseaux.html" aria-label="Partagez vos photos avec le hashtag SubitoPizza">
+    <a class="site-header__badge site-header__badge--hashtag" href="reseaux.html">
       <span class="hashtag-bubble" aria-hidden="true">#</span>
       <span class="site-header__badge-text">#SUBITOPIZZA<small>Partagez vos photos</small></span>
     </a>
@@ -129,7 +133,7 @@
       <img src="assets/img/logo.jpg" alt="Subito Pizza">
     </a>
 
-    <a class="site-header__badge site-header__badge--social" href="reseaux.html" aria-label="Suivez-nous sur nos réseaux sociaux">
+    <a class="site-header__badge site-header__badge--social" href="reseaux.html">
       <span class="site-header__badge-icon" aria-hidden="true">
         <svg viewBox="0 0 44 44" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="22" fill="#1877F2"/><path d="M24 14h2.5v-3.5h-2.7c-2.8 0-4.6 1.7-4.6 4.6v2.4h-2.7v3.9h2.7V31h4.1v-9.6h2.8l.5-3.9h-3.3v-2c0-1 .3-1.5 1.7-1.5z" fill="#fff"/></svg>
         <svg viewBox="0 0 44 44" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="igGradHdr" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#FED576"/><stop offset="26%" stop-color="#F47133"/><stop offset="61%" stop-color="#BC3081"/><stop offset="100%" stop-color="#4C63D2"/></radialGradient></defs><circle cx="22" cy="22" r="22" fill="url(#igGradHdr)"/><rect x="13" y="13" width="18" height="18" rx="6" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="22" cy="22" r="5" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="28.5" cy="15.5" r="1.6" fill="#fff"/></svg>
@@ -147,6 +151,7 @@
     <li><a class="site-nav__link" href="menu.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21 3 6a18 18 0 0 1 18 0Z"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></span>Menu</a></li>
     <li><a class="site-nav__link" href="avis.html#ecrire-avis"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1-5.4 3.1 1.3-6-4.6-4.1 6.1-.6L12 3Z"/></svg></span>Avis clients</a></li>
     <li><a class="site-nav__link" href="reseaux.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="5.5" r="2.2"/><circle cx="18" cy="18.5" r="2.2"/><path d="M8 10.8 16 6.7M8 13.2l8 4.1"/></svg></span>Nos réseaux</a></li>
+    <li><a class="site-nav__link" href="compte.html"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></span>Mon compte</a></li>
   </ul>
 </nav>
 
@@ -158,7 +163,7 @@
     <div class="hero__inner">
       <p class="hero__eyebrow">Pizzeria · Hénin-Beaumont · <span class="hero__eyebrow-counter" id="hero-year-counter-wrap">+<span id="year-counter">27</span> ans</span></p>
       <div class="hero__text">
-        <p class="hero__promo-badge">🍕 1 pizza achetée = 1 pizza offerte<span>À emporter, sur toutes les tailles</span></p>
+        <p class="hero__promo-badge"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> 1 pizza achetée = 1 pizza offerte<span>À emporter, sur toutes les tailles</span></p>
         <h1 class="hero__title">Subito Pizza : l'art de la pizza,<br>servi avec <em>passion</em>.</h1>
         <p class="hero__subtitle">Subito Pizza fait vivre une tradition portée par la passion et le savoir-faire, pizza après pizza.</p>
         <div class="order-status" id="order-status">
@@ -174,12 +179,12 @@
           <span class="visually-hidden" id="order-status-sr" role="status"></span>
         </div>
         <div class="hero__actions">
-          <a href="tel:0321200033" class="btn-solid">📞 03 21 20 00 33</a>
+          <a href="tel:0321200033" class="btn-solid"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" /></svg> 03 21 20 00 33</a>
           <a href="menu.html" class="btn-outline">Découvrir le menu</a>
         </div>
         <div class="hero__meta">
-          <span>🕒 Ouvert 7j/7 · 18h–23h</span>
-          <span>🛵 Livraison 19h–22h</span>
+          <span><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg> Ouvert 7j/7 · 18h–23h</span>
+          <span><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18.5" cy="17.5" r="3.5" /><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="15" cy="5" r="1" /><path d="M12 17.5V14l-3-3 4-3 2 3h2" /></svg> Livraison 19h–22h</span>
         </div>
       </div>
       <div class="hero__showcase">
@@ -198,9 +203,42 @@
 
   <section class="promo-highlight" aria-label="Offres en cours">
     <p class="promo-highlight__eyebrow">★ Notre offre signature ★</p>
-    <p class="promo-highlight__main">🍕 1 pizza achetée = 1 offerte<small>Sur toutes les tailles, à emporter</small></p>
+    <p class="promo-highlight__main"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> 1 pizza achetée = 1 offerte<small>Sur toutes les tailles, à emporter</small></p>
     <p class="promo-highlight__secondary">— ou 2ème pizza à −50% en livraison —</p>
     <p class="promo-highlight__legal">Offre cumulable sans limite dans la même commande. Pour chaque paire, la pizza la moins chère est offerte à l'emporter, ou à −50% en livraison.</p>
+  </section>
+
+  <section class="order-launch reveal reveal--feature" aria-label="Commandez en ligne">
+    <p class="order-launch__eyebrow">★ Nouveau ★</p>
+    <h2 class="order-launch__title">Commandez en ligne</h2>
+    <p class="order-launch__text">Composez votre commande directement depuis le site et venez simplement la récupérer — plus besoin d'attendre au téléphone. Un compte gratuit suffit, ça prend 30 secondes.</p>
+    <div class="order-launch__steps">
+      <div class="order-launch__step">
+        <span class="order-launch__step-num" aria-hidden="true">1</span>
+        <div class="order-launch__step-body">
+          <p class="order-launch__step-title">Créez un compte</p>
+          <p class="order-launch__step-text">Juste un email et un mot de passe</p>
+        </div>
+      </div>
+      <div class="order-launch__step">
+        <span class="order-launch__step-num" aria-hidden="true">2</span>
+        <div class="order-launch__step-body">
+          <p class="order-launch__step-title">Composez votre commande</p>
+          <p class="order-launch__step-text">Toute la carte, vos options</p>
+        </div>
+      </div>
+      <div class="order-launch__step">
+        <span class="order-launch__step-num" aria-hidden="true">3</span>
+        <div class="order-launch__step-body">
+          <p class="order-launch__step-title">Récupérez-la</p>
+          <p class="order-launch__step-text">Payez sur place, au retrait</p>
+        </div>
+      </div>
+    </div>
+    <div class="order-launch__actions">
+      <a class="btn-solid" href="compte.html">Créer mon compte</a>
+      <a class="btn-outline" href="menu.html">Voir la carte</a>
+    </div>
   </section>
 
   <section class="call-section call-section--tight">
@@ -227,26 +265,43 @@
     <p class="access-note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="17" cy="5" r="1.6" fill="currentColor" stroke="none"/><path d="M11 8h6M9.5 21l2.5-8-3-2 1-3.5L15 9l1.5 3H20"/><circle cx="10" cy="18" r="3.2"/></svg> Restaurant accessible aux personnes à mobilité réduite</p>
   </section>
 
-  <section class="delivery-section" id="zone-livraison">
+  <section class="delivery-section reveal reveal--feature" id="zone-livraison">
+    <p class="delivery-section__eyebrow">★ Livraison ★</p>
     <h2 class="section-title">Notre zone de livraison</h2>
-    <p class="delivery-section__note">🍕 En livraison : 1 pizza achetée, la 2ème à −50%.</p>
+    <p class="delivery-section__intro"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18.5" cy="17.5" r="3.5" /><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="15" cy="5" r="1" /><path d="M12 17.5V14l-3-3 4-3 2 3h2" /></svg> Livrée chaude chez vous tous les jours de 19h à 22h. Repérez le minimum de commande pour votre ville ci-dessous.</p>
     <div class="delivery-grid">
       <div class="delivery-tier">
         <p class="delivery-tier__price">10 €<span>minimum</span></p>
         <p class="delivery-tier__cities">Hénin-Beaumont</p>
+        <p class="delivery-tier__fee">Frais : 5,50 € sans pizza</p>
       </div>
       <div class="delivery-tier">
         <p class="delivery-tier__price">15 €<span>minimum</span></p>
         <p class="delivery-tier__cities">Montigny-en-Gohelle, Dourges, Noyelles-Godault</p>
+        <p class="delivery-tier__fee">Frais : 5,50 € sans pizza</p>
       </div>
       <div class="delivery-tier">
         <p class="delivery-tier__price">20 €<span>minimum</span></p>
         <p class="delivery-tier__cities">Courrières, Billy-Montigny</p>
+        <p class="delivery-tier__fee">Frais : 8 € sans pizza</p>
       </div>
       <div class="delivery-tier">
         <p class="delivery-tier__price">25 €<span>minimum</span></p>
         <p class="delivery-tier__cities">Fouquières-lès-Lens, Rouvroy</p>
+        <p class="delivery-tier__fee">Frais : 8 € sans pizza</p>
       </div>
+    </div>
+    <p class="delivery-section__note"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14" /><path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" /><path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5" /><rect x="3" y="7" width="18" height="4" rx="1" /></svg> En livraison : 1 pizza achetée, la 2ème à −50 % — cumulable sans limite dans la même commande.</p>
+    <p class="delivery-section__fees">Commande sans pizza (pâtes, paninis, boissons…) : les frais de livraison indiqués ci-dessus s'ajoutent. Dès qu'une pizza est dans la commande, pas de frais de livraison.</p>
+    <div class="delivery-section__cta">
+      <a href="tel:0321200033" class="call-button">
+        <span class="call-button__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1.1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.5 21 3 13.5 3 4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.2 1.1L6.6 10.8Z"/></svg></span>
+        <span class="call-button__text">
+          <span class="call-button__label">Commander en livraison</span>
+          <span class="call-button__number">03 21 20 00 33</span>
+        </span>
+      </a>
+      <p class="delivery-section__soon"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /><path d="M9 18h6" /><path d="M10 22h4" /></svg> La commande en ligne pour la livraison arrive bientôt, avec votre compte — pour l'instant, un appel suffit.</p>
     </div>
   </section>
 
@@ -262,7 +317,7 @@
   </section>
 
   <section class="faq-teaser">
-    <a class="btn-outline" href="faq.html">❓ Voir toutes les questions fréquentes</a>
+    <a class="btn-outline" href="faq.html"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M9 9.5a3 2.5 0 016 0c0 2-2 2-3 3.5" /><path d="M12 17h.01" /></svg> Voir toutes les questions fréquentes</a>
   </section>
 
   <section class="gallery-section">
@@ -275,29 +330,29 @@
       bouton pour qu'ils pointent vers le fichier image réel.
     -->
     <div class="gallery-grid">
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/pizza-1.jpg" data-lightbox-alt="Pizzas — shooting photo en cours">
-        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Pizzas<br>📸 Shooting en cours</span></div>
+      <button class="gallery-grid__item" type="button" data-lightbox-alt="Pizzas — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Pizzas<br><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></svg> Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/pizza-2.jpg" data-lightbox-alt="Pizzas — shooting photo en cours">
-        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Pizzas<br>📸 Shooting en cours</span></div>
+      <button class="gallery-grid__item" type="button" data-lightbox-alt="Pizzas — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Pizzas<br><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></svg> Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/restaurant-1.jpg" data-lightbox-alt="Restaurant — shooting photo en cours">
-        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Restaurant<br>📸 Shooting en cours</span></div>
+      <button class="gallery-grid__item" type="button" data-lightbox-alt="Restaurant — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Restaurant<br><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></svg> Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/restaurant-2.jpg" data-lightbox-alt="Restaurant — shooting photo en cours">
-        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Restaurant<br>📸 Shooting en cours</span></div>
+      <button class="gallery-grid__item" type="button" data-lightbox-alt="Restaurant — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Restaurant<br><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></svg> Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/equipe-1.jpg" data-lightbox-alt="Équipe — shooting photo en cours">
-        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Équipe<br>📸 Shooting en cours</span></div>
+      <button class="gallery-grid__item" type="button" data-lightbox-alt="Équipe — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Équipe<br><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></svg> Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/equipe-2.jpg" data-lightbox-alt="Équipe — shooting photo en cours">
-        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Équipe<br>📸 Shooting en cours</span></div>
+      <button class="gallery-grid__item" type="button" data-lightbox-alt="Équipe — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Équipe<br><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></svg> Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/ingredients.jpg" data-lightbox-alt="Ingrédients — shooting photo en cours">
-        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Ingrédients<br>📸 Shooting en cours</span></div>
+      <button class="gallery-grid__item" type="button" data-lightbox-alt="Ingrédients — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Ingrédients<br><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></svg> Shooting en cours</span></div>
       </button>
-      <button class="gallery-grid__item" type="button" data-lightbox-src="assets/img/placeholders/dessert.jpg" data-lightbox-alt="Desserts — shooting photo en cours">
-        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Desserts<br>📸 Shooting en cours</span></div>
+      <button class="gallery-grid__item" type="button" data-lightbox-alt="Desserts — shooting photo en cours">
+        <div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-1.8a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4L16 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z"/><circle cx="12" cy="13" r="3.4"/></svg><span>Desserts<br><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></svg> Shooting en cours</span></div>
       </button>
     </div>
   </section>
@@ -306,17 +361,17 @@
     <h2 class="section-title">Ce que disent nos clients</h2>
     <article class="review-card">
       <p class="review-card__stars">★★★★★</p>
-      <p class="review-card__author">Dorothée Huret<span class="review-card__date">Avis Google — juin 2026</span></p>
+      <p class="review-card__author">Dorothée H.<span class="review-card__date">Avis Google — juin 2026</span></p>
       <p class="review-card__text">« Nous y allons depuis l'heure ouverture il y a quelques années. Toujours aussi excellent. »</p>
-      <p class="review-card__reply"><strong>🍕 Réponse de Subito Pizza —</strong> Merci pour votre fidélité depuis toutes ces années, ça nous touche beaucoup !</p>
-      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google ↗</a>
+      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Réponse de Subito Pizza —</strong> Merci pour votre fidélité depuis toutes ces années, ça nous touche beaucoup !</p>
+      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg></a>
     </article>
     <article class="review-card">
       <p class="review-card__stars">★★★★★</p>
-      <p class="review-card__author">Samir Bouslama<span class="review-card__date">Avis Google — juillet 2025</span></p>
+      <p class="review-card__author">Samir B.<span class="review-card__date">Avis Google — juillet 2025</span></p>
       <p class="review-card__text">« La meilleure pizza du 62 et 59 confondus. Depuis que je suis enfant je mange ici et jamais déçu, client depuis plus de 20 ans. »</p>
-      <p class="review-card__reply"><strong>🍕 Réponse de Subito Pizza —</strong> Merci infiniment pour votre fidélité depuis tant d'années, c'est un plaisir de vous servir !</p>
-      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google ↗</a>
+      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Réponse de Subito Pizza —</strong> Merci infiniment pour votre fidélité depuis tant d'années, c'est un plaisir de vous servir !</p>
+      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg></a>
     </article>
     <div class="reviews-cta">
       <a class="btn-solid" href="avis.html">Voir tous les avis</a>
@@ -364,10 +419,21 @@
 </div>
 
 <footer class="site-footer">
-  <p>🍕 Subito Pizza — 📍 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — 📞 <a href="tel:0321200033">03 21 20 00 33</a></p>
-  <p class="site-footer__legal">🥗 Pour votre santé, mangez au moins cinq fruits et légumes par jour. <a href="https://www.mangerbouger.fr" target="_blank" rel="noopener">www.mangerbouger.fr</a> — <a href="faq.html">FAQ</a> — <a href="mentions-legales.html">Mentions légales</a></p>
+  <p><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Subito Pizza — <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /><circle cx="12" cy="10" r="3" /></svg> 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" /></svg> <a href="tel:0321200033">03 21 20 00 33</a></p>
+  <p class="site-footer__legal"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.496 12a2.5 2.5 0 00.399-2.214A2 2 0 0020.32 6.5 2 2 0 0019 3a2 2 0 00-1.5.68 2 2 0 00-3.287.424 2.5 2.5 0 00-3.189 2.06A3 3 0 0012 12l4-4" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M7 21h10" /><path d="M9.85 6.907A3.5 3.5 0 005.05 12" /></svg> Pour votre santé, mangez au moins cinq fruits et légumes par jour. <a href="https://www.mangerbouger.fr" target="_blank" rel="noopener">www.mangerbouger.fr</a> — <a href="faq.html">FAQ</a> — <a href="mentions-legales.html">Mentions légales</a></p>
   <p class="site-footer__signature"><strong>SUBITO PIZZA</strong> — depuis le 1ᵉʳ avril 1999</p>
 </footer>
+
+<div class="order-popup-overlay" id="orderPopupOverlay" hidden>
+  <div class="order-popup" role="dialog" aria-modal="true" aria-labelledby="orderPopupTitle">
+    <button type="button" class="order-popup__close" id="orderPopupClose" aria-label="Fermer">✕</button>
+    <span class="order-popup__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg></span>
+    <h2 class="order-popup__title" id="orderPopupTitle">Commandez en ligne dès maintenant</h2>
+    <p class="order-popup__text">Créez votre compte en 30 secondes et composez votre commande directement depuis le site — plus besoin d'attendre au téléphone.</p>
+    <a class="btn-solid order-popup__cta" href="compte.html">Créer mon compte</a>
+    <button type="button" class="order-popup__dismiss" id="orderPopupDismiss">Continuer sans commander</button>
+  </div>
+</div>
 
 </body>
 </html>

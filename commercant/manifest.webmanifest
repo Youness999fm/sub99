@@ -1,0 +1,14 @@
+{
+  "name": "Subito Pizza — Commerçant",
+  "short_name": "Commerçant",
+  "start_url": "/commercant/",
+  "scope": "/commercant/",
+  "display": "standalone",
+  "theme_color": "#0E3B27",
+  "background_color": "#FBF7F0",
+  "lang": "fr",
+  "icons": [
+    { "src": "../assets/img/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../assets/img/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

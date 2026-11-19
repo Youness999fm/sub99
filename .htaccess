@@ -1,3 +1,23 @@
+# ---------- Protections (memes regles que api/.htaccess) ----------
+# Pas de liste des dossiers.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Validation HTTPS (Let's Encrypt) : /.well-known/ n'est jamais bloque.
+  RewriteCond %{REQUEST_URI} !^/\.well-known/
+  # Fichiers et dossiers caches, configuration, documentation, sauvegardes.
+  RewriteRule (^|/)\. - [F,L]
+  RewriteRule (^|/)config[^/]*$ - [F,L]
+  RewriteRule \.(md|bak|old|orig|swp|sql|log)$ - [F,L]
+  RewriteRule ~$ - [F,L]
+</IfModule>
+
+# Seconde barriere, meme sans mod_rewrite.
+<FilesMatch "^(\..*|config.*|.*\.(md|bak|old|orig|swp|sql|log)|.*~)$">
+  Require all denied
+</FilesMatch>
+
 ErrorDocument 404 /404.html
 
 # ---------- Compression (réduit le poids transféré de HTML/CSS/JS/SVG) ----------

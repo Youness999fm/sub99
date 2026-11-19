@@ -3,10 +3,16 @@
    Vanilla JS, aucune dépendance. Chargé sur toutes les pages (même
    pattern que subito-popup.js : un script autonome, une IIFE).
 
-   Important : ceci N'EST PAS une commande en ligne. Le panier sert
-   uniquement à préparer un récapitulatif que le client transmet
-   lui-même par téléphone (ou en le copiant). Rien n'est envoyé au
-   restaurant automatiquement — voir le bandeau dans le récapitulatif.
+   Le panier envoie une vraie commande en ligne au restaurant (voir
+   submitOrder()/startOnlineOrder() plus bas), via l'API /api/ — il
+   faut être connecté (voir account.js/compte.html) pour commander.
+   L'appel téléphonique reste proposé en solution de repli, affiché
+   à côté du bouton "Commander".
+
+   Important, tant que le backend (/api/) n'est pas en ligne : l'envoi
+   échoue proprement avec un message clair invitant à appeler à la
+   place — voir orderSubmitError(). Rien ne doit jamais prétendre
+   qu'une commande est partie si l'API n'a pas confirmé.
 
    Les prix viennent toujours du DOM de la page (prix affiché sur la
    fiche produit, note de prix de la catégorie, ou grille des tailles)
@@ -19,6 +25,7 @@ const SUBITO_CART_CONFIG = {
   storageKey: "subito_cart_v1",
   phone: "0321200033",
   phoneDisplay: "03 21 20 00 33",
+  apiBase: "/api/",
   debug: false
 };
 
@@ -71,7 +78,7 @@ const SUBITO_CART_CONFIG = {
           name: l.name,
           variant: l.variant || "",
           basePrice: typeof l.basePrice === "number" ? l.basePrice : (l.unitPrice || 0),
-          qty: l.qty || 1,
+          qty: Math.max(1, parseInt(l.qty, 10) || 1),
           removed: Array.isArray(l.removed) ? l.removed : [],
           extras: Array.isArray(l.extras) ? l.extras : [],
           half: l.half || null,
@@ -83,17 +90,23 @@ const SUBITO_CART_CONFIG = {
     }
   }
 
+  // Renvoie false si le navigateur refuse l'écriture (stockage bloqué, quota
+  // dépassé) : l'appelant ne doit alors rien annoncer comme « ajouté ».
   function saveCart(cart) {
     try {
       localStorage.setItem(SUBITO_CART_CONFIG.storageKey, JSON.stringify(cart));
+      return true;
     } catch (e) {
       log("localStorage indisponible : le panier ne sera pas conservé.");
+      return false;
     }
   }
 
   function writeCart(cart) {
-    saveCart(cart);
+    dropSettledAttempts();
+    const saved = saveCart(cart);
     renderAll();
+    return saved;
   }
 
   function extrasTotal(line) {
@@ -115,9 +128,8 @@ const SUBITO_CART_CONFIG = {
   // plus bas : dans chaque paire, la moins chère est offerte. Un supplément
   // ajouté sur une pizza ne peut donc jamais réduire la remise, seulement
   // l'augmenter ou rester neutre — jamais de total modifié en défaveur du
-  // client. Hors périmètre volontaire : la livraison (−50 % 2ᵉ pizza) n'est
-  // pas calculée ici, demande explicite de l'utilisateur ("on le travaille
-  // après").
+  // client. La promo livraison (−50 % 2ᵉ pizza) n'est
+  // pas calculée ici : elle a sa propre fonction, pizzaPromoDelivery(), plus bas.
   function pizzaUnitPrices(cart) {
     const prices = [];
     cart.forEach(function (line) {
@@ -139,8 +151,161 @@ const SUBITO_CART_CONFIG = {
     return { pizzaCount: prices.length, freeCount: freeCount, discount: discount, hasLeftover: prices.length % 2 === 1 };
   }
 
-  function cartTotal(cart) {
-    return cartGrossTotal(cart) - pizzaPromo(cart).discount;
+  // Pendant de pizzaPromo() pour la livraison : "1 pizza achetée, la 2ème à
+  // −50 %" (pas offerte à 100 % comme à l'emporter — mention déjà publiée
+  // sur index.html/menu.html). Même appariement (plus chère payée pleine,
+  // moins chère de la paire à moitié prix) pour ne jamais pénaliser le
+  // client sur un supplément ajouté.
+  function pizzaPromoDelivery(cart) {
+    const prices = pizzaUnitPrices(cart).slice().sort(function (a, b) { return b - a; });
+    let discount = 0;
+    let halfPriceCount = 0;
+    for (let i = 0; i + 1 < prices.length; i += 2) {
+      discount += prices[i + 1] * 0.5;
+      halfPriceCount++;
+    }
+    return { pizzaCount: prices.length, halfPriceCount: halfPriceCount, discount: discount, hasLeftover: prices.length % 2 === 1 };
+  }
+
+  function cartTotalDelivery(cart) {
+    return cartGrossTotal(cart) - pizzaPromoDelivery(cart).discount;
+  }
+
+  // Zones de livraison et minimum de commande par ville (mêmes données que
+  // la section "Notre zone de livraison" d'index.html — source unique ici
+  // pour que le panier et la fiche "Mon compte" lisent toujours le même
+  // barème, jamais deux listes dupliquées qui pourraient diverger).
+  // `fee` : frais de livraison facturés uniquement si la commande ne contient
+  // aucune pizza — une pizza dans le panier rend la livraison offerte.
+  const DELIVERY_ZONES = [
+    { city: "Hénin-Beaumont", minimum: 10, fee: 5.5 },
+    { city: "Montigny-en-Gohelle", minimum: 15, fee: 5.5 },
+    { city: "Dourges", minimum: 15, fee: 5.5 },
+    { city: "Noyelles-Godault", minimum: 15, fee: 5.5 },
+    { city: "Courrières", minimum: 20, fee: 8 },
+    { city: "Billy-Montigny", minimum: 20, fee: 8 },
+    { city: "Fouquières-lès-Lens", minimum: 25, fee: 8 },
+    { city: "Rouvroy", minimum: 25, fee: 8 }
+  ];
+  window.SUBITO_DELIVERY_ZONES = DELIVERY_ZONES;
+
+  function findDeliveryZone(city) {
+    if (!city) return null;
+    return DELIVERY_ZONES.find(function (z) { return z.city === city; }) || null;
+  }
+
+  // Mode de retrait sélectionné dans le tiroir du panier : "pickup" (par
+  // défaut) ou "delivery". Remis à "pickup" à chaque chargement de page —
+  // sauf aller-retour volontaire par compte.html (connexion ou ajout
+  // d'adresse), où il est restauré via sessionStorage (voir plus bas).
+  let orderMode = "pickup";
+
+  function activePromo(cart) {
+    return orderMode === "delivery" ? pizzaPromoDelivery(cart) : pizzaPromo(cart);
+  }
+
+  function activeCartTotal(cart) {
+    return cartGrossTotal(cart) - activePromo(cart).discount;
+  }
+
+  function hasPizza(cart) {
+    return cart.some(function (line) { return sizeRank(line.variant) !== -1; });
+  }
+
+  // Ville du compte client, mise à jour par renderDeliveryStatus() : permet de
+  // calculer les frais de livraison de façon synchrone (totaux, récapitulatifs,
+  // payload) sans relancer une requête compte à chaque rendu.
+  let deliveryCity = null;
+
+  function deliveryFee(cart) {
+    if (orderMode !== "delivery" || hasPizza(cart)) return 0;
+    const zone = findDeliveryZone(deliveryCity);
+    return zone ? zone.fee : 0;
+  }
+
+  // Total payé par le client : produits (après promo) + frais de livraison éventuels.
+  // Le minimum de commande, lui, reste calculé sur activeCartTotal() seul.
+  function activeGrandTotal(cart) {
+    return activeCartTotal(cart) + deliveryFee(cart);
+  }
+
+  function renderBarTotal(cart) {
+    const el = document.getElementById("cartBarTotal");
+    if (el) el.textContent = formatPrice(activeGrandTotal(cart));
+  }
+
+  // Moyens de paiement à la livraison : mêmes 4 libellés/icônes que la
+  // section "Moyens de paiement acceptés" d'index.html (carte bancaire,
+  // espèces, ticket restaurant papier, carte ticket restaurant — bien deux
+  // choses différentes, le resto accepte les deux). Demandé uniquement en
+  // livraison : à emporter, le client paie sur place sans avoir besoin de
+  // le préciser à l'avance.
+  const PAYMENT_METHODS = [
+    { id: "card", label: "Carte bancaire", icon: "credit-card" },
+    { id: "cash", label: "Espèces", icon: "banknote" },
+    { id: "ticket", label: "Ticket Restaurant", icon: "ticket" },
+    { id: "ticket_card", label: "Carte Ticket Restaurant", icon: "wallet" }
+  ];
+  // Billets courants : pour que le livreur sache combien de monnaie
+  // préparer à l'avance — pour des raisons de sécurité, il ne part pas
+  // avec des espèces sur lui et ne peut pas rendre la monnaie sur place.
+  const CASH_NOTES = [10, 20, 50, 100];
+
+  let paymentMethods = []; // ex. ["cash", "ticket_card"] : plusieurs moyens possibles, dans l'ordre de PAYMENT_METHODS
+  let cashChangeFor = null; // montant du billet (ex. 20) ; 0 = appoint exact ; null = pas encore choisi (seulement si "cash" est coché)
+
+  function paymentMethodHtml() {
+    const cashBlock = paymentMethods.indexOf("cash") !== -1
+      ? '<div class="payment-method__sub">' +
+          '<p class="payment-method__title">Vous réglez avec un billet de <span class="account-optional">(pour que le livreur prépare la monnaie — il ne garde pas d’espèces sur lui)</span></p>' +
+          '<div class="payment-method__options">' +
+            CASH_NOTES.map(function (note) {
+              return '<button type="button" class="payment-method__btn' + (cashChangeFor === note ? " is-active" : "") + '" data-change="' + note + '">' + note + ' €</button>';
+            }).join("") +
+            '<button type="button" class="payment-method__btn' + (cashChangeFor === 0 ? " is-active" : "") + '" data-change="0">Appoint exact</button>' +
+          '</div>' +
+        '</div>'
+      : "";
+    return (
+      '<div class="payment-method">' +
+        '<p class="payment-method__title">' + SubitoIcons.svg("credit-card") + ' Moyens de paiement à la livraison</p>' +
+        '<p class="payment-method__hint">Vous pouvez en choisir plusieurs, par exemple espèces et carte ticket restaurant.</p>' +
+        '<div class="payment-method__options">' +
+          PAYMENT_METHODS.map(function (m) {
+            return '<button type="button" class="payment-method__btn' + (paymentMethods.indexOf(m.id) !== -1 ? " is-active" : "") + '" aria-pressed="' + (paymentMethods.indexOf(m.id) !== -1 ? "true" : "false") + '" data-method="' + m.id + '">' + SubitoIcons.svg(m.icon) + " " + m.label + '</button>';
+          }).join("") +
+        '</div>' +
+        cashBlock +
+      '</div>'
+    );
+  }
+
+  // Coche ou décoche un moyen de paiement (plusieurs possibles). L'ordre reste
+  // celui de PAYMENT_METHODS, pas celui des clics : affichage et envoi identiques.
+  function togglePaymentMethod(id) {
+    const selected = paymentMethods.indexOf(id) === -1
+      ? paymentMethods.concat([id])
+      : paymentMethods.filter(function (m) { return m !== id; });
+    paymentMethods = PAYMENT_METHODS.map(function (m) { return m.id; }).filter(function (m) { return selected.indexOf(m) !== -1; });
+    // Le montant du billet ne concerne que les espèces : sans elles, il est oublié.
+    if (paymentMethods.indexOf("cash") === -1) cashChangeFor = null;
+  }
+
+  function wirePaymentMethodEvents() {
+    const container = document.querySelector(".payment-method");
+    if (!container) return;
+    container.querySelectorAll("[data-method]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        togglePaymentMethod(btn.getAttribute("data-method"));
+        renderDrawerExtra(sortedCart());
+      });
+    });
+    container.querySelectorAll("[data-change]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        cashChangeFor = parseInt(btn.getAttribute("data-change"), 10);
+        renderDrawerExtra(sortedCart());
+      });
+    });
   }
 
   function cartCount(cart) {
@@ -181,6 +346,8 @@ const SUBITO_CART_CONFIG = {
   // demande libre) se regroupent (qty++) ; la moindre différence reste deux
   // lignes séparées — voir buildLineId().
   function addLine(config) {
+    // Pendant l'envoi, le panier est figé : un article ajouté maintenant ne serait ni commandé ni vidé proprement.
+    if (orderBusy) { showToast("Commande en cours d’envoi : ajoutez cet article après la réponse."); return; }
     const name = config.name;
     const basePrice = config.basePrice;
     if (!name || typeof basePrice !== "number" || isNaN(basePrice)) {
@@ -200,7 +367,10 @@ const SUBITO_CART_CONFIG = {
     } else {
       cart.push({ id: id, name: name, variant: variant, basePrice: basePrice, qty: 1, removed: removed, extras: extras, half: half, note: note });
     }
-    writeCart(cart);
+    if (!writeCart(cart)) {
+      showToast("Impossible d’ajouter cet article : votre navigateur bloque le panier. Appelez-nous au " + SUBITO_CART_CONFIG.phoneDisplay + ".");
+      return;
+    }
     showToast((variant ? name + " (" + variant + ")" : name) + " ajouté ✓");
     bumpBar();
   }
@@ -242,6 +412,7 @@ const SUBITO_CART_CONFIG = {
   // impression de lag même quand tout fonctionnait. On met à jour le
   // stockage et seulement la ligne concernée + le pied (totaux/promo).
   function setQty(id, qty) {
+    if (orderBusy) { showToast("Commande en cours d’envoi : modifiez votre panier après la réponse."); return; }
     const cart = readCart();
     if (qty <= 0) {
       writeCart(cart.filter(function (l) { return l.id !== id; }));
@@ -255,6 +426,7 @@ const SUBITO_CART_CONFIG = {
   }
 
   function removeItem(id) {
+    if (orderBusy) { showToast("Commande en cours d’envoi : modifiez votre panier après la réponse."); return; }
     const cart = readCart().filter(function (l) { return l.id !== id; });
     writeCart(cart);
   }
@@ -266,7 +438,7 @@ const SUBITO_CART_CONFIG = {
   /* ---------- Toast d'ajout ---------- */
 
   let toastTimer = null;
-  function showToast(message) {
+  function showToast(message, isHtml) {
     let toast = document.getElementById("cartToast");
     if (!toast) {
       toast = document.createElement("div");
@@ -275,7 +447,7 @@ const SUBITO_CART_CONFIG = {
       toast.setAttribute("role", "status");
       document.body.appendChild(toast);
     }
-    toast.textContent = message;
+    if (isHtml) toast.innerHTML = message; else toast.textContent = message;
     toast.classList.remove("is-visible");
     void toast.offsetWidth;
     toast.classList.add("is-visible");
@@ -364,6 +536,32 @@ const SUBITO_CART_CONFIG = {
     return out;
   }
 
+  // Garniture à choisir (calzone) : la fiche écrit "Garniture au choix : jambon,
+  // thon… ou poulet" dans un span .menu-item__choice. Ce n'est PAS une liste
+  // d'ingrédients à retirer, c'est le choix obligatoire du client : on le lit à
+  // part, et seuls les ingrédients fixes restent dans "Sans".
+  function readMenuItemIngredients(item) {
+    const el = item.querySelector(".menu-item__ingredients");
+    if (!el) return { ingredients: [], choice: null };
+    const copy = el.cloneNode(true);
+    const choiceEl = copy.querySelector(".menu-item__choice");
+    let choice = null;
+    if (choiceEl) {
+      const raw = choiceEl.textContent;
+      const colon = raw.indexOf(":");
+      choice = {
+        label: (colon === -1 ? raw : raw.slice(0, colon)).trim(),
+        options: parseIngredients(colon === -1 ? "" : raw.slice(colon + 1))
+      };
+      choiceEl.remove();
+    }
+    return { ingredients: parseIngredients(copy.textContent), choice: choice };
+  }
+
+  function capitalizeFirst(text) {
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  }
+
   // Liste des pizzas réellement présentes sur CETTE page (menu.html : tout
   // #pizzas ; vegetarien.html : pas de section #pizzas, mais la page entière
   // est une sélection de pizzas) — jamais une liste écrite en dur, pour que
@@ -375,8 +573,8 @@ const SUBITO_CART_CONFIG = {
       const nameEl = item.querySelector(".menu-item__name");
       const ownPrice = item.querySelector(".menu-item__price");
       if (!nameEl || ownPrice) return; // un prix propre = pas une pizza (taille)
-      const ingredientsEl = item.querySelector(".menu-item__ingredients");
-      catalog.push({ name: nameEl.textContent.trim(), ingredients: parseIngredients(ingredientsEl ? ingredientsEl.textContent : "") });
+      if (item.hasAttribute("data-no-half")) return; // calzone : jamais un parfum de moitié-moitié
+      catalog.push({ name: nameEl.textContent.trim(), ingredients: readMenuItemIngredients(item).ingredients });
     });
     return catalog;
   }
@@ -486,14 +684,23 @@ const SUBITO_CART_CONFIG = {
   // mention déjà présente sur le site — "À partir de la taille Duo,
   // possibilité de moitié-moitié"), retraits d'ingrédients, suppléments
   // (prix réels par taille), demande libre.
-  function buildPizzaWidget(productName, ingredients, sizes, pizzaCatalog) {
+  function buildPizzaWidget(productName, ingredients, sizes, pizzaCatalog, options) {
     const wrap = document.createElement("div");
     wrap.className = "pizza-widget";
 
     // --- État partagé par tout le widget ---
+    const opts = options || {};
+    const allowHalf = opts.allowHalf !== false; // calzone : jamais de moitié-moitié
+    const choice = opts.choice || null; // { label, options } : garniture obligatoire (calzone)
     let size = null; // {label, price}
     let halfOn = false;
     let half2 = "";
+    let filler = ""; // garniture choisie ("" tant que rien n'est choisi)
+    // Garniture obligatoire : tant qu'elle manque, rien ne part au panier.
+    function missingFiller() { return !!choice && !filler; }
+    // La garniture fait partie du nom de la ligne : deux garnitures = deux lignes
+    // distinctes, visibles partout (panier, récap, commande, suivi) sans changer le format.
+    function displayName() { return choice && filler ? productName + " — " + capitalizeFirst(filler) : productName; }
     const removed = [];
     const extras = []; // {name, price, qty, group}
     let loadedGroups = []; // suppléments résolus pour la taille affichée
@@ -519,6 +726,46 @@ const SUBITO_CART_CONFIG = {
       sizeRow.appendChild(b);
     });
 
+    // --- Garniture à choisir (calzone) : obligatoire, affichée dès qu'une taille est choisie ---
+    let fillerRow = null;
+    let fillerHint = null;
+    const fillerButtons = [];
+    if (choice) {
+      fillerRow = document.createElement("div");
+      fillerRow.className = "pizza-widget__filler";
+      fillerRow.hidden = true;
+      const fillerTitle = document.createElement("p");
+      fillerTitle.className = "customize__title";
+      fillerTitle.textContent = choice.label + " (obligatoire)";
+      const fillerChips = document.createElement("div");
+      fillerChips.className = "customize__chips";
+      choice.options.forEach(function (opt) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "pizza-widget__filler-btn";
+        b.textContent = capitalizeFirst(opt);
+        b.setAttribute("aria-pressed", "false");
+        b.addEventListener("click", function () {
+          filler = opt;
+          fillerButtons.forEach(function (el) {
+            el.classList.remove("is-active");
+            el.setAttribute("aria-pressed", "false");
+          });
+          b.classList.add("is-active");
+          b.setAttribute("aria-pressed", "true");
+          refresh();
+        });
+        fillerButtons.push(b);
+        fillerChips.appendChild(b);
+      });
+      fillerHint = document.createElement("p");
+      fillerHint.className = "customize__hint";
+      fillerHint.textContent = "Choisissez une garniture pour pouvoir l’ajouter au panier.";
+      fillerRow.appendChild(fillerTitle);
+      fillerRow.appendChild(fillerChips);
+      fillerRow.appendChild(fillerHint);
+    }
+
     // --- Barre d'action, visible une fois une taille choisie ---
     const actionRow = document.createElement("div");
     actionRow.className = "pizza-widget__actions";
@@ -529,8 +776,8 @@ const SUBITO_CART_CONFIG = {
     quickAddBtn.className = "pizza-widget__quickadd";
     quickAddBtn.textContent = "Ajouter telle quelle";
     quickAddBtn.addEventListener("click", function () {
-      if (!size) return;
-      addItem(productName, size.label, size.price);
+      if (!size || missingFiller()) return;
+      addItem(displayName(), size.label, size.price);
     });
 
     const toggle = document.createElement("button");
@@ -563,7 +810,7 @@ const SUBITO_CART_CONFIG = {
     const halfCheckbox = document.createElement("input");
     halfCheckbox.type = "checkbox";
     halfLabel.appendChild(halfCheckbox);
-    halfLabel.appendChild(document.createTextNode(" 🍕🍕 Moitié-moitié (deux parfums différents)"));
+    halfLabel.insertAdjacentHTML("beforeend", " " + SubitoIcons.svg("pizza") + SubitoIcons.svg("pizza") + " Moitié-moitié (deux parfums différents)");
     const halfHint = document.createElement("p");
     halfHint.className = "customize__hint";
     halfHint.textContent = "Disponible à partir de la taille Duo.";
@@ -600,7 +847,7 @@ const SUBITO_CART_CONFIG = {
     removeSection.className = "customize__section";
     const removeTitle = document.createElement("p");
     removeTitle.className = "customize__title";
-    removeTitle.textContent = "✂️ Sans (retirer un ingrédient)";
+    removeTitle.innerHTML = SubitoIcons.svg("scissors") + " Sans (retirer un ingrédient)";
     removeSection.appendChild(removeTitle);
     const removeChipsHolder = document.createElement("div");
     removeSection.appendChild(removeChipsHolder);
@@ -618,6 +865,11 @@ const SUBITO_CART_CONFIG = {
           other.ingredients.forEach(function (ing) { if (list.indexOf(ing) === -1) list.push(ing); });
         }
       }
+      // "Compose ta pizza" (base Marguerita) démarre sans aucun ingrédient
+      // listé — rien à retirer. Sans ceci, la section "Sans" s'affichait
+      // avec son titre mais aucune puce en dessous, comme un bloc vide
+      // cassé plutôt qu'une section qui ne s'applique simplement pas ici.
+      removeSection.hidden = list.length === 0;
       const sig = list.slice().sort().join("|");
       if (sig === removeChipsSignature) return;
       removeChipsSignature = sig;
@@ -634,7 +886,7 @@ const SUBITO_CART_CONFIG = {
     extrasSection.hidden = true;
     const extrasTitle = document.createElement("p");
     extrasTitle.className = "customize__title";
-    extrasTitle.textContent = "➕ Suppléments";
+    extrasTitle.innerHTML = SubitoIcons.svg("plus") + " Suppléments";
     extrasSection.appendChild(extrasTitle);
     const extrasHolder = document.createElement("div");
     extrasSection.appendChild(extrasHolder);
@@ -659,6 +911,15 @@ const SUBITO_CART_CONFIG = {
           extrasHolder.innerHTML = '<p class="customize__hint">Suppléments indisponibles pour le moment.</p>';
           return;
         }
+        // Un supplément déjà coché garde le prix de l'ancienne taille si on change de taille :
+        // on le recale sur la taille affichée, et on le retire s'il n'a pas de prix pour elle.
+        for (let i = extras.length - 1; i >= 0; i--) {
+          const owner = groups.find(function (g) { return g.names.indexOf(extras[i].name) !== -1; });
+          const newPrice = owner ? owner.pricesBySize[size.label] : undefined;
+          if (newPrice === undefined) extras.splice(i, 1);
+          else extras[i].price = newPrice;
+        }
+        refresh();
         extrasHolder.innerHTML = "";
         groups.forEach(function (group) {
           const price = group.pricesBySize[size.label];
@@ -700,7 +961,7 @@ const SUBITO_CART_CONFIG = {
     const noteId = "customizeNote" + (++customizeIdCounter);
     const noteSection = document.createElement("div");
     noteSection.className = "customize__section";
-    noteSection.innerHTML = '<label class="customize__title" for="' + noteId + '">💬 Autre demande (facultatif)</label>';
+    noteSection.innerHTML = '<label class="customize__title" for="' + noteId + '">' + SubitoIcons.svg("message-square") + ' Autre demande (facultatif)</label>';
     const noteInput = document.createElement("input");
     noteInput.id = noteId;
     noteInput.type = "text";
@@ -723,8 +984,9 @@ const SUBITO_CART_CONFIG = {
     addBtn.textContent = "Ajouter au panier";
 
     addBtn.addEventListener("click", function () {
+      if (!size || missingFiller()) return;
       addLine({
-        name: productName,
+        name: displayName(),
         variant: size.label,
         basePrice: size.price,
         removed: removed.slice(),
@@ -738,7 +1000,7 @@ const SUBITO_CART_CONFIG = {
       // Pas de catalogue de parfums sur cette page (ex. composer.html, qui ne
       // propose que la base Marguerita) : impossible de proposer une
       // deuxième moitié réelle, donc pas de section plutôt qu'une liste vide.
-      if (!pizzaCatalog.length) {
+      if (!allowHalf || !pizzaCatalog.length) {
         halfSection.hidden = true;
       } else {
         // La section reste visible dès qu'une taille est choisie (même
@@ -748,6 +1010,11 @@ const SUBITO_CART_CONFIG = {
         const canHalf = !!size && SIZE_ORDER.indexOf(size.label) >= 1; // Duo, Quatro, XXL
         halfSection.hidden = !size;
         halfCheckbox.disabled = !canHalf;
+        // La case à cocher seule ne se distinguait pas visuellement d'une
+        // case active une fois désactivée (ex. taille Solo) : le client
+        // tapait dessus, rien ne se passait, et pensait à un bug plutôt
+        // qu'à une option indisponible pour cette taille.
+        halfLabel.classList.toggle("is-disabled", !canHalf);
         halfHint.hidden = !size || canHalf;
         if (!canHalf && halfOn) {
           halfOn = false;
@@ -767,9 +1034,10 @@ const SUBITO_CART_CONFIG = {
       if (!size) {
         parts.push("Choisissez une taille pour continuer.");
       } else {
-        let label = productName + " (" + size.label + ")";
+        let label = displayName() + " (" + size.label + ")";
         if (halfOn && half2) label = productName + " / " + half2 + " (" + size.label + ")";
         parts.push(label);
+        if (missingFiller()) parts.push("Choisissez une garniture pour continuer.");
         if (removed.length) parts.push("Sans : " + removed.join(", "));
         const discountedExtras = applySwapDiscount(removed, extras, loadedGroups);
         if (discountedExtras.length) {
@@ -783,9 +1051,14 @@ const SUBITO_CART_CONFIG = {
       }
       summary.textContent = parts.join(" — ");
 
-      const blocked = !size || (halfOn && !half2);
+      const blocked = !size || (halfOn && !half2) || missingFiller();
       addBtn.disabled = blocked;
-      addBtn.title = !size ? "Choisissez une taille" : (halfOn && !half2 ? "Choisissez la deuxième moitié" : "");
+      addBtn.title = !size ? "Choisissez une taille" : (halfOn && !half2 ? "Choisissez la deuxième moitié" : (missingFiller() ? "Choisissez une garniture" : ""));
+      quickAddBtn.disabled = !size || missingFiller();
+      if (fillerRow) {
+        fillerRow.hidden = !size;
+        fillerHint.hidden = !missingFiller();
+      }
     }
 
     panel.appendChild(halfSection);
@@ -798,6 +1071,7 @@ const SUBITO_CART_CONFIG = {
     refresh();
 
     wrap.appendChild(sizeRow);
+    if (fillerRow) wrap.appendChild(fillerRow);
     wrap.appendChild(actionRow);
     wrap.appendChild(panel);
     return wrap;
@@ -832,14 +1106,14 @@ const SUBITO_CART_CONFIG = {
     const removed = [];
     const removeSection = document.createElement("div");
     removeSection.className = "customize__section";
-    removeSection.innerHTML = '<p class="customize__title">✂️ Sans (retirer un ingrédient)</p>';
+    removeSection.innerHTML = '<p class="customize__title">' + SubitoIcons.svg("scissors") + ' Sans (retirer un ingrédient)</p>';
     const chips = chipRow("Sans", ingredients, removed);
     chips.addEventListener("customize:change", refresh);
     removeSection.appendChild(chips);
 
     const noteSection = document.createElement("div");
     noteSection.className = "customize__section";
-    noteSection.innerHTML = '<p class="customize__title">💬 Autre demande (facultatif)</p>';
+    noteSection.innerHTML = '<p class="customize__title">' + SubitoIcons.svg("message-square") + ' Autre demande (facultatif)</p>';
     const noteInput = document.createElement("input");
     noteInput.type = "text";
     noteInput.className = "customize__note";
@@ -887,7 +1161,7 @@ const SUBITO_CART_CONFIG = {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "add-to-cart__btn";
-    btn.textContent = "Ajouter 🛒";
+    btn.innerHTML = "Ajouter " + SubitoIcons.svg("shopping-cart");
 
     const stepper = document.createElement("div");
     stepper.className = "add-to-cart__stepper";
@@ -945,8 +1219,8 @@ const SUBITO_CART_CONFIG = {
       if (!nameEl) return;
       const name = nameEl.textContent.trim();
       const body = item.querySelector(".menu-item__body") || item;
-      const ingredientsEl = item.querySelector(".menu-item__ingredients");
-      const ingredients = parseIngredients(ingredientsEl ? ingredientsEl.textContent : "");
+      const parsed = readMenuItemIngredients(item);
+      const ingredients = parsed.ingredients;
 
       const ownPriceEl = item.querySelector(".menu-item__price");
       const category = item.closest(".menu-category");
@@ -976,7 +1250,8 @@ const SUBITO_CART_CONFIG = {
       }
 
       if (sizeChart.length) {
-        body.appendChild(buildPizzaWidget(name, ingredients, sizeChart, pizzaCatalog));
+        const choice = parsed.choice && parsed.choice.options.length ? parsed.choice : null;
+        body.appendChild(buildPizzaWidget(name, ingredients, sizeChart, pizzaCatalog, { allowHalf: !item.hasAttribute("data-no-half"), choice: choice }));
         return;
       }
 
@@ -1010,7 +1285,7 @@ const SUBITO_CART_CONFIG = {
     bar.hidden = true;
     bar.innerHTML =
       '<button type="button" class="cart-bar__btn" id="cartBarOpen" aria-label="Voir mon panier">' +
-        '<span class="cart-bar__icon" aria-hidden="true">🛒</span>' +
+        '<span class="cart-bar__icon" aria-hidden="true">' + SubitoIcons.svg("shopping-cart") + '</span>' +
         '<span class="cart-bar__info">' +
           '<span class="cart-bar__label">Mon panier · <span id="cartBarCount">0</span></span>' +
           '<span class="cart-bar__total" id="cartBarTotal">0,00 €</span>' +
@@ -1025,7 +1300,7 @@ const SUBITO_CART_CONFIG = {
   /* ---------- Panier = récapitulatif (un seul panneau) ----------
      Pas d'étape intermédiaire "panier" puis "commande" : ouvrir le panier
      affiche directement le récapitulatif, modifiable (quantités, suppression)
-     et prêt à transmettre (appel / copie) — demande explicite du client. */
+     et prêt à être transmis (appel, ou « Envoyer à quelqu’un ») — demande explicite du client. */
 
   // div.innerHTML n'échappe que &/</> (jamais les guillemets, qui n'ont pas
   // besoin de l'être dans du contenu texte) — insuffisant pour une valeur
@@ -1076,7 +1351,7 @@ const SUBITO_CART_CONFIG = {
     overlay.innerHTML =
       '<div class="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle" tabindex="-1">' +
         '<div class="cart-drawer__header">' +
-          '<h2 id="cartDrawerTitle">🛒 Mon récapitulatif</h2>' +
+          '<h2 id="cartDrawerTitle">' + SubitoIcons.svg("shopping-cart") + ' Mon panier</h2>' +
           '<button type="button" class="cart-drawer__close" id="cartDrawerClose" aria-label="Fermer">✕</button>' +
         '</div>' +
         '<div class="cart-drawer__body" id="cartDrawerBody"></div>' +
@@ -1097,7 +1372,7 @@ const SUBITO_CART_CONFIG = {
     const cart = sortedCart();
 
     if (!cart.length) {
-      body.innerHTML = '<p class="cart-drawer__empty">Votre panier est vide pour le moment — parcourez la carte et ajoutez vos envies 🍕</p>';
+      body.innerHTML = '<p class="cart-drawer__empty">Votre panier est vide pour le moment — parcourez la carte et ajoutez vos envies ' + SubitoIcons.svg("pizza") + '</p>';
       footer.innerHTML = "";
       return;
     }
@@ -1130,7 +1405,7 @@ const SUBITO_CART_CONFIG = {
             '<button type="button" class="cart-line__inc" aria-label="Augmenter la quantité">+</button>' +
           '</div>' +
           '<p class="cart-line__subtotal">' + formatPrice(sub) + '</p>' +
-          '<button type="button" class="cart-line__remove" aria-label="Retirer cet article">🗑</button>' +
+          '<button type="button" class="cart-line__remove" aria-label="Retirer cet article">' + SubitoIcons.svg("trash-2") + '</button>' +
         '</div>'
       );
     }).join("") + '<div class="cart-drawer__extra" id="cartDrawerExtra"></div>';
@@ -1161,7 +1436,7 @@ const SUBITO_CART_CONFIG = {
     renderStickyFooter(cart);
   }
 
-  // Bloc secondaire (sous-total, promo, nudge, copier/envoyer, mentions,
+  // Bloc secondaire (sous-total, promo, nudge, envoyer, mentions,
   // vider le panier) : affiché À LA SUITE de la liste des pizzas, à
   // l'intérieur de la zone qui défile. Avant, tout ça vivait dans un pied
   // fixe toujours affiché, qui prenait plus de la moitié de l'écran sur
@@ -1172,34 +1447,53 @@ const SUBITO_CART_CONFIG = {
     const extra = document.getElementById("cartDrawerExtra");
     if (!extra) return;
 
-    const promo = pizzaPromo(cart);
+    const promo = activePromo(cart);
     const gross = cartGrossTotal(cart);
+    const isDelivery = orderMode === "delivery";
     let promoHtml = "";
     if (promo.discount > 0) {
       promoHtml =
         '<div class="cart-drawer__subtotal"><span>Sous-total</span><span>' + formatPrice(gross) + '</span></div>' +
-        '<div class="cart-drawer__promo"><span>🎁 1 pizza achetée = 1 offerte (à emporter)</span><span>−' + formatPrice(promo.discount) + '</span></div>';
+        '<div class="cart-drawer__promo"><span>' + (isDelivery ? SubitoIcons.svg("bike") + " 1 pizza achetée, la 2ème à −50 % (livraison)" : SubitoIcons.svg("gift") + " 1 pizza achetée = 1 offerte (à emporter)") + '</span><span>−' + formatPrice(promo.discount) + '</span></div>';
     }
     const nudgeHtml = promo.hasLeftover
-      ? '<p class="cart-drawer__nudge">🎁 Ajoutez encore 1 pizza : elle sera offerte (1 achetée = 1 offerte, à emporter) !</p>'
+      ? '<p class="cart-drawer__nudge">' + (isDelivery ? SubitoIcons.svg("bike") + " Ajoutez encore 1 pizza : la 2ème sera à −50 % (livraison) !" : SubitoIcons.svg("gift") + " Ajoutez encore 1 pizza : elle sera offerte (1 achetée = 1 offerte, à emporter) !") + '</p>'
       : "";
+    const pickupDisclaimer = isDelivery ? "" : '<p class="checkout-disclaimer">' + SubitoIcons.svg("lightbulb") + ' Ce total correspond à une commande à emporter. Pour une livraison, choisissez "Livraison" ci-dessus.</p>';
 
     extra.innerHTML =
+      '<div class="order-mode-toggle" role="group" aria-label="Mode de retrait">' +
+        '<button type="button" class="order-mode-toggle__btn' + (isDelivery ? "" : " is-active") + '" data-mode="pickup">' + SubitoIcons.svg("shopping-bag") + ' À emporter</button>' +
+        '<button type="button" class="order-mode-toggle__btn' + (isDelivery ? " is-active" : "") + '" data-mode="delivery">' + SubitoIcons.svg("bike") + ' Livraison</button>' +
+      '</div>' +
+      '<div id="deliveryStatus" role="status"></div>' +
+      (isDelivery ? paymentMethodHtml() : "") +
       promoHtml +
       nudgeHtml +
-      '<div class="checkout-actions">' +
-        '<div class="checkout-actions__row">' +
-          '<button type="button" class="btn-outline" id="checkoutCopy">📋 Copier</button>' +
-          (typeof navigator.share === "function" ? '<button type="button" class="btn-outline" id="checkoutShare">📤 Envoyer à quelqu’un</button>' : "") +
-        '</div>' +
-      '</div>' +
-      '<p class="checkout-disclaimer">😄 Petite précision utile : ce bouton n’envoie rien tout seul, ce n’est pas une commande en ligne. C’est juste votre antisèche pour ne rien oublier au téléphone — à vous de jouer, le resto est au bout du fil !</p>' +
-      '<p class="checkout-disclaimer">💡 Ce total correspond à une commande à emporter. Pour une livraison, appelez-nous directement : le tarif est différent.</p>' +
+      (typeof navigator.share === "function"
+        ? '<div class="checkout-actions"><div class="checkout-actions__row"><button type="button" class="btn-outline" id="checkoutShare">' + SubitoIcons.svg("share-2") + ' Envoyer à quelqu’un</button></div></div>'
+        : "") +
+      '<p class="checkout-disclaimer">' + SubitoIcons.svg("smile") + ' Le paiement se fait sur place' + (isDelivery ? ", à la livraison" : ", au retrait") + ' — rien à régler en ligne.</p>' +
+      pickupDisclaimer +
       '<button type="button" class="cart-drawer__clear" id="cartDrawerClear">Vider le panier</button>';
 
-    document.getElementById("checkoutCopy").addEventListener("click", function () {
-      copyToClipboard(buildRecapText());
+    extra.querySelectorAll(".order-mode-toggle__btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const mode = btn.getAttribute("data-mode");
+        if (mode === orderMode) return;
+        orderMode = mode;
+        const sorted = sortedCart();
+        renderDrawerExtra(sorted);
+        renderStickyFooter(sorted);
+        renderBarTotal(sorted);
+      });
     });
+
+    if (isDelivery) {
+      renderDeliveryStatus(cart);
+      wirePaymentMethodEvents();
+    }
+
     const shareBtn = document.getElementById("checkoutShare");
     if (shareBtn) {
       shareBtn.addEventListener("click", function () {
@@ -1209,26 +1503,587 @@ const SUBITO_CART_CONFIG = {
       });
     }
     document.getElementById("cartDrawerClear").addEventListener("click", function () {
+      if (orderBusy) { showToast("Commande en cours d’envoi : videz le panier après la réponse."); return; }
       if (window.confirm("Vider tout le panier ?")) clearCart();
     });
   }
 
-  // Pied fixe, toujours visible : juste le total et l'appel, l'essentiel
-  // pour passer commande. Volontairement minimal pour laisser un maximum
-  // de hauteur d'écran à la liste des pizzas au-dessus.
+  // Affiche, sous la bascule de mode, si la livraison est possible pour ce
+  // client : pas connecté → invite à se connecter ; connecté sans adresse
+  // → invite à l'ajouter ; adresse hors zone, ou minimum de sa ville pas
+  // atteint → message clair ; sinon confirmation. Asynchrone (lit le
+  // compte) donc affiché à part, sans bloquer le reste du rendu du tiroir.
+  function renderDeliveryStatus(cart) {
+    const el = document.getElementById("deliveryStatus");
+    if (!el) return;
+    if (!window.SubitoAccount) {
+      el.innerHTML = '<p class="delivery-status delivery-status--error">Service de commande indisponible pour l’instant.</p>';
+      return;
+    }
+    el.innerHTML = '<p class="delivery-status delivery-status--pending">Vérification de votre adresse…</p>';
+    window.SubitoAccount.me().then(function (session) {
+      // Le tiroir a pu se refermer, se re-rendre, ou repasser en "à
+      // emporter" pendant l'attente : on revérifie avant de toucher au DOM.
+      const current = document.getElementById("deliveryStatus");
+      if (!current || orderMode !== "delivery") return;
+      deliveryCity = session && session.city ? session.city : null;
+      refreshTotals();
+      if (!session) {
+        current.innerHTML = '<p class="delivery-status delivery-status--info">Connectez-vous pour vérifier le minimum de votre ville.</p>';
+        return;
+      }
+      const zone = findDeliveryZone(session.city);
+      if (!session.city || !zone) {
+        current.innerHTML =
+          '<p class="delivery-status delivery-status--warn">' + SubitoIcons.svg("map-pin") + ' Ajoutez votre adresse dans Mon compte pour commander en livraison.</p>' +
+          '<button type="button" class="btn-outline delivery-status__link" id="deliveryAddAddress">Ajouter mon adresse</button>';
+        const btn = document.getElementById("deliveryAddAddress");
+        if (btn) btn.addEventListener("click", goAddAddress);
+        return;
+      }
+      const cartNow = sortedCart();
+      const productsTotal = activeCartTotal(cartNow);
+      if (productsTotal < zone.minimum) {
+        current.innerHTML = '<p class="delivery-status delivery-status--warn">' + SubitoIcons.svg("circle-alert", "1em", "subito-icon--warn") + ' Minimum pour ' + escapeHtml(zone.city) + " : " + formatPrice(zone.minimum) + " — il manque " + formatPrice(zone.minimum - productsTotal) + ".</p>";
+      } else {
+        current.innerHTML =
+          '<p class="delivery-status delivery-status--ok">' + SubitoIcons.svg("circle-check", "1em", "subito-icon--ok") + ' Livraison disponible à ' + escapeHtml(zone.city) + " (minimum " + formatPrice(zone.minimum) + ").</p>" +
+          (hasPizza(cartNow)
+            ? '<p class="delivery-status delivery-status--ok">Pas de frais de livraison : votre commande contient des pizzas.</p>'
+            : '<p class="delivery-status delivery-status--fee">' + SubitoIcons.svg("truck") + ' Frais de livraison : ' + formatPrice(zone.fee) + ' (commande sans pizza).</p>');
+      }
+    }).catch(function () {
+      // Panne (réseau, serveur) : on le dit, au lieu de laisser « Vérification… » indéfiniment.
+      const current = document.getElementById("deliveryStatus");
+      if (current && orderMode === "delivery") {
+        current.innerHTML = '<p class="delivery-status delivery-status--error">' + SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + ' Impossible de vérifier votre adresse pour l’instant — réessayez, ou appelez-nous.</p>';
+      }
+    });
+  }
+
+  // Met à jour seulement les montants (pied du tiroir et barre du bas), sans
+  // reconstruire le pied : le message de statut ou de commande en cours ne doit
+  // pas être effacé par un rafraîchissement déclenché par la vérification du compte.
+  function refreshTotals() {
+    const cart = sortedCart();
+    const strong = document.querySelector("#cartDrawerFooter .cart-drawer__total strong");
+    if (strong) strong.textContent = formatPrice(activeGrandTotal(cart));
+    renderBarTotal(cart);
+  }
+
+  // Repère utilisé pour reprendre l'ajout d'adresse après un aller-retour
+  // sur compte.html : au retour, le tiroir se rouvre en mode livraison
+  // (mais n'envoie rien automatiquement — contrairement à la connexion,
+  // ajouter une adresse mérite que le client revoie son panier avant de
+  // valider).
+  const PENDING_ADDRESS_KEY = "subito_pending_address_redirect";
+  const RESUME_ADDRESS_PARAM = "subito_resume_address";
+
+  function goAddAddress() {
+    sessionStorage.setItem(PENDING_ADDRESS_KEY, "1");
+    const here = window.location.pathname + window.location.hash;
+    window.location.href = "compte.html?retour=" + encodeURIComponent(here) + "&addAddress=1";
+  }
+
+  // Pied fixe, toujours visible : le total, le bouton "Commander en ligne"
+  // (nécessite d'être connecté, voir startOnlineOrder()) et l'appel
+  // téléphonique en solution de repli — volontairement minimal pour
+  // laisser un maximum de hauteur d'écran à la liste des pizzas au-dessus.
   function renderStickyFooter(cart) {
     const footer = document.getElementById("cartDrawerFooter");
     if (!footer) return;
     if (!cart.length) { footer.innerHTML = ""; return; }
 
     footer.innerHTML =
-      '<div class="cart-drawer__total"><span>Total à emporter</span><strong>' + formatPrice(cartTotal(cart)) + '</strong></div>' +
-      '<a class="btn-solid checkout-call" id="checkoutCall" href="tel:' + SUBITO_CART_CONFIG.phone + '">📞 Appeler pour commander · ' + SUBITO_CART_CONFIG.phoneDisplay + '</a>';
+      '<div class="cart-drawer__total"><span>Total ' + (orderMode === "delivery" ? "livraison" : "à emporter") + '</span><strong>' + formatPrice(activeGrandTotal(cart)) + '</strong></div>' +
+      '<button type="button" class="btn-solid checkout-order" id="checkoutOrder">' + SubitoIcons.svg("shopping-cart") + ' Commander en ligne</button>' +
+      '<p class="checkout-order-status" id="checkoutOrderStatus" role="alert" hidden></p>' +
+      '<a class="checkout-call-fallback" id="checkoutCall" href="tel:' + SUBITO_CART_CONFIG.phone + '">ou appelez-nous · ' + SubitoIcons.svg("phone") + ' ' + SUBITO_CART_CONFIG.phoneDisplay + '</a>';
 
+    document.getElementById("checkoutOrder").addEventListener("click", startOnlineOrder);
     document.getElementById("checkoutCall").addEventListener("click", function () {
-      showToast("On vous laisse composer le 📞 — à tout de suite !");
-      localStorage.setItem(CALL_PENDING_KEY, String(Date.now()));
+      showToast("On vous laisse composer le " + SubitoIcons.svg("phone") + " — à tout de suite !", true);
+      try { localStorage.setItem(CALL_PENDING_KEY, String(Date.now())); } catch (e) { /* stockage bloqué : pas de relance après l'appel, tant pis */ }
     });
+    // Un rendu pendant l'envoi (modification du panier, autre onglet) ne doit ni
+    // effacer le message « Envoi de votre commande… » ni réactiver le bouton.
+    if (orderBusy) {
+      const busyBtn = document.getElementById("checkoutOrder");
+      if (busyBtn) busyBtn.disabled = true;
+      if (lastOrderStatus) setOrderStatus(lastOrderStatus.message, lastOrderStatus.kind);
+    }
+  }
+
+  // Repère utilisé pour reprendre l'envoi de la commande après un aller-
+  // retour sur compte.html (connexion/inscription) : le client n'a pas à
+  // recommencer, sa commande part automatiquement une fois connecté. Le
+  // mode (à emporter/livraison) choisi avant le départ est sauvegardé pour
+  // ne pas revenir sur "à emporter" par défaut après une connexion.
+  const PENDING_ORDER_KEY = "subito_pending_order_redirect";
+  const PENDING_ORDER_MODE_KEY = "subito_pending_order_mode";
+  const PENDING_PAYMENT_KEY = "subito_pending_payment_methods";
+  const PENDING_CASH_KEY = "subito_pending_cash_change";
+  const RESUME_PARAM = "subito_resume";
+  // Posé par compte.js uniquement au retour légitime d'une connexion : sans lui, un lien ?subito_resume=1 n'envoie rien.
+  const RESUME_OK_KEY = "subito_resume_ok";
+  // Panier tel qu'il était à la demande de connexion (valeur brute du stockage) : la reprise ne l'envoie que s'il n'a pas changé.
+  const PENDING_CART_KEY = "subito_pending_cart";
+  // Verrou : une seule commande à la fois (un second appui pendant la vérification du compte ne doit rien envoyer).
+  let orderBusy = false;
+  // Dernier message affiché sous le bouton (restauré si le pied est reconstruit pendant l'envoi).
+  let lastOrderStatus = null;
+
+  // Point d'entrée unique du bouton "Commander en ligne" : vérifie la
+  // connexion, puis (en mode livraison) l'adresse et le minimum de la
+  // ville, avant d'envoyer. resumeOrderIfNeeded() repasse aussi par ici
+  // après une connexion, pour ne jamais dupliquer ces vérifications.
+  // Une calzone doit porter sa garniture et ne jamais être en moitié-moitié :
+  // une ligne ancienne (panier enregistré avant ce changement) ne doit pas partir.
+  function calzoneLineIncomplete(line) {
+    return /^Calzone \(soufflée\)/.test(line.name) && (line.name.indexOf(" — ") === -1 || !!line.half);
+  }
+
+  // Efface les moyens de paiement et le billet d'une tentative précédente.
+  function clearPendingPaymentState() {
+    sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+    sessionStorage.removeItem(PENDING_CASH_KEY);
+  }
+
+  // Vérifications avant envoi : renvoie le message à afficher, ou null si la commande peut partir.
+  function orderProblem(session) {
+    if (sortedCart().some(calzoneLineIncomplete)) {
+      return SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Une de vos calzones n’a pas de garniture choisie : retirez-la du panier et ajoutez-la de nouveau avec sa garniture.";
+    }
+    if (orderMode !== "delivery") return null;
+    const zone = findDeliveryZone(session.city);
+    if (!session.city || !zone) {
+      return SubitoIcons.svg("map-pin") + " Ajoutez votre adresse dans Mon compte pour commander en livraison.";
+    }
+    const productsTotal = activeCartTotal(sortedCart());
+    if (productsTotal < zone.minimum) {
+      return SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Minimum pour " + escapeHtml(zone.city) + " : " + formatPrice(zone.minimum) + " — il manque " + formatPrice(zone.minimum - productsTotal) + ".";
+    }
+    if (!paymentMethods.length) {
+      return SubitoIcons.svg("credit-card") + " Choisissez au moins un moyen de paiement pour la livraison.";
+    }
+    if (paymentMethods.indexOf("cash") !== -1 && cashChangeFor === null) {
+      return SubitoIcons.svg("banknote") + " Précisez avec quel billet vous réglez, pour que le livreur prépare la monnaie.";
+    }
+    return null;
+  }
+
+  // Départ vers compte.html avec de quoi reprendre l'envoi après connexion.
+  function redirectToLogin() {
+    // Tentative invitée : rien d'une tentative précédente ne doit survivre
+    // (sinon une reprise après connexion pourrait envoyer un moyen de paiement non coché).
+    clearPendingPaymentState();
+    sessionStorage.setItem(PENDING_ORDER_KEY, String(Date.now()));
+    sessionStorage.setItem(PENDING_ORDER_MODE_KEY, orderMode);
+    // Le panier tel qu'il est au moment de la demande : la reprise après connexion ne l'envoie que s'il n'a pas changé.
+    sessionStorage.setItem(PENDING_CART_KEY, localStorage.getItem(SUBITO_CART_CONFIG.storageKey) || "");
+    if (orderMode === "delivery" && paymentMethods.length) sessionStorage.setItem(PENDING_PAYMENT_KEY, JSON.stringify(paymentMethods));
+    if (orderMode === "delivery" && paymentMethods.indexOf("cash") !== -1 && cashChangeFor !== null) sessionStorage.setItem(PENDING_CASH_KEY, String(cashChangeFor));
+    const here = window.location.pathname + window.location.hash;
+    window.location.href = "compte.html?retour=" + encodeURIComponent(here);
+  }
+
+  function startOnlineOrder() {
+    if (orderBusy) return; // un second appui pendant la vérification ne doit jamais envoyer une seconde commande
+    if (!window.SubitoAccount) { setOrderStatus(SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Service de commande indisponible pour l'instant — merci d'appeler directement.", "error"); return; }
+    orderBusy = true;
+    setOrderStatus("Vérification de votre compte…", "pending");
+    window.SubitoAccount.me().then(function (session) {
+      if (!session) {
+        redirectToLogin();
+        return;
+      }
+      deliveryCity = session.city || null;
+      const problem = orderProblem(session);
+      if (problem) {
+        orderBusy = false;
+        setOrderStatus(problem, "error");
+        return;
+      }
+      submitOrder();
+    }).catch(function () {
+      orderBusy = false;
+      setOrderStatus(SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Impossible de vérifier votre compte pour l’instant — réessayez, ou appelez-nous.", "error");
+    });
+  }
+
+  function setOrderStatus(message, kind) {
+    lastOrderStatus = message ? { message: message, kind: kind } : null;
+    const el = document.getElementById("checkoutOrderStatus");
+    if (!el) return;
+    // Le conteneur porte role="alert" en permanence : le texte est injecté après, pour être annoncé.
+    el.hidden = !message;
+    el.className = "checkout-order-status" + (kind ? " checkout-order-status--" + kind : "");
+    el.innerHTML = message || "";
+  }
+
+  // Tentatives d'envoi : une entrée par contenu envoyé (clé d'idempotence + empreinte du contenu), gardées en
+  // localStorage pour être partagées entre les onglets. Une entrée est marquée « inconnue » dès le départ de la
+  // requête et ne quitte la liste qu'à une réponse définitive : un changement de panier (autre onglet compris)
+  // n'efface jamais une entrée inconnue, et un succès ne retire que sa propre clé. Le serveur dédoublonne par
+  // client et clé : un même contenu renvoie la même clé. La clé expire après 24 h.
+  const ORDER_ATTEMPT_KEY = "subito_order_attempt";
+  const ORDER_ATTEMPT_TTL_MS = 24 * 60 * 60 * 1000;
+  const ORDER_ATTEMPT_MAX = 5;
+
+  function saveAttempts(list) {
+    try {
+      if (list.length) localStorage.setItem(ORDER_ATTEMPT_KEY, JSON.stringify(list));
+      else localStorage.removeItem(ORDER_ATTEMPT_KEY);
+    } catch (e) { /* stockage bloqué : la protection entre deux essais ne pourra pas tenir */ }
+  }
+
+  // Tentatives encore valables. Une valeur enregistrée à l'ancien format (une seule tentative) reste lue.
+  function readAttempts() {
+    let list = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(ORDER_ATTEMPT_KEY) || "null");
+      if (Array.isArray(parsed)) list = parsed;
+      else if (parsed && typeof parsed === "object") list = [parsed];
+    } catch (e) { list = []; }
+    const now = Date.now();
+    const alive = list.filter(function (a) { return a && a.key && Number(a.at) > now - ORDER_ATTEMPT_TTL_MS; });
+    if (alive.length !== list.length) saveAttempts(alive);
+    return alive;
+  }
+
+  // Panier modifié ou vidé : on retire les tentatives terminées, jamais celles dont l'issue est inconnue.
+  function dropSettledAttempts() {
+    const list = readAttempts();
+    const kept = list.filter(function (a) { return a.unknown; });
+    if (kept.length !== list.length) saveAttempts(kept);
+  }
+
+  // Retire la tentative d'une seule clé : celle d'un autre envoi reste en place.
+  function removeAttempt(key) {
+    const list = readAttempts();
+    const kept = list.filter(function (a) { return a.key !== key; });
+    if (kept.length !== list.length) saveAttempts(kept);
+  }
+
+  function setAttemptUnknown(key, unknown) {
+    const list = readAttempts();
+    list.forEach(function (a) { if (a.key === key) a.unknown = unknown; });
+    saveAttempts(list);
+  }
+
+  function randomKey() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+    else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    return Array.prototype.map.call(bytes, function (b) { return (b < 16 ? "0" : "") + b.toString(16); }).join("");
+  }
+
+  function fingerprint(text) {
+    let h = 5381;
+    for (let i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+    return h.toString(16) + ":" + text.length;
+  }
+
+  // Clé de l'envoi. Un même contenu reprend toujours sa clé : après une coupure, le serveur renvoie alors la
+  // commande déjà créée au lieu d'en créer une seconde. Si un envoi précédent a une issue inconnue et que le
+  // contenu a changé, un seul avertissement (null) : le client peut ensuite renvoyer en connaissance de cause.
+  function idempotencyKeyFor(content) {
+    const fp = fingerprint(JSON.stringify(content));
+    const list = readAttempts();
+    const same = list.filter(function (a) { return a.fp === fp; })[0];
+    if (same) return same.key;
+    const unknownOne = list.filter(function (a) { return a.unknown; })[0];
+    if (unknownOne && !unknownOne.warned) {
+      unknownOne.warned = true;
+      saveAttempts(list);
+      return null;
+    }
+    const key = randomKey();
+    list.push({ key: key, fp: fp, at: Date.now(), unknown: false, warned: false });
+    while (list.length > ORDER_ATTEMPT_MAX) {
+      const settled = list.filter(function (a) { return !a.unknown; })[0];
+      if (!settled) break;
+      list.splice(list.indexOf(settled), 1);
+    }
+    saveAttempts(list);
+    return key;
+  }
+
+  function toCents(euros) {
+    return Math.round(euros * 100);
+  }
+
+  // Montants envoyés au serveur : tout en centimes entiers, mêmes règles que le
+  // serveur (contrat §5). L'affichage à l'écran garde ses propres calculs.
+  function orderTotalsCents(cart) {
+    let gross = 0;
+    const pizzaUnits = [];
+    cart.forEach(function (line) {
+      const unit = toCents(lineUnitPrice(line));
+      gross += unit * line.qty;
+      if (line.variant) for (let i = 0; i < line.qty; i++) pizzaUnits.push(unit);
+    });
+    pizzaUnits.sort(function (a, b) { return b - a; });
+    let promo = 0;
+    for (let i = 0; i + 1 < pizzaUnits.length; i += 2) {
+      promo += orderMode === "delivery" ? Math.floor((pizzaUnits[i + 1] + 1) / 2) : pizzaUnits[i + 1];
+    }
+    const zone = findDeliveryZone(deliveryCity);
+    const fee = (orderMode === "delivery" && !hasPizza(cart) && zone) ? toCents(zone.fee) : 0;
+    return { delivery_fee_cents: fee, total_cents: gross - promo + fee };
+  }
+
+  function orderErrorMessage(err) {
+    const data = err.data || {};
+    const alertIcon = SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " ";
+    switch (err.code) {
+      case "minimum_not_reached": {
+        const min = Number(data.minimum_cents) / 100;
+        const missing = (Number(data.minimum_cents) - Number(data.products_after_promo_cents)) / 100;
+        if (isFinite(min) && isFinite(missing) && missing > 0) return alertIcon + "Minimum de commande : " + formatPrice(min) + " — il manque " + formatPrice(missing) + ".";
+        return alertIcon + "Le minimum de commande pour votre ville n’est pas atteint.";
+      }
+      case "price_mismatch": {
+        const total = Number(data.server_total_cents);
+        return alertIcon + "Le prix a changé : vérifiez votre panier." + (data.server_total_cents != null && isFinite(total) ? " Total calculé par le restaurant : " + formatPrice(total / 100) + "." : "");
+      }
+      case "unavailable_items": {
+        const names = Array.isArray(data.unavailable) ? data.unavailable.map(escapeHtml).join(", ") : "";
+        const ingredients = Array.isArray(data.unavailable_ingredients) ? data.unavailable_ingredients.map(escapeHtml).join(", ") : "";
+        if (ingredients) return alertIcon + "Plus disponible aujourd’hui : " + (names || "article de votre panier") + ". Ingrédient en rupture : " + ingredients + ". Retirez-le de votre panier ou modifiez-le pour continuer.";
+        return alertIcon + (names ? "Plus disponible aujourd’hui : " + names + ". Retirez-le de votre panier ou modifiez-le pour continuer." : "Un article de votre panier n’est plus disponible aujourd’hui.");
+      }
+      case "unknown_item":
+      case "unpriced_item":
+        return alertIcon + "« " + escapeHtml(data.name || "Un article") + " » n’est pas commandable en ligne. Retirez-le du panier.";
+      case "price_mismatch_line":
+        return alertIcon + "Le prix de « " + escapeHtml(data.name || "un article") + " » a changé : rechargez la page avant de commander.";
+      case "address_required":
+        return SubitoIcons.svg("map-pin") + ' Ajoutez une adresse dans une ville livrée pour commander en livraison : <a href="compte.html">Mon compte</a>.';
+      case "profile_incomplete":
+        return alertIcon + 'Il manque votre numéro de téléphone pour commander : <a href="compte.html">Mon compte</a>.';
+      case "idempotency_conflict":
+        return alertIcon + "Un incident est survenu pendant l’envoi. Appuyez de nouveau sur « Commander en ligne » pour renvoyer votre commande.";
+      case "empty_cart":
+        return alertIcon + "Votre panier est vide.";
+      case "validation":
+        return alertIcon + "Votre commande contient une information invalide : vérifiez votre panier, ou appelez-nous.";
+      case "too_many_attempts": {
+        const minutes = Math.max(1, Math.ceil((Number(data.retry_after_seconds) || 60) / 60));
+        return alertIcon + "Trop de tentatives. Réessayez dans " + minutes + " minute" + (minutes > 1 ? "s" : "") + ".";
+      }
+      case "network":
+        return alertIcon + "Connexion interrompue : votre commande n’a peut-être pas été reçue. Vous pouvez réessayer sans risque.";
+      default:
+        return alertIcon + "L’envoi en ligne n’a pas fonctionné pour l’instant — merci d’appeler directement, juste en dessous.";
+    }
+  }
+
+  // Construit la commande à partir du panier déjà affiché (mêmes lignes,
+  // mêmes prix que ce que le client a vu) et l'envoie à l'API. Les montants
+  // partent en centimes ; le serveur les compare à son propre calcul.
+  // Le bouton « Commander » peut avoir été reconstruit pendant l'envoi : on le retrouve au moment d'agir,
+  // au lieu de garder une référence qui n'est plus dans la page.
+  function setCheckoutDisabled(disabled) {
+    const current = document.getElementById("checkoutOrder");
+    if (current) current.disabled = disabled;
+  }
+
+  // Lignes du panier qui ne font pas partie de l'envoi, avec leurs quantités (comparaison ligne à ligne).
+  function unsentLines(sent, current) {
+    const remaining = sent.map(function (l) { return JSON.stringify(l); });
+    return current.filter(function (l) {
+      const i = remaining.indexOf(JSON.stringify(l));
+      if (i === -1) return true;
+      remaining.splice(i, 1);
+      return false;
+    });
+  }
+
+  // Commande enregistrée : on retire sa seule clé, puis le panier. Un article ajouté pendant l'envoi (autre
+  // onglet) reste dans le panier : il n'est ni vidé ni présenté comme commandé.
+  function finishOrder(key, sentLines, orderId) {
+    let leftover = [];
+    try {
+      removeAttempt(key);
+      // Aucune intention de commande ne doit survivre à une commande enregistrée.
+      clearPendingPaymentState();
+      sessionStorage.removeItem(PENDING_ORDER_KEY);
+      sessionStorage.removeItem(PENDING_ORDER_MODE_KEY);
+      sessionStorage.removeItem(PENDING_CART_KEY);
+      leftover = unsentLines(sentLines, readCart());
+      if (leftover.length) writeCart(leftover);
+      else clearCart();
+    } catch (e) {
+      // Stockage bloqué après l'enregistrement : la commande existe, la suite ne doit pas être bloquée.
+      leftover = [];
+    }
+    if (leftover.length) {
+      orderBusy = false;
+      setCheckoutDisabled(false);
+      setOrderStatus("Votre commande est partie. Des articles ajoutés pendant l’envoi restent dans votre panier : ils ne font pas partie de cette commande. <a href=\"commande.html?id=" + encodeURIComponent(orderId) + "\">Voir ma commande</a>.", "ok");
+      return;
+    }
+    // Vraie page de suivi (récapitulatif, attente d'acceptation, puis minuteur une fois le délai transmis).
+    window.location.href = "commande.html?id=" + encodeURIComponent(orderId);
+  }
+
+  function submitOrder() {
+    const cart = sortedCart();
+    if (!cart.length) { orderBusy = false; setOrderStatus("", ""); return; }
+
+    const totals = orderTotalsCents(cart);
+    const content = {
+      mode: orderMode,
+      payment_methods: orderMode === "delivery" ? paymentMethods.slice() : [],
+      cash_change_for: (orderMode === "delivery" && paymentMethods.indexOf("cash") !== -1) ? cashChangeFor : null,
+      items: cart.map(function (line) {
+        return {
+          name: line.name,
+          variant: line.variant,
+          qty: line.qty,
+          unit_price_cents: toCents(lineUnitPrice(line)),
+          removed: line.removed,
+          extras: line.extras.map(function (ex) { return { name: ex.name, price_cents: toCents(ex.price), qty: ex.qty }; }),
+          half: line.half,
+          note: line.note
+        };
+      }),
+      delivery_fee_cents: totals.delivery_fee_cents,
+      total_cents: totals.total_cents
+    };
+    const key = idempotencyKeyFor(content);
+    if (key === null) {
+      orderBusy = false;
+      setCheckoutDisabled(false);
+      setOrderStatus(SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + ' Votre commande précédente n’est peut-être pas partie : vérifiez <a href="compte.html">Mon compte</a> avant de la renvoyer. Si elle n’y figure pas, appuyez de nouveau sur « Commander en ligne ».', "error");
+      return;
+    }
+    // Avant le départ, la tentative est marquée « inconnue » : une coupure, ou un changement de panier dans un
+    // autre onglet, ne peut plus faire perdre la clé.
+    setAttemptUnknown(key, true);
+    // Lignes envoyées, telles qu'elles étaient dans le panier au départ (voir finishOrder).
+    const sentLines = readCart();
+    setCheckoutDisabled(true);
+    setOrderStatus("Envoi de votre commande…", "pending");
+    const payload = Object.assign({ idempotency_key: key }, content);
+
+    function fail(err) {
+      if (err.code === "unauthorized") {
+        // Refus avant toute création de commande : la tentative est terminée.
+        setAttemptUnknown(key, false);
+        orderBusy = false;
+        setCheckoutDisabled(false);
+        redirectToLogin();
+        return;
+      }
+      // Coupure ou panne serveur : l'issue reste inconnue, la clé est gardée même si le panier change.
+      if (err.code === "idempotency_conflict") removeAttempt(key);
+      else setAttemptUnknown(key, err.code === "network");
+      orderBusy = false;
+      setCheckoutDisabled(false);
+      setOrderStatus(orderErrorMessage(err), "error");
+    }
+
+    // Au-delà de 10 s sans réponse : traité comme une coupure (la clé reste, un renvoi est sans risque).
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const timeout = setTimeout(function () { if (controller) controller.abort(); }, 10000);
+
+    fetch(SUBITO_CART_CONFIG.apiBase + "order_create.php", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller ? controller.signal : undefined
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        clearTimeout(timeout);
+        if (res.status === 200 || res.status === 201) {
+          // Le panier n'est vidé qu'avec une confirmation réelle (commande enregistrée).
+          if (!data || !data.order || data.order.id == null) { fail({ code: "network" }); return; }
+          finishOrder(key, sentLines, data.order.id);
+          return;
+        }
+        const code = res.status >= 500 ? "network" : ((data && data.error) || ("http_" + res.status));
+        fail({ code: code, status: res.status, data: data || {} });
+      });
+    }, function () {
+      clearTimeout(timeout);
+      fail({ code: "network" });
+    });
+  }
+
+  // Après connexion/inscription sur compte.html, le client est renvoyé ici
+  // avec ?subito_resume=1 : on relance l'envoi automatiquement (en repassant
+  // par startOnlineOrder(), pas directement submitOrder(), pour que la
+  // vérification livraison/adresse s'applique aussi à ce retour), sans
+  // qu'il ait à retoucher à son panier.
+  function resumeOrderIfNeeded() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get(RESUME_PARAM) !== "1") return;
+    params.delete(RESUME_PARAM);
+    const clean = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
+    window.history.replaceState(null, "", clean);
+    // Reprise seulement après le retour légitime de compte.html. Un lien arrivé d'ailleurs ne reprend rien :
+    // la commande n'est jamais envoyée toute seule.
+    // Le panier au moment de la demande (posé par redirectToLogin) : la reprise ne l'envoie que s'il n'a pas changé.
+    const expectedCart = sessionStorage.getItem(PENDING_CART_KEY);
+    sessionStorage.removeItem(PENDING_CART_KEY);
+    let authorized = false;
+    try {
+      authorized = sessionStorage.getItem(RESUME_OK_KEY) === "1";
+      sessionStorage.removeItem(RESUME_OK_KEY);
+    } catch (e) { authorized = false; }
+    if (!authorized) {
+      sessionStorage.removeItem(PENDING_ORDER_MODE_KEY);
+      sessionStorage.removeItem(PENDING_ORDER_KEY);
+      clearPendingPaymentState();
+      return;
+    }
+    const savedMode = sessionStorage.getItem(PENDING_ORDER_MODE_KEY);
+    if (savedMode) { orderMode = savedMode; sessionStorage.removeItem(PENDING_ORDER_MODE_KEY); }
+    const savedPayment = sessionStorage.getItem(PENDING_PAYMENT_KEY);
+    if (savedPayment !== null) {
+      // Liste JSON (voir startOnlineOrder) ; une valeur illisible est simplement ignorée.
+      try {
+        const list = JSON.parse(savedPayment);
+        if (Array.isArray(list)) paymentMethods = PAYMENT_METHODS.map(function (m) { return m.id; }).filter(function (id) { return list.indexOf(id) !== -1; });
+      } catch (e) { /* valeur illisible : ignorée */ }
+    }
+    // Le billet ne se restaure que si les espèces font partie des moyens restaurés.
+    const savedCash = sessionStorage.getItem(PENDING_CASH_KEY);
+    cashChangeFor = null;
+    if (savedCash !== null && paymentMethods.indexOf("cash") !== -1) {
+      const note = parseInt(savedCash, 10);
+      if (!isNaN(note)) cashChangeFor = note;
+    }
+    clearPendingPaymentState();
+    if (!readCart().length) return;
+    openDrawer();
+    // Panier modifié depuis la demande (autre onglet, ajout pendant la connexion) : on ne l'envoie pas à la place du client.
+    if (expectedCart === null || expectedCart !== (localStorage.getItem(SUBITO_CART_CONFIG.storageKey) || "")) {
+      setOrderStatus(SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Votre panier a changé depuis votre demande de commande : vérifiez-le, puis appuyez sur « Commander en ligne ».", "error");
+      return;
+    }
+    startOnlineOrder();
+  }
+
+  // Après avoir ajouté son adresse sur compte.html (depuis le bouton
+  // "Ajouter mon adresse" du statut livraison), le client est renvoyé ici
+  // avec ?subito_resume_address=1 : on rouvre le tiroir en mode livraison
+  // pour qu'il voie tout de suite si le minimum est atteint — mais on
+  // n'envoie rien tout seul, contrairement à resumeOrderIfNeeded() : ajouter
+  // une adresse n'est pas la même décision que simplement se connecter.
+  function resumeAddressIfNeeded() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get(RESUME_ADDRESS_PARAM) !== "1") return;
+    params.delete(RESUME_ADDRESS_PARAM);
+    const clean = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
+    window.history.replaceState(null, "", clean);
+    if (!readCart().length) return;
+    orderMode = "delivery";
+    openDrawer();
   }
 
   // Mise à jour "légère" après un simple changement de quantité (+/-) :
@@ -1242,7 +2097,7 @@ const SUBITO_CART_CONFIG = {
     const bar = document.getElementById("cartBar");
     if (bar) {
       document.getElementById("cartBarCount").textContent = String(cartCount(cart));
-      document.getElementById("cartBarTotal").textContent = formatPrice(cartTotal(cart));
+      renderBarTotal(cart);
     }
 
     const overlay = document.getElementById("cartOverlay");
@@ -1278,13 +2133,14 @@ const SUBITO_CART_CONFIG = {
   const CALL_PENDING_KEY = SUBITO_CART_CONFIG.storageKey + "_appel_en_cours";
 
   function checkCallFollowup() {
-    const raw = localStorage.getItem(CALL_PENDING_KEY);
+    let raw = null;
+    try { raw = localStorage.getItem(CALL_PENDING_KEY); } catch (e) { return; }
     if (!raw) return;
     const elapsed = Date.now() - parseInt(raw, 10);
     if (elapsed < 3000) return; // probablement un double-tap, pas un vrai aller-retour : on retentera au prochain coup
     localStorage.removeItem(CALL_PENDING_KEY);
     if (!readCart().length) return;
-    if (window.confirm("Avez-vous passé votre commande au téléphone tout à l’heure ? On vide votre panier pour la prochaine fois.")) {
+    if (!orderBusy && window.confirm("Avez-vous passé votre commande au téléphone tout à l’heure ? On vide votre panier pour la prochaine fois.")) {
       clearCart();
     }
   }
@@ -1317,36 +2173,6 @@ const SUBITO_CART_CONFIG = {
     if (e.key === "Escape" && overlay && !overlay.hidden) closeDrawer();
   }
 
-  /* ---------- Récapitulatif texte (pour la copie presse-papiers) ----------
-     Même tri par taille que l'affichage, pour que le texte copié corresponde
-     exactement à ce que le client voit à l'écran. */
-
-  function buildRecapText() {
-    const cart = sortedCart();
-    const lines = [];
-    lines.push("Ma commande — Subito Pizza");
-    lines.push("");
-    cart.forEach(function (line) {
-      const label = line.name + (line.variant ? " (" + line.variant + ")" : "");
-      lines.push(line.qty + " × " + label + " — " + formatPrice(lineUnitPrice(line) * line.qty));
-      lineDetailRows(line).forEach(function (row) { lines.push("   - " + row); });
-    });
-    const promo = pizzaPromo(cart);
-    lines.push("");
-    if (promo.discount > 0) {
-      lines.push("Sous-total : " + formatPrice(cartGrossTotal(cart)));
-      lines.push("🎁 1 pizza achetée = 1 offerte (à emporter) : −" + formatPrice(promo.discount));
-    }
-    lines.push("Total à emporter : " + formatPrice(cartTotal(cart)));
-    if (promo.hasLeftover) {
-      lines.push("");
-      lines.push("🎁 Ajoutez encore 1 pizza : elle sera offerte !");
-    }
-    lines.push("");
-    lines.push("(Pour une livraison, appelez directement : tarif différent.)");
-    return lines.join("\n");
-  }
-
   // Version simplifiée, pensée pour être partagée à quelqu'un d'autre (qui
   // appelle à la place du client) : juste de quoi comprendre la commande en
   // un coup d'oeil — pizza/taille, suppléments, retraits, moitié-moitié, et
@@ -1372,34 +2198,12 @@ const SUBITO_CART_CONFIG = {
       }
     });
     lines.push("");
-    lines.push("Total : " + formatPrice(cartTotal(cart)));
+    const simpleFee = deliveryFee(cart);
+    if (simpleFee > 0) lines.push("Frais de livraison : " + formatPrice(simpleFee));
+    lines.push((orderMode === "delivery" ? "Total livraison : " : "Total : ") + formatPrice(activeGrandTotal(cart)));
     lines.push("");
-    lines.push("📞 Pour commander : appeler Subito Pizza au " + SUBITO_CART_CONFIG.phoneDisplay + " (à confirmer par téléphone, ce n'est pas une commande en ligne).");
+    lines.push("En cas de besoin : Subito Pizza au " + SUBITO_CART_CONFIG.phoneDisplay + ".");
     return lines.join("\n");
-  }
-
-  function copyToClipboard(text) {
-    const done = function (ok) {
-      showToast(ok ? "Récapitulatif copié ✓" : "Impossible de copier — sélectionnez et copiez manuellement.");
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { done(true); }).catch(function () { done(false); });
-      return;
-    }
-    try {
-      const temp = document.createElement("textarea");
-      temp.value = text;
-      temp.style.position = "fixed";
-      temp.style.opacity = "0";
-      document.body.appendChild(temp);
-      temp.focus();
-      temp.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(temp);
-      done(ok);
-    } catch (e) {
-      done(false);
-    }
   }
 
   /* ---------- Rendu global (barre + sync des widgets produits) ---------- */
@@ -1412,7 +2216,7 @@ const SUBITO_CART_CONFIG = {
     const bar = document.getElementById("cartBar");
     bar.hidden = count === 0;
     document.getElementById("cartBarCount").textContent = String(count);
-    document.getElementById("cartBarTotal").textContent = formatPrice(cartTotal(cart));
+    renderBarTotal(cart);
 
     if (document.getElementById("cartOverlay") && !document.getElementById("cartOverlay").hidden) {
       renderDrawer();
@@ -1423,23 +2227,22 @@ const SUBITO_CART_CONFIG = {
     });
   }
 
-  /* ---------- API publique (debug/tests) ---------- */
-
-  window.SubitoCart = {
-    add: addItem,
-    clear: clearCart,
-    get: readCart,
-    open: openDrawer,
-    checkout: openDrawer
-  };
-
   function init() {
     scanMenuItems();
     scanComposerBase();
     ensureBar();
     renderAll();
     if (document.querySelector(".size-chart")) loadSupplementGroups(); // préchargement discret
+    resumeOrderIfNeeded();
+    resumeAddressIfNeeded();
   }
+
+  // Retour arrière depuis la page de connexion : le navigateur peut restaurer la page
+  // telle quelle depuis son cache, verrou de commande compris. On le relâche pour que
+  // « Commander en ligne » reste utilisable sans rechargement.
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) { orderBusy = false; setCheckoutDisabled(false); setOrderStatus("", ""); }
+  });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

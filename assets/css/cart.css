@@ -67,6 +67,13 @@
   line-height: 1.4;
 }
 
+.cart-announce__note a {
+  color: var(--red);
+  font-weight: 700;
+  font-style: normal;
+  text-decoration: underline;
+}
+
 @media (max-width: 600px) {
   .cart-announce { padding: 14px; gap: 10px; }
   .cart-announce__title { font-size: 0.95rem; }
@@ -418,6 +425,12 @@
   cursor: pointer;
   font-size: 0.82rem;
   padding: 2px 0;
+  /* Cible tactile d'au moins 24 × 24 px (WCAG 2.2, critère 2.5.8, niveau AA). */
+  min-width: 24px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: underline;
 }
 
@@ -430,12 +443,12 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--gold);
+  color: var(--gold-ink);
 }
 
 .cart-line:first-child { padding-top: 0; }
 
-/* Bloc secondaire (sous-total, promo, copier/envoyer, mentions, vider le
+/* Bloc secondaire (sous-total, promo, envoyer, mentions, vider le
    panier) : défile avec la liste des pizzas au lieu d'occuper en
    permanence la moitié de l'écran — c'est ce qui empêchait de bien voir
    et gérer ses pizzas sur téléphone. */
@@ -504,9 +517,13 @@
   cursor: pointer;
   font-size: 0.82rem;
   align-self: center;
+  /* Cible tactile d'au moins 24 px de haut (WCAG 2.2, critère 2.5.8, niveau AA). */
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
 }
 
-/* ---------- Appel / copie du récapitulatif (dans le pied du panier) ---------- */
+/* ---------- Appel / envoi du récapitulatif (dans le pied du panier) ---------- */
 
 .checkout-actions {
   display: flex;
@@ -519,7 +536,6 @@
   gap: 8px;
 }
 
-.checkout-actions #checkoutCopy,
 .checkout-actions #checkoutShare {
   text-align: center;
   cursor: pointer;
@@ -534,6 +550,163 @@
   text-align: center;
   display: block;
   width: 100%;
+}
+
+.checkout-order {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.checkout-order:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.checkout-order-status {
+  margin: 0;
+  font-size: 0.82rem;
+  text-align: center;
+  font-weight: 600;
+  color: var(--gray);
+}
+
+.checkout-order-status--ok { color: var(--green-dark); }
+.checkout-order-status--error { color: var(--red); }
+
+.checkout-call-fallback {
+  display: block;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--gray);
+  text-decoration: underline;
+}
+
+/* ---------- Bascule à emporter / livraison (dans le panier) ---------- */
+
+.order-mode-toggle {
+  display: flex;
+  gap: 8px;
+  background: var(--green-tint);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 4px;
+}
+
+.order-mode-toggle__btn {
+  flex: 1;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.86rem;
+  padding: 9px 10px;
+  border-radius: 999px;
+  color: var(--green-dark);
+}
+
+.order-mode-toggle__btn.is-active {
+  background: var(--green);
+  color: #fff;
+}
+
+.delivery-status {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+#deliveryStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.delivery-status--pending { color: var(--gray); }
+.delivery-status--fee { background: #fff8e8; border: 1px solid var(--gold); color: var(--dark); }
+.delivery-status--info { background: var(--green-tint); color: var(--green-dark); }
+.delivery-status--ok { background: #E3F3E9; color: var(--green-dark); }
+.delivery-status--warn { background: #FFF3DA; color: #7A5300; }
+.delivery-status--error { background: #FCECEC; color: var(--red-dark); }
+
+.delivery-status__link {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* ---------- Moyen de paiement à la livraison ---------- */
+
+.payment-method {
+  background: var(--green-tint);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payment-method__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--green-dark);
+}
+
+.payment-method__title .account-optional {
+  display: block;
+  font-weight: 500;
+  font-size: 0.72rem;
+  margin-top: 2px;
+  color: var(--gray);
+}
+
+.payment-method__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--gray);
+}
+
+.payment-method__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payment-method__btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--dark);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.payment-method__btn.is-active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.payment-method__sub {
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .checkout-disclaimer {
@@ -628,6 +801,12 @@
   background: var(--green-tint);
 }
 
+.pizza-widget__quickadd:disabled,
+.customize__add:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .pizza-widget__toggle {
   display: inline-flex;
   align-items: center;
@@ -649,7 +828,7 @@
 .pizza-widget__toggle:focus-visible {
   background: linear-gradient(135deg, var(--gold) 0%, var(--gold-bright) 100%);
   border-color: var(--gold);
-  color: #fff;
+  color: var(--dark);
 }
 
 .pizza-widget__toggle.is-open {
@@ -708,6 +887,36 @@
   background: linear-gradient(90deg, var(--red) 0%, var(--gold-bright) 100%);
 }
 
+.pizza-widget__filler {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pizza-widget__filler[hidden] { display: none; }
+
+/* Garniture choisie : pastille verte comme les moyens de paiement (et non le
+   style barré rouge réservé aux ingrédients retirés, qui prêtait à confusion). */
+.pizza-widget__filler-btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--dark);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.pizza-widget__filler-btn.is-active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  text-decoration: none;
+}
+
 .customize__section { display: flex; flex-direction: column; gap: 8px; }
 
 /* `display: flex` ci-dessus a la même spécificité que la règle native
@@ -718,7 +927,7 @@
 .customize__section[hidden],
 .customize__half-row[hidden] { display: none; }
 
-.customize__section + .customize__section {
+.customize__section:not([hidden]) ~ .customize__section:not([hidden]) {
   padding-top: 16px;
   border-top: 1px dashed var(--border);
 }
@@ -787,6 +996,16 @@
 }
 
 .customize__half-toggle input { width: 18px; height: 18px; }
+
+/* Sans ceci, une case désactivée (taille Solo) est visuellement identique
+   à une case active : le client tape dessus, rien ne se passe, et pense
+   que c'est un bug plutôt qu'une option indisponible pour cette taille. */
+.customize__half-toggle.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.customize__half-toggle.is-disabled input { cursor: not-allowed; }
 
 .customize__half-row {
   display: flex;

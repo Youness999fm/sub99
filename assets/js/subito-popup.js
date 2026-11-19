@@ -273,25 +273,6 @@ const SUBITO_POPUP_CONFIG = {
     }, SUBITO_POPUP_CONFIG.popupDelay);
   }
 
-  /* ---------- API publique (démo, tests, debug) ---------- */
-
-  // Réouverture/fermeture manuelle (utilisée par le bouton de démo).
-  window.SubitoPopup = { open: openPopup, close: closePopup };
-
-  // Outils de test demandés dans le brief — utilisables depuis la console.
-  window.resetSubitoPopup = function () {
-    try {
-      localStorage.removeItem(SUBITO_POPUP_CONFIG.storageKey);
-    } catch (e) {
-      /* rien à faire si le storage est indisponible */
-    }
-    log("State reset");
-  };
-
-  window.getSubitoPopupState = function () {
-    return readState();
-  };
-
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", scheduleAutoOpen);
   } else {

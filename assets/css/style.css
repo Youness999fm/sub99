@@ -10,6 +10,11 @@
   --dark: #1C1B19;
   --gray: #6B6560;
   --border: #E7E5E1;
+  /* Texte doré lisible sur fond clair (4,5:1 min., mesuré 5,03:1 sur blanc) ;
+     --gold reste réservé aux filets et aux éléments décoratifs. */
+  --gold-ink: #8A6A2C;
+  /* Bordure des champs : 3:1 min. contre le blanc et le fond du champ (WCAG 1.4.11). */
+  --field-border: #8C8680;
   --gold: #D4AF64;
   --gold-bright: #FFD166;
   --radius: 14px;
@@ -1076,6 +1081,41 @@ section { padding: 32px 20px; }
   color: var(--dark);
 }
 
+.delivery-tier__fee {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.delivery-section__fees {
+  max-width: 560px;
+  margin: 8px auto 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--gray);
+  line-height: 1.5;
+}
+
+.delivery-section__eyebrow {
+  max-width: var(--max-width);
+  margin: 0 auto 4px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+}
+
+.delivery-section__intro {
+  max-width: 560px;
+  margin: 0 auto 22px;
+  text-align: center;
+  color: var(--gray);
+  line-height: 1.5;
+}
+
 .delivery-section__note {
   max-width: var(--max-width);
   margin: 20px auto 0;
@@ -1083,6 +1123,34 @@ section { padding: 32px 20px; }
   font-weight: 700;
   color: var(--red);
 }
+
+.delivery-section__cta {
+  max-width: var(--max-width);
+  margin: 26px auto 0;
+  text-align: center;
+}
+
+.delivery-section__cta .call-button { margin: 0 auto; }
+
+.delivery-section__soon {
+  max-width: 480px;
+  margin: 14px auto 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--gray);
+}
+
+/* ---------- Icônes (elles remplacent les emojis, voir assets/js/icons.js) ---------- */
+
+.subito-icon {
+  display: inline-block;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}
+
+.subito-icon--ok { color: var(--green); }
+.subito-icon--warn { color: #9A6B00; }
+.subito-icon--error { color: var(--red); }
 
 /* ---------- Moyens de paiement ---------- */
 
@@ -1600,7 +1668,7 @@ section { padding: 32px 20px; }
   font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.4px;
-  color: rgba(255, 255, 255, 0.32);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Équivalences humaines : révélées par JS (classe .is-revealed) une fois
@@ -1831,7 +1899,7 @@ section { padding: 32px 20px; }
 .review-form__field textarea {
   font: inherit;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-border);
   border-radius: 8px;
   color: var(--dark);
   background: var(--green-tint);
@@ -3094,7 +3162,7 @@ section { padding: 32px 20px; }
   font-weight: 600;
   font-size: 0.78rem;
   letter-spacing: 0.3px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .site-footer__signature strong {

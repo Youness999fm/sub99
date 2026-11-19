@@ -553,7 +553,7 @@ function initHeroCarousel() {
     window.setTimeout(() => {
       img.src = p.src;
       img.alt = `${p.name}, à retrouver sur notre carte`;
-      caption.innerHTML = p.caption || `🍕 À retrouver sur notre carte : <strong>${p.name}</strong>`;
+      caption.innerHTML = p.caption || `${SubitoIcons.svg('pizza')} À retrouver sur notre carte : <strong>${p.name}</strong>`;
       if (plate) { plate.href = p.href || 'menu.html'; }
       img.classList.remove('is-swapping');
       caption.classList.remove('is-swapping');

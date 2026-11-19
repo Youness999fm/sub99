@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "description": "Permet « node --test tests/api/ » : Node résout le dossier vers ce point d'entrée.",
+  "type": "module",
+  "main": "api.test.mjs"
+}
