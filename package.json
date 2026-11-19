@@ -8,7 +8,8 @@
     "node": "22.x"
   },
   "scripts": {
-    "test:serveur": "node --test \"tests/serveur/*.test.mjs\"",
+    "dev": "node serveur/outils/dev.mjs",
+    "test:serveur":"node --test \"tests/serveur/*.test.mjs\"",
     "hash-code": "node serveur/outils/hash-code.mjs"
   },
   "dependencies": {

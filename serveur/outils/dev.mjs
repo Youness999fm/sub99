@@ -1,7 +1,6 @@
 // Serveur de développement local : site statique + API JavaScript sur une base Postgres EN MÉMOIRE (PGlite).
 // Les données disparaissent à l'arrêt. Jamais relié à Supabase. Usage : node serveur/outils/dev.mjs  (PORT=8095 par défaut)
 import http from 'node:http';
-import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { creerPiloteTest } from './pglite-driver.mjs';
 import { servirStatique } from './statique.mjs';
@@ -11,8 +10,10 @@ import { schemaSql } from '../schema.js';
 
 const PORT = Number(process.env.PORT || 8095);
 
-// Code patron de démonstration, propre à cette exécution (affiché une fois, jamais écrit dans un fichier).
-const CODE = process.env.DEV_OWNER_CODE || 'demo-' + crypto.randomBytes(4).toString('hex');
+// Code patron de TEST, valable seulement sur ce serveur local (base en mémoire, écoute sur 127.0.0.1).
+// Par défaut 654321 pour tester l'espace commerçant sans rien configurer ; DEV_OWNER_CODE le remplace.
+// Ce code ne sert jamais en ligne : sur Vercel, seul le hash de OWNER_CODE_HASH compte.
+const CODE = process.env.DEV_OWNER_CODE || '654321';
 process.env.OWNER_CODE_HASH = bcrypt.hashSync(CODE, 4);
 process.env.SUBITO_COOKIE_SECURE = '0';
 process.env.APP_ORIGINS = `http://localhost:${PORT},http://127.0.0.1:${PORT}`;
