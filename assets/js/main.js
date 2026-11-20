@@ -657,62 +657,62 @@ function initHeaderCompact() {
   update();
 }
 
-// Bouton « Installer » (ajout à l'écran d'accueil) dans la nav principale, visible seulement quand
-// l'installation est réellement possible : Android/Chrome déclenche le prompt natif en un tap ; iOS
-// Safari ne propose aucune API pour le faire automatiquement, donc affiche une courte marche à suivre
-// (Partager -> Sur l'écran d'accueil) à la place. Rien n'apparaît si le site est déjà installé
-// (display-mode: standalone) ni sur un navigateur qui ne gère ni l'un ni l'autre (ex. Firefox desktop).
+// Petit encart discret, page d'accueil et espace client seulement (demande du 20/11 : pas dans la
+// barre du haut, pas sur les autres pages) : « Si vous voulez, vous pouvez installer Subito Pizza sur
+// votre écran d'accueil. » Android/Chrome déclenche le prompt natif en un tap ; iOS Safari ne propose
+// aucune API pour le faire automatiquement, donc affiche une courte marche à suivre à la place. Rien
+// n'apparaît si le site est déjà installé (display-mode: standalone) ni sur un navigateur qui ne gère ni l'un ni l'autre.
 function initInstallPrompt() {
-  // Seulement là où le client doit le voir (demande du 20/11) : accueil, menu, son espace client —
-  // pas sur les autres pages, pas après une commande, pas dans l'espace commerçant.
   const page = location.pathname.split('/').pop() || 'index.html';
-  if (!['index.html', 'menu.html', 'compte.html'].includes(page)) return;
+  if (!['index.html', 'compte.html'].includes(page)) return;
 
-  const nav = document.querySelector('.site-nav__list');
-  if (!nav) return;
+  const header = document.querySelector('.site-header');
+  if (!header) return;
   if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return;
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  const icon = window.SubitoIcons ? window.SubitoIcons.svg('smartphone') : '';
 
-  const li = document.createElement('li');
-  li.hidden = true;
-  li.innerHTML =
-    '<button type="button" class="site-nav__link" id="pwaInstallBtn" title="Ajouter Subito Pizza sur votre écran d’accueil, comme une appli">' +
-      '<span class="icon" aria-hidden="true">' + icon + '</span>Installer' +
-    '</button>';
-  nav.appendChild(li);
-  const btn = li.querySelector('#pwaInstallBtn');
+  const hint = document.createElement('p');
+  hint.className = 'pwa-hint';
+  hint.hidden = true;
+  hint.innerHTML = 'Si vous le souhaitez, vous pouvez <button type="button" id="pwaInstallBtn">installer Subito Pizza sur votre écran d’accueil</button>.';
+  header.insertAdjacentElement('afterend', hint);
+  const btn = hint.querySelector('#pwaInstallBtn');
 
-  // iOS Safari n'offre aucune API pour ajouter à l'écran d'accueil automatiquement : marche à suivre
-  // affichée après confirmation, à la place de l'invite native (qui n'existe pas sur cette plateforme).
+  // iOS Safari n'offre aucune API pour ajouter à l'écran d'accueil automatiquement (ni Safari, ni aucun
+  // navigateur sur iOS — tous utilisent le même moteur). Seul Apple peut déclencher sa propre fenêtre
+  // « Ajouter » : impossible de la sauter en code, quel que soit le site. Marche à suivre la plus
+  // claire possible à la place : 2 étapes, numérotées, avec une flèche qui pointe vers Partager.
   function showIOSSteps() {
     if (document.querySelector('.pwa-ios-tip')) return;
     const tip = document.createElement('div');
     tip.className = 'pwa-ios-tip';
     tip.setAttribute('role', 'status');
     tip.innerHTML =
-      '<p>Pour installer Subito Pizza sur votre écran d’accueil : appuyez sur <strong>Partager</strong> ' +
-      (window.SubitoIcons ? window.SubitoIcons.svg('share-2') : '') +
-      ' en bas de l’écran, puis sur <strong>« Sur l’écran d’accueil »</strong>.</p>' +
+      '<p class="pwa-ios-tip__title">Encore 2 petits gestes !</p>' +
+      '<ol class="pwa-ios-tip__steps">' +
+        '<li><span class="pwa-ios-tip__num">1</span>Appuyez sur <strong>Partager</strong> ' + (window.SubitoIcons ? window.SubitoIcons.svg('share-2') : '') + ' en bas de l’écran</li>' +
+        '<li><span class="pwa-ios-tip__num">2</span>Puis sur <strong>« Sur l’écran d’accueil »</strong></li>' +
+      '</ol>' +
+      '<div class="pwa-ios-tip__arrow" aria-hidden="true">↓</div>' +
       '<button type="button" class="pwa-ios-tip__close" aria-label="Fermer">&times;</button>';
     document.body.appendChild(tip);
     const close = () => tip.remove();
     tip.querySelector('.pwa-ios-tip__close').addEventListener('click', close);
-    setTimeout(close, 9000);
+    setTimeout(close, 12000);
   }
 
   let deferredPrompt = null;
   if (isIOS) {
-    li.hidden = false; // pas d'événement à attendre : toujours proposable (hors mode déjà installé, filtré plus haut)
+    hint.hidden = false; // pas d'événement à attendre : toujours proposable (hors mode déjà installé, filtré plus haut)
   } else {
     // L'événement n'arrive que si le site est jugé installable (manifest + service worker, voir sw.js).
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       deferredPrompt = e;
-      li.hidden = false;
+      hint.hidden = false;
     });
-    window.addEventListener('appinstalled', () => { li.hidden = true; closeConfirm(); });
+    window.addEventListener('appinstalled', () => { hint.hidden = true; closeConfirm(); });
   }
 
   // Petite confirmation maison avant l'invite (demande du 20/11) : le client sait ce qui va se passer
@@ -730,7 +730,8 @@ function initInstallPrompt() {
     box.setAttribute('aria-label', 'Installer Subito Pizza');
     box.innerHTML =
       '<div class="pwa-confirm__card">' +
-        '<p>Vous allez ajouter <strong>Subito Pizza</strong> à votre écran d’accueil, comme une application.</p>' +
+        '<span class="pwa-confirm__icon" aria-hidden="true">' + (window.SubitoIcons ? window.SubitoIcons.svg('smartphone') : '') + '</span>' +
+        '<p>N’hésitez pas à installer <strong>Subito Pizza</strong> sur votre écran d’accueil, pour commander encore plus vite la prochaine fois.</p>' +
         '<div class="pwa-confirm__actions">' +
           '<button type="button" class="btn-outline" data-pwa="cancel">Annuler</button>' +
           '<button type="button" class="btn-solid" data-pwa="confirm">Confirmer</button>' +
@@ -745,7 +746,7 @@ function initInstallPrompt() {
       if (!deferredPrompt) return;
       const evt = deferredPrompt;
       deferredPrompt = null;
-      li.hidden = true; // un seul choix possible par invite native
+      hint.hidden = true; // un seul choix possible par invite native
       evt.prompt();
       try { await evt.userChoice; } catch (e) { /* ignoré : l'utilisateur a simplement fermé l'invite */ }
     });

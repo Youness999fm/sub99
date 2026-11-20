@@ -756,41 +756,71 @@ a { color: inherit; }
 
 .site-nav__link:active { transform: scale(0.97); }
 
-/* Variante <button> du lien de nav (ex. "Installer") : même rendu que les <a>, sans le style par défaut du bouton. */
-button.site-nav__link { border: 0; background: none; font: inherit; cursor: pointer; width: 100%; }
+/* Petit encart discret (page d'accueil, espace client) : « Si vous le souhaitez, vous pouvez installer... » */
+.pwa-hint {
+  text-align: center; font-size: 0.82rem; color: var(--gray, #6E6862);
+  max-width: var(--max-width); margin: 10px auto 0; padding: 0 16px;
+}
+.pwa-hint button {
+  border: 0; background: none; padding: 0; font: inherit; color: var(--green-dark, #0E3B27);
+  font-weight: 700; text-decoration: underline; cursor: pointer;
+}
 
-/* Marche à suivre iOS pour "Ajouter à l'écran d'accueil" (pas d'API pour le faire automatiquement). */
+/* Marche à suivre iOS pour "Ajouter à l'écran d'accueil" (aucune appli ni navigateur ne peut sauter
+   cette étape sur iOS : seule Apple affiche sa propre fenêtre « Ajouter », en 2 gestes de l'utilisateur). */
 .pwa-ios-tip {
   position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 200;
   max-width: 420px; margin: 0 auto;
   background: var(--green-dark, #0E3B27); color: #fff;
-  border-radius: 14px; padding: 14px 40px 14px 16px;
+  border-radius: 14px; padding: 16px 40px 14px 18px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
-  font-size: 0.92rem; line-height: 1.45;
+  font-size: 0.92rem; line-height: 1.4;
 }
-.pwa-ios-tip p { margin: 0; }
+.pwa-ios-tip__title { margin: 0 0 10px; font-weight: 800; font-size: 1rem; }
+.pwa-ios-tip__steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pwa-ios-tip__steps li { display: flex; align-items: center; gap: 10px; }
+.pwa-ios-tip__num {
+  flex: 0 0 auto; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--gold-bright, #FFD166); color: var(--green-dark, #0E3B27); font-weight: 800; font-size: 0.8rem;
+}
 .pwa-ios-tip strong { white-space: nowrap; }
 .pwa-ios-tip svg { vertical-align: -3px; width: 16px; height: 16px; }
+.pwa-ios-tip__arrow {
+  text-align: center; font-size: 1.3rem; color: var(--gold-bright, #FFD166); margin-top: 6px;
+  animation: pwaArrowBounce 1.2s ease-in-out infinite;
+}
+@keyframes pwaArrowBounce {
+  0%, 100% { transform: translateY(0); opacity: 0.7; }
+  50% { transform: translateY(5px); opacity: 1; }
+}
 .pwa-ios-tip__close {
   position: absolute; top: 8px; right: 10px; border: 0; background: none; color: #fff;
   font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 4px 8px; opacity: 0.8;
 }
 .pwa-ios-tip__close:hover { opacity: 1; }
 
-/* Confirmation avant l'installation ("Vous allez ajouter Subito Pizza à votre écran d'accueil"). */
+/* Confirmation avant l'installation ("N'hésitez pas à installer Subito Pizza..."). */
 .pwa-confirm {
   position: fixed; inset: 0; z-index: 210;
   background: rgba(20, 16, 14, 0.55);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .pwa-confirm__card {
-  background: #fff; border-radius: 16px; padding: 22px 20px; max-width: 360px; width: 100%;
+  background: #fff; border-radius: 16px; padding: 26px 20px 22px; max-width: 360px; width: 100%;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); text-align: center;
 }
+.pwa-confirm__icon {
+  display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 14px;
+  background: var(--green-tint, #EAF2EC); color: var(--green-dark, #0E3B27); border-radius: 50%;
+}
+.pwa-confirm__icon svg { width: 26px; height: 26px; }
 .pwa-confirm__card p { margin: 0 0 18px; font-size: 1rem; line-height: 1.5; }
 .pwa-confirm__actions { display: flex; gap: 10px; }
 .pwa-confirm__actions .btn-outline,
 .pwa-confirm__actions .btn-solid { flex: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pwa-install-link__arrow, .pwa-ios-tip__arrow { animation: none; }
+}
 
 .site-nav__link.is-active {
   border-bottom-color: var(--red);
