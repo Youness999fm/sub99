@@ -226,9 +226,11 @@
   function eur(cents) {
     return ((Number(cents) || 0) / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
   }
-  function delayLabel(m) {
+  // approx (livraison) : le trajet du livreur n'est jamais exact, contrairement au temps de préparation.
+  function delayLabel(m, approx) {
     if (m === DELAY_IMMEDIATE) return 'tout de suite';
-    return m === 60 ? '1 heure' : m + ' min';
+    const base = m === 60 ? '1 heure' : m + ' min';
+    return approx ? 'plus ou moins ' + base : base;
   }
   function dateFR(dayKey) {
     const [y, m, d] = dayKey.split('-');
@@ -252,13 +254,14 @@
     const d = toDate(o.scheduled_for);
     return d ? `${scheduledDayLabel(d)} à ${hm(d)}` : '';
   }
-  // Une commande programmée n'entre dans la file active que lorsqu'il est temps de la préparer
-  // (créneau choisi moins le délai de préparation par défaut) ; avant ça, elle reste en « Programmées ».
+  const SCHEDULED_SURFACE_MINUTES = 60; // une commande programmée sort 1 heure avant l'heure programmée.
+  // Une commande programmée n'entre dans la file active qu'une heure avant l'heure choisie ;
+  // avant ça, elle reste en « Programmées ».
   function surfaced(o) {
     if (o.status !== 'new') return false;
     const sched = toDate(o.scheduled_for);
     if (!sched) return true;
-    return sched.getTime() - Date.now() <= state.defaultDelay * 60000;
+    return sched.getTime() - Date.now() <= SCHEDULED_SURFACE_MINUTES * 60000;
   }
   function norm(s) {
     return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -722,7 +725,7 @@
         const done = r.data.order || {};
         if (action === 'accept' && done.status === 'accepted') printOrderOnPrinter(done);
         toast(done.status === 'accepted'
-          ? `Commande de ${name} acceptée · délai annoncé : ${delayLabel(done.delay_minutes)}`
+          ? `Commande de ${name} acceptée · délai annoncé : ${delayLabel(done.delay_minutes, done.mode === 'delivery')}`
           : `Commande de ${name} refusée`);
       } else if (r.data.error === 'already_decided') {
         const cur = findOrder(id);
@@ -731,7 +734,7 @@
           cur.delay_minutes = r.data.delay_minutes != null ? r.data.delay_minutes : cur.delay_minutes;
         }
         toast(r.data.status === 'accepted'
-          ? `La commande de ${name} était déjà acceptée (délai ${delayLabel(r.data.delay_minutes)}).`
+          ? `La commande de ${name} était déjà acceptée (délai ${delayLabel(r.data.delay_minutes, cur && cur.mode === 'delivery')}).`
           : `La commande de ${name} était déjà refusée.`);
       } else if (r.data.error === 'not_found') {
         alertMsg(`La commande de ${name} est introuvable.`);
@@ -767,7 +770,7 @@
       if (r.ok) {
         replaceOrder(r.data.order);
         closeDialog();
-        toast(`Commande de ${name} prête · le client est prévenu`);
+        toast(o.mode === 'delivery' ? `Livreur en route pour ${name} · le client est prévenu` : `Commande de ${name} prête · le client est prévenu`);
       } else if (r.data.error === 'already_decided') {
         const cur = findOrder(id);
         if (cur) cur.status = r.data.status || cur.status;
@@ -1055,7 +1058,7 @@
         data-action="delay" data-min="${DELAY_IMMEDIATE}" ${dis}>
         <span class="dl-unit">Tout de suite</span>
       </button>` : '';
-    const confirmLabel = m === DELAY_IMMEDIATE ? 'tout de suite' : m === 60 ? '1 h' : m + ' min';
+    const confirmLabel = m === DELAY_IMMEDIATE ? 'tout de suite' : delayLabel(m, o.mode === 'delivery');
     return `
       <p class="ask" id="delay-ask">Délai annoncé au client</p>
       <div class="dl-grid" role="group" aria-labelledby="delay-ask">${tiles}${immediateTile}</div>
@@ -1326,7 +1329,7 @@
           <span class="rc-num">${esc(customerLabel(o))}</span>
           <span class="rc-info">
             <span>Acceptée à ${esc(toDate(o.accepted_at) ? hm(toDate(o.accepted_at)) : '—')}${o.status === 'ready' ? ' · Prête' : ''}</span>
-            <span class="rc-delay">Délai ${esc(delayLabel(o.delay_minutes))}</span>
+            <span class="rc-delay">Délai ${esc(delayLabel(o.delay_minutes, o.mode === 'delivery'))}</span>
           </span>
           <span class="rc-amt">${esc(eur(o.total_cents))}</span>
         </button>
@@ -1637,6 +1640,11 @@
           <span>${esc(customerLabel(o))} · ${esc(o.customer_phone || '')}</span>
           <span>Reçue à ${received ? esc(hm(received)) : '—'}</span>
         </div>
+        ${o.scheduled_for ? `
+        <div class="t-scheduled-box">
+          <p class="t-scheduled">PLANIFIÉE</p>
+          <p class="t-scheduled-time">${esc(scheduledLabel(o))}</p>
+        </div>` : ''}
         ${delivery ? `
         <div class="t-mode-box">
           <p class="t-mode">LIVRAISON</p>
@@ -1647,7 +1655,7 @@
         <div class="t-rule t-bottom"></div>
         ${Number(o.delivery_fee_cents) > 0 ? `<div class="t-line"><span>Frais de livraison</span><span>${esc(eur(o.delivery_fee_cents))}</span></div>` : ''}
         <div class="t-line t-total"><strong>TOTAL</strong><strong>${esc(eur(o.total_cents))}</strong></div>
-        ${o.delay_minutes != null ? `<div class="t-line"><span>Délai annoncé</span><span>${esc(delayLabel(o.delay_minutes))}</span></div>` : ''}
+        ${o.delay_minutes != null ? `<div class="t-line"><span>Délai annoncé</span><span>${esc(delayLabel(o.delay_minutes, o.mode === 'delivery'))}</span></div>` : ''}
         ${ready ? `<div class="t-line"><span>Prête vers</span><span>${esc(hm(ready))}</span></div>` : ''}
         ${o.status === 'ready' ? `<div class="t-line"><span>État</span><span>Prête</span></div>` : ''}
         ${desserts.length ? `
@@ -1690,7 +1698,8 @@
       desserts: desserts.map(asLine),
       deliveryFee: Number(o.delivery_fee_cents) > 0 ? eur(o.delivery_fee_cents) : null,
       total: eur(o.total_cents),
-      delay: o.delay_minutes != null ? delayLabel(o.delay_minutes) : null
+      delay: o.delay_minutes != null ? delayLabel(o.delay_minutes, o.mode === 'delivery') : null,
+      scheduled: o.scheduled_for ? scheduledLabel(o) : null
     };
   }
 
@@ -1835,6 +1844,17 @@
     blank(1);
     sep();
     blank(1);
+
+    // Commande programmée : très visible tout en haut, pour ne jamais la confondre avec une commande
+    // à préparer immédiatement.
+    if (o.scheduled) {
+      align(1); bold(true); charSize(2, 2);
+      text('PLANIFIEE\n');
+      charSize(1, 1);
+      text(o.scheduled + '\n');
+      bold(false);
+      blank(1); sep(); blank(1);
+    }
 
     // Livraison : bien visible, avec l'adresse (rien de plus ici pour un retrait au commerce).
     if (o.mode === 'LIVRAISON') {
@@ -1989,7 +2009,7 @@
       <h3>Ticket — ${esc(customerLabel(o))}</h3>
       ${ticketHtml(o)}
       <div class="dlg-actions">
-        ${o.status === 'accepted' ? `<button type="button" class="btn btn-accept" data-action="mark-ready" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>${busy ? 'Envoi…' : 'Commande prête · prévenir le client'}</button>` : ''}
+        ${o.status === 'accepted' ? `<button type="button" class="btn btn-accept" data-action="mark-ready" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>${busy ? 'Envoi…' : (o.mode === 'delivery' ? 'Livreur sur la route · prévenir le client' : 'Commande prête · prévenir le client')}</button>` : ''}
         <button type="button" class="btn btn-accept" data-action="print-ticket" data-id="${esc(o.id)}">${hasAndroidPrinter() ? 'Réimprimer le ticket' : 'Imprimer le ticket'}</button>
         <button type="button" class="btn btn-ghost" data-action="dlg-close">Fermer</button>
       </div>
@@ -2241,7 +2261,9 @@
         const o = findOrder(id);
         if (o && o.status === 'new' && !state.sending.has(String(o.id))) {
           state.editingId = o.id;
-          state.draftDelay = state.defaultDelay;
+          // Livraison : 1 heure présélectionnée par défaut (trajet du livreur), au lieu du délai par
+          // défaut habituel pensé pour la préparation à emporter.
+          state.draftDelay = o.mode === 'delivery' ? 60 : state.defaultDelay;
         }
         break;
       }
