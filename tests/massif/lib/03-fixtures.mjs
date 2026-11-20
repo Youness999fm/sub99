@@ -129,12 +129,12 @@ export function construireFixtures() {
   fixture('P08', 'V1', 'trois retraits', { lignes: [ligne('4 Saisons', { taille: 'Quatro', retraits: ['olives', 'artichauts', 'poivrons'] })] });
   fixture('P09', 'V1', 'remarque de 300 caractères spéciaux', { lignes: [ligne('Fajitas', { taille: 'Duo', note: NOTE300 })] });
   fixture('P10', 'V1', 'six lignes sans promotion (une seule pizza), remarques à espaces superflus ou vide', {
-    lignes: [ligne('Normande', { taille: 'Solo' }), ligne('Pâtes Bolognaise', { note: '  Sans fromage  ' }), ligne('Boisson 33cl', { qty: 2 }), ligne("Dessert Tiramisubito M&M's"), ligne('Salade Niçoise', { note: '   ' }), ligne('Tex-Mex Wings (5 pièces)')]
+    lignes: [ligne('Normande', { taille: 'Solo' }), ligne('Pâtes Bolognaise', { note: '  Sans fromage  ' }), ligne('Boisson Oasis Pomme Poire canette', { qty: 2 }), ligne("Dessert Tiramisubito M&M's"), ligne('Salade Niçoise', { note: '   ' }), ligne('Tex-Mex Wings (5 pièces)')]
   });
   fixture('P11', 'V1', 'une ligne de 2 pizzas : promotion sur la ligne', { lignes: [ligne('Maroilles', { taille: 'Duo', qty: 2 })] });
   fixture('P12', 'V1', 'calzone avec garniture au choix', { lignes: [ligne('Calzone (soufflée)', { taille: 'Duo', choix: 'thon' })] });
   fixture('P13', 'V1', 'pizza à composer avec base au choix', { lignes: [ligne('Marguerita (base)', { taille: 'Solo', choix: 'crème fraîche' })] });
-  fixture('P14', 'V1', 'boissons seules (aucune pizza)', { lignes: [ligne('Boisson 33cl', { qty: 3 })] });
+  fixture('P14', 'V1', 'boissons seules (aucune pizza)', { lignes: [ligne('Boisson Oasis Pomme Poire canette', { qty: 3 })] });
   fixture('P15', 'V1', 'XXL avec moitié, retraits, suppléments payants et gratuits, remarque', {
     lignes: [ligne('Carnivora', { taille: 'XXL', moitie: 'Orientale', retraits: ['merguez', 'chorizo'], supplements: ['Champignons', 'poulet', 'miel'], note: 'Bien cuite, couper en 12 svp' })]
   });
@@ -144,7 +144,7 @@ export function construireFixtures() {
       ligne('Chèvre miel', { taille: 'Solo', supplements: ['jambon'] }),
       ligne("L'Extravagante", { taille: 'Quatro', moitie: '3 Jambons' }),
       ligne('Pâtes Carbonara', { qty: 2 }),
-      ligne('Boisson Grande bouteille')
+      ligne('Boisson Coca-Cola Original Taste grande bouteille')
     ]
   });
 
@@ -178,7 +178,7 @@ export function construireFixtures() {
       () => [ligne('Pâtes Saumon', { qty: 2 })],
       () => [ligne('Pâtes Carbonara', { qty: 2 })],
       () => [ligne('Pâtes Bolognaise', { qty: 3 })],
-      () => [ligne('Pâtes 3 fromages', { qty: 2 }), ligne('Dessert Part de Tarte au Daim'), ligne('Boisson Grande bouteille'), ligne('Tex-Mex Wings (5 pièces)')]
+      () => [ligne('Pâtes 3 fromages', { qty: 2 }), ligne('Dessert Part de Tarte au Daim'), ligne('Boisson Coca-Cola Original Taste grande bouteille'), ligne('Tex-Mex Wings (5 pièces)')]
     ][idx]();
     const [m, b] = MOYENS_Z[i];
     fixture('Z' + String(i + 1).padStart(2, '0'), 'V3', `frais de livraison ${ville} (aucune pizza)`, { mode: 'delivery', ville, paiements: m, billet: b, lignes });
@@ -187,10 +187,10 @@ export function construireFixtures() {
   fixture('R02', 'V3', 'livraison : XXL + Quatro + Solo', { mode: 'delivery', ville: 'Dourges', paiements: ['cash'], billet: 100, lignes: [ligne('Subito', { taille: 'XXL' }), ligne('Chicken', { taille: 'Quatro' }), ligne('Kefta', { taille: 'Solo' })] });
   fixture('R03', 'V3', 'livraison : 4 pizzas dont une ligne de 2 XXL, pâtes et boisson', {
     mode: 'delivery', ville: 'Billy-Montigny', paiements: ['card', 'cash'], billet: 50,
-    lignes: [ligne('Neptune', { taille: 'XXL', qty: 2 }), ligne('Pacifico', { taille: 'Duo' }), ligne('Venezia', { taille: 'Duo' }), ligne('Pâtes Saumon'), ligne('Boisson 33cl', { qty: 2 })]
+    lignes: [ligne('Neptune', { taille: 'XXL', qty: 2 }), ligne('Pacifico', { taille: 'Duo' }), ligne('Venezia', { taille: 'Duo' }), ligne('Pâtes Saumon'), ligne('Boisson Oasis Pomme Poire canette', { qty: 2 })]
   });
   fixture('R04', 'V3', 'livraison : une pizza et des boissons (aucun frais, aucune promotion)', {
-    mode: 'delivery', ville: 'Noyelles-Godault', paiements: ['ticket_card'], lignes: [ligne('Pollame', { taille: 'Duo' }), ligne('Boisson 33cl', { qty: 3 })]
+    mode: 'delivery', ville: 'Noyelles-Godault', paiements: ['ticket_card'], lignes: [ligne('Pollame', { taille: 'Duo' }), ligne('Boisson Oasis Pomme Poire canette', { qty: 3 })]
   });
   fixture('R05', 'V3', 'livraison : 3 pizzas avec moitié-moitié et suppléments', {
     mode: 'delivery', ville: 'Fouquières-lès-Lens', paiements: ['card', 'ticket'],
@@ -247,7 +247,7 @@ export function construireFixtures() {
   // ------------------------------------------------------------------ V5 : extrêmes
   const pizzas8 = ['Végétarienne', 'Régina', 'Kebab', 'Subito', 'Chicken', 'Orientale', 'Neptune', 'Campione', 'Kefta', 'Pollame', 'Fajitas', 'Maroilles', 'Suisse', 'Carolina'];
   const autres = ['Pâtes Bolognaise', 'Pâtes Saumon', 'Subitowich Kebab', 'Subitowich Rome', 'Tex-Mex Nuggets (4 pièces)', 'Salade Exotique', 'Salade Di Roma', 'Dessert Tiramisubito Oreo',
-    'Dessert Calzone Nutella', 'Boisson 33cl', 'Boisson Grande bouteille', 'Tex-Mex Tenders (4 pièces)', 'Pâtes 3 fromages'];
+    'Dessert Calzone Nutella', 'Boisson Oasis Pomme Poire canette', 'Boisson Coca-Cola Original Taste grande bouteille', 'Tex-Mex Tenders (4 pièces)', 'Pâtes 3 fromages'];
   const tailles = ['Solo', 'Duo', 'Quatro', 'XXL'];
   const quarante = [];
   for (let i = 0; i < 40; i++) {
@@ -275,7 +275,7 @@ export function construireFixtures() {
     const sous = r.choix([...SOUS_ENSEMBLES_SANS_ESPECES, ['cash']]);
     fixture('B' + String(i + 1).padStart(2, '0'), 'V6', 'rafale ' + (i + 1), {
       mode, ville: 'Hénin-Beaumont', paiements: sous, billet: sous.includes('cash') ? r.choix([0, 10, 20, 50, 100]) : null,
-      lignes: [ligne(r.choix(pizzasB), { taille }), ...(r.vrai(0.4) ? [ligne('Boisson 33cl', { qty: r.entier(1, 2) })] : [])]
+      lignes: [ligne(r.choix(pizzasB), { taille }), ...(r.vrai(0.4) ? [ligne('Boisson Oasis Pomme Poire canette', { qty: r.entier(1, 2) })] : [])]
     });
   }
 

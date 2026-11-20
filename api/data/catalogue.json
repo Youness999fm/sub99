@@ -1743,23 +1743,11 @@
       "source": "menu.html"
     },
     {
-      "name": "Boisson 33cl",
-      "line_name": "Boisson 33cl",
+      "name": "Oasis Pomme Poire canette",
+      "line_name": "Boisson Oasis Pomme Poire canette",
       "category": "boissons",
       "kind": "product",
-      "ingredients": [
-        "Coca Cola",
-        "Coca Cerise",
-        "Coca Zero",
-        "Oasis Tropical",
-        "Oasis Pomme Cassis Framboise",
-        "Oasis Pomme Poire",
-        "Orangina",
-        "Schweppes Agrumes",
-        "Fanta Orange",
-        "Fanta Citron",
-        "Ice Tea"
-      ],
+      "ingredients": [],
       "availability": {
         "fixed": [],
         "choice": null
@@ -1774,16 +1762,163 @@
       "source": "menu.html"
     },
     {
-      "name": "Grande bouteille",
-      "line_name": "Boisson Grande bouteille",
+      "name": "Fanta Orange canette",
+      "line_name": "Boisson Fanta Orange canette",
       "category": "boissons",
       "kind": "product",
-      "ingredients": [
-        "Coca Cola",
-        "Fanta",
-        "Orangina",
-        "Ice Tea"
-      ],
+      "ingredients": [],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 150,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Coca-Cola Goût Original canette",
+      "line_name": "Boisson Coca-Cola Goût Original canette",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 150,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Coca-Cola Zero canette",
+      "line_name": "Boisson Coca-Cola Zero canette",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 150,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Tropico Orange & Ananas canette",
+      "line_name": "Boisson Tropico Orange & Ananas canette",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 150,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Lipton Peach Ice Tea canette",
+      "line_name": "Boisson Lipton Peach Ice Tea canette",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 150,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Oasis Pomme Cassis Framboise canette",
+      "line_name": "Boisson Oasis Pomme Cassis Framboise canette",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 150,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Coca-Cola Original Taste grande bouteille",
+      "line_name": "Boisson Coca-Cola Original Taste grande bouteille",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 300,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Fanta Orange grande bouteille",
+      "line_name": "Boisson Fanta Orange grande bouteille",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [],
+      "availability": {
+        "fixed": [],
+        "choice": null
+      },
+      "choice": null,
+      "half_allowed": false,
+      "half_flavor": false,
+      "prices_by_size": null,
+      "price_cents": 300,
+      "orderable": true,
+      "price_source": "item_price",
+      "source": "menu.html"
+    },
+    {
+      "name": "Tropico Orange & Ananas grande bouteille",
+      "line_name": "Boisson Tropico Orange & Ananas grande bouteille",
+      "category": "boissons",
+      "kind": "product",
+      "ingredients": [],
       "availability": {
         "fixed": [],
         "choice": null

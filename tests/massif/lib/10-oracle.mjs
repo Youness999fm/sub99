@@ -30,7 +30,7 @@ export const BAREME = {
   legumes: { Solo: 100, Duo: 150, Quatro: 250, XXL: 350 },
   viandes: { Solo: 150, Duo: 200, Quatro: 300, XXL: 400 },
   categories: { pates: 850, subitowichs: 600, 'tex-mex': 500, salades: 750 },
-  fiches: { 'Boisson 33cl': 150, 'Grande bouteille': 300, 'Tiramisubito Oreo': 350, 'Tiramisubito Spéculoos': 350, "Tiramisubito M&M's": 350, 'Calzone Nutella': 650, 'Part de Tarte au Daim': 300 }
+  fiches: { 'Oasis Pomme Poire canette': 150, 'Coca-Cola Original Taste grande bouteille': 300, 'Tiramisubito Oreo': 350, 'Tiramisubito Spéculoos': 350, "Tiramisubito M&M's": 350, 'Calzone Nutella': 650, 'Part de Tarte au Daim': 300 }
 };
 
 // ------------------------------------------------------------------ graine
@@ -316,7 +316,9 @@ export function genererLigne(r, idx, o = {}) {
     };
   } else {
     const p = o.produit ?? r.choix(idx.produits);
-    const retire = r.vrai(0.05) ? [r.choix(p.ingredients.map(String))] : [];
+    // Les boissons n'ont aucun ingrédient fixe : pas de retrait possible sur ces fiches (tirage conservé pour la suite de la graine).
+    const tenteRetrait = r.vrai(0.05);
+    const retire = tenteRetrait && p.ingredients.length ? [r.choix(p.ingredients.map(String))] : [];
     l = { name: p.line_name, variant: '', qty: o.qty ?? 1, unit_price_cents: 1, removed: retire, extras: [], half: null, note: o.note ?? r.choix(NOTES) };
   }
   return calerLigne(idx, l);

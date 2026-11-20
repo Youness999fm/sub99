@@ -33,7 +33,7 @@ const L = (name, variant, unit, o = {}) => ({ name, variant, qty: 1, unit_price_
 const X = (name, prix, qty = 1) => ({ name, price_cents: prix, qty });
 const REG = (o) => L('Régina', 'Solo', 1100, o);
 const REG2 = (o) => L('Régina', 'Duo', 1600, o);
-const BOI = (o) => L('Boisson 33cl', '', 150, o);
+const BOI = (o) => L('Boisson Oasis Pomme Poire canette', '', 150, o);
 const PAT = (o) => L('Pâtes Bolognaise', '', 850, o);
 const V = (...champs) => ({ statut: 422, code: 'validation', champs });
 const M = (index, exp, sent) => ({ statut: 422, code: 'price_mismatch_line', extra: { index, expected_unit_cents: exp, sent_unit_cents: sent } });
@@ -380,11 +380,11 @@ try {
     await D('07', 'nom contenant du HTML', L('<script>alert(1)</script>', '', 150), INC('<script>alert(1)</script>'));
     await D('08', 'nom contenant du SQL (la base doit rester intacte)', L("Régina'; DROP TABLE orders;--", 'Solo', 1100), INC("Régina'; DROP TABLE orders;--"));
     await D('09', 'pizza sans taille (Régina, taille vide)', L('Régina', '', 1100), INC('Régina'));
-    await D('10', 'produit avec une taille (boisson en Solo)', L('Boisson 33cl', 'Solo', 150), INC('Boisson 33cl'));
+    await D('10', 'produit avec une taille (boisson en Solo)', L('Boisson Oasis Pomme Poire canette', 'Solo', 150), INC('Boisson Oasis Pomme Poire canette'));
     await D('11', 'calzone sans garniture', L('Calzone (soufflée)', 'Duo', 1600), INC('Calzone (soufflée)'));
     await D('12', 'calzone avec une garniture absente de la fiche', L('Calzone (soufflée) — Saumon', 'Duo', 1600), INC('Calzone (soufflée) — Saumon'));
     await D('13', 'pizza à composer avec une base inconnue', L('Marguerita (base) — Pesto', 'Solo', 900), INC('Marguerita (base) — Pesto'));
-    await D('14', 'boisson avec un choix qui n\'existe pas', L('Boisson 33cl — Coca', '', 150), INC('Boisson 33cl — Coca'));
+    await D('14', 'boisson avec un choix qui n\'existe pas', L('Boisson Oasis Pomme Poire canette — Coca', '', 150), INC('Boisson Oasis Pomme Poire canette — Coca'));
     await D('15', 'pâtes avec un choix qui n\'existe pas', L('Pâtes Bolognaise — Fromage', '', 850), INC('Pâtes Bolognaise — Fromage'));
     await D('16', 'Tex-Mex avec une taille', L('Tex-Mex Wings (5 pièces)', 'Duo', 500), INC('Tex-Mex Wings (5 pièces)'));
     await D('17', '« Régina Duo » (la taille dans le nom)', L('Régina Duo', 'Duo', 1600), INC('Régina Duo'));
@@ -403,7 +403,7 @@ try {
     await E('06', 'Calzone (soufflée) — Truffe', 'Duo', 1600);
     await E('07', 'Calzone (soufflée) — Thon — Truffe', 'Duo', 1600);
     await E('08', 'Régina — ', 'Solo', 1100);
-    await E('09', 'Boisson 33cl — Truffe', '', 150);
+    await E('09', 'Boisson Oasis Pomme Poire canette — Truffe', '', 150);
     await E('10', 'Pâtes Bolognaise — Truffe', '', 850);
     const canonique = (attendu, unit) => (rep) => {
       const o = rep.json && rep.json.order;
@@ -540,11 +540,11 @@ try {
   {
     const PANIERS = [
       ['pâtes', [['Pâtes Bolognaise', '', 1]]],
-      ['pâtes + boisson', [['Pâtes Bolognaise', '', 1], ['Boisson 33cl', '', 1]]],
+      ['pâtes + boisson', [['Pâtes Bolognaise', '', 1], ['Boisson Oasis Pomme Poire canette', '', 1]]],
       ['pâtes + calzone Nutella', [['Pâtes Bolognaise', '', 1], ['Dessert Calzone Nutella', '', 1]]],
       ['pâtes + subitowich', [['Pâtes Bolognaise', '', 1], ['Subitowich Milano', '', 1]]],
       ['2 pâtes + tarte', [['Pâtes Bolognaise', '', 2], ['Dessert Part de Tarte au Daim', '', 1]]],
-      ['2 pâtes + boisson', [['Pâtes Bolognaise', '', 2], ['Boisson 33cl', '', 1]]],
+      ['2 pâtes + boisson', [['Pâtes Bolognaise', '', 2], ['Boisson Oasis Pomme Poire canette', '', 1]]],
       ['2 pâtes + Tex-Mex + tarte', [['Pâtes Bolognaise', '', 2], ['Tex-Mex Wings (5 pièces)', '', 1], ['Dessert Part de Tarte au Daim', '', 1]]],
       ['2 pâtes + salade', [['Pâtes Bolognaise', '', 2], ['Salade Niçoise', '', 1]]],
       ['Régina Solo', [['Régina', 'Solo', 1]]],
@@ -556,8 +556,8 @@ try {
       ['pizza à composer Solo', [['Marguerita (base)', 'Solo', 1]]],
       ['pâtes + Régina Solo', [['Pâtes Bolognaise', '', 1], ['Régina', 'Solo', 1]]]
     ];
-    const exact = { 1000: [['Pâtes Bolognaise', '', 1], ['Boisson 33cl', '', 1]], 1500: [['Pâtes Bolognaise', '', 1], ['Dessert Calzone Nutella', '', 1]], 2000: [['Pâtes Bolognaise', '', 2], ['Dessert Part de Tarte au Daim', '', 1]], 2500: [['Pâtes Bolognaise', '', 2], ['Tex-Mex Wings (5 pièces)', '', 1], ['Dessert Part de Tarte au Daim', '', 1]] };
-    const juste_sous = { 1000: [['Subitowich Milano', '', 1], ['Dessert Tiramisubito Oreo', '', 1]], 1500: [['Pâtes Bolognaise', '', 1], ['Subitowich Milano', '', 1]], 2000: [['Pâtes Bolognaise', '', 2], ['Boisson 33cl', '', 1]], 2500: [['Pâtes Bolognaise', '', 2], ['Salade Niçoise', '', 1]] };
+    const exact = { 1000: [['Pâtes Bolognaise', '', 1], ['Boisson Oasis Pomme Poire canette', '', 1]], 1500: [['Pâtes Bolognaise', '', 1], ['Dessert Calzone Nutella', '', 1]], 2000: [['Pâtes Bolognaise', '', 2], ['Dessert Part de Tarte au Daim', '', 1]], 2500: [['Pâtes Bolognaise', '', 2], ['Tex-Mex Wings (5 pièces)', '', 1], ['Dessert Part de Tarte au Daim', '', 1]] };
+    const juste_sous = { 1000: [['Subitowich Milano', '', 1], ['Dessert Tiramisubito Oreo', '', 1]], 1500: [['Pâtes Bolognaise', '', 1], ['Subitowich Milano', '', 1]], 2000: [['Pâtes Bolognaise', '', 2], ['Boisson Oasis Pomme Poire canette', '', 1]], 2500: [['Pâtes Bolognaise', '', 2], ['Salade Niçoise', '', 1]] };
     const construire = (defs) => defs.map(([n, v, q]) => lp(n, v, q));
     for (const ville of O.VILLES) {
       const z = O.ZONES[ville];
@@ -624,8 +624,8 @@ try {
         await accepte(`L3 ${a} + ${b} (Régina / Kebab), ${mode === 'pickup' ? 'à emporter' : 'en livraison'}`, mode === 'pickup' ? any() : henin(), cmd([lp('Régina', a), lp('Kebab', b)], { mode }), { ville: VH });
       }
     }
-    await accepte('L4 pizzas + pâtes + boissons : la promotion ne touche que les pizzas', any(), cmd([lp('Régina', 'XXL'), lp('Pâtes Bolognaise', ''), lp('Boisson 33cl', '', 3), lp('Kebab', 'Solo')]));
-    await accepte('L4 même panier en livraison (frais offerts, pizzas à -50 %)', henin(), cmd([lp('Régina', 'XXL'), lp('Pâtes Bolognaise', ''), lp('Boisson 33cl', '', 3), lp('Kebab', 'Solo')], { mode: 'delivery' }));
+    await accepte('L4 pizzas + pâtes + boissons : la promotion ne touche que les pizzas', any(), cmd([lp('Régina', 'XXL'), lp('Pâtes Bolognaise', ''), lp('Boisson Oasis Pomme Poire canette', '', 3), lp('Kebab', 'Solo')]));
+    await accepte('L4 même panier en livraison (frais offerts, pizzas à -50 %)', henin(), cmd([lp('Régina', 'XXL'), lp('Pâtes Bolognaise', ''), lp('Boisson Oasis Pomme Poire canette', '', 3), lp('Kebab', 'Solo')], { mode: 'delivery' }));
     await accepte('L5 60 pizzas en 3 lignes de 20 (XXL, Quatro, Duo), à emporter', any(), cmd([lp('Régina', 'XXL', 20), lp('Kebab', 'Quatro', 20), lp('Campione', 'Duo', 20)]));
     await accepte('L5 60 pizzas en 3 lignes de 20 (XXL, Quatro, Duo), en livraison', henin(), cmd([lp('Régina', 'XXL', 20), lp('Kebab', 'Quatro', 20), lp('Campione', 'Duo', 20)], { mode: 'delivery' }));
     const quarante = idx.pizzas.filter((p) => !p.choice).slice(0, 29).map((p, i) => lp(p.line_name, O.TAILLES[i % 4]));
@@ -658,8 +658,8 @@ try {
     for (const [k, q] of [0, 21, -1, 1.5, '2', null, true, 2 ** 31, [], 100].entries()) {
       await refus(`M${String(k + 1).padStart(2, '0')} quantité ${JSON.stringify(q)}`, any(), cmd([REG({ qty: q })]), V('items[0].qty'));
     }
-    await accepte('M11 quantité 20 (le maximum par ligne) : 20 boissons', any(), cmd([lp('Boisson 33cl', '', 20)]));
-    await accepte('M12 60 articles en 3 lignes de 20 : accepté', any(), cmd([lp('Boisson 33cl', '', 20), lp('Pâtes Bolognaise', '', 20), lp('Salade Niçoise', '', 20)]));
+    await accepte('M11 quantité 20 (le maximum par ligne) : 20 boissons', any(), cmd([lp('Boisson Oasis Pomme Poire canette', '', 20)]));
+    await accepte('M12 60 articles en 3 lignes de 20 : accepté', any(), cmd([lp('Boisson Oasis Pomme Poire canette', '', 20), lp('Pâtes Bolognaise', '', 20), lp('Salade Niçoise', '', 20)]));
     await refus('M13 61 articles (20 + 20 + 20 + 1)', any(), cmd([BOI({ qty: 20 }), PAT({ qty: 20 }), L('Salade Niçoise', '', 750, { qty: 20 }), BOI()]), V('items'));
     await refus('M14 61 articles en 2 lignes (20 + 20) et 21 : la quantité 21 est refusée', any(), cmd([BOI({ qty: 20 }), PAT({ qty: 20 }), L('Salade Niçoise', '', 750, { qty: 21 })]), V('items[2].qty'));
     await accepte('M15 40 lignes (le maximum), 40 articles', any(), cmd(Array.from({ length: 40 }, (_, i) => lp(idx.produits[i % idx.produits.length].line_name, ''))));
@@ -670,7 +670,7 @@ try {
     await refus('M20 panier en chaîne', any(), cmd('Régina'), V('items'));
     await refus('M21 panier objet non vide', any(), cmd({ 0: BOI() }), V('items'));
     await accepte('M22 quantité écrite 1.0 en JSON (même valeur) : acceptée', any(), cmd([REG()]), { brut: brutAvec(cmd([REG()]), '"qty":1,', '"qty":1.0,') });
-    await accepte('M23 60 articles en 40 lignes (20 de quantité 2, 20 de quantité 1)', any(), cmd([...Array.from({ length: 20 }, () => lp('Boisson 33cl', '', 2)), ...Array.from({ length: 20 }, () => lp('Pâtes Bolognaise', '', 1))]));
+    await accepte('M23 60 articles en 40 lignes (20 de quantité 2, 20 de quantité 1)', any(), cmd([...Array.from({ length: 20 }, () => lp('Boisson Oasis Pomme Poire canette', '', 2)), ...Array.from({ length: 20 }, () => lp('Pâtes Bolognaise', '', 1))]));
   }
   finPhase('4c quantités', phase);
 
