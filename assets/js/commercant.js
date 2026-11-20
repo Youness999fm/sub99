@@ -1494,29 +1494,53 @@
     el.dlgBody.innerHTML = '';
   }
 
-  // Nom de ligne tel qu'imprimé sur le ticket : « Pizza Margherita S » pour un article à taille (pizza,
-  // calzone…), taille abrégée (S/D/Q, XXL inchangé) pour aller plus vite à lire — simple nom sinon.
+  // Nom de ligne tel qu'imprimé sur le ticket, demande du 20/11. Le catalogue (api/data/catalogue.json,
+  // champ line_name) préfixe déjà le nom enregistré selon la catégorie — jamais pour les pizzas/calzones
+  // (ex. « Kebab »), « Pâtes X », « Subitowich X », « Tex-Mex X », « Salade X », « Dessert X » pour le reste :
+  // pas besoin de redeviner la catégorie, juste adapter ce préfixe déjà présent dans it.name.
+  //  - Pizza (a une taille) : jamais « Pizza » devant, taille abrégée (S/D/Q, XXL inchangé).
+  //  - « Subitowich » renommé « Panini » (demande explicite). Pâtes/Tex-Mex/Salade : préfixe inchangé.
+  //  - Dessert : préfixe inchangé, mais traité à part (voir splitTicketItems, isTicketDessert ci-dessous).
   const TICKET_SIZE_ABBR = { Solo: 'S', Duo: 'D', Quatro: 'Q', XXL: 'XXL' };
+  const TICKET_PREFIX_RENAME = { Subitowich: 'Panini' };
   function ticketItemTitle(it) {
     const name = String(it.name || '');
-    if (!it.variant) return name;
-    const taille = TICKET_SIZE_ABBR[it.variant] || it.variant;
-    return `Pizza ${name} ${taille}`;
+    if (it.variant) {
+      const taille = TICKET_SIZE_ABBR[it.variant] || it.variant;
+      return `${name} ${taille}`;
+    }
+    const m = /^(\S+)\s+(.+)$/.exec(name);
+    if (m && TICKET_PREFIX_RENAME[m[1]]) return `${TICKET_PREFIX_RENAME[m[1]]} ${m[2]}`;
+    return name;
+  }
+  // Un dessert (jamais de taille, nom déjà préfixé « Dessert » par le catalogue) — identifié ainsi pour
+  // le mettre à part : c'est la personne à l'accueil qui le donne, pas celle qui prépare les pizzas.
+  function isTicketDessert(it) {
+    return !it.variant && /^Dessert\s/.test(String(it.name || ''));
+  }
+  // Sépare les articles courants (lus par la personne qui prépare) des desserts (donnés par la
+  // personne à l'accueil) : les desserts ne doivent pas se mélanger aux pizzas dans le champ de lecture.
+  function splitTicketItems(items) {
+    const plats = [], desserts = [];
+    (items || []).forEach(it => (isTicketDessert(it) ? desserts : plats).push(it));
+    return { plats, desserts };
   }
 
   // Ticket de commande : en-tête petit (logo + nom), client/tél/heure compacts en haut, PUIS les
   // articles en très gros et gras (l'inverse de l'ancien ticket) pour une lecture en un coup d'œil
-  // en cuisine, et le total toujours tout en bas. Mode/adresse (livraison) juste avant les articles.
+  // en cuisine, le total toujours tout en bas, et les desserts dans leur propre bloc après le total
+  // (c'est la personne à l'accueil qui les donne, pas celle qui prépare — ils ne doivent pas se mélanger).
   function ticketHtml(o) {
     const delivery = o.mode === 'delivery';
     const received = toDate(o.created_at);
     const ready = toDate(o.ready_at);
-    const items = (o.items || []).map(it => `
+    const { plats, desserts } = splitTicketItems(o.items);
+    const itemLine = it => `
       <div class="t-item">
         <span class="t-item-name">${esc(it.qty)}× ${esc(ticketItemTitle(it))}</span>
         <span class="t-item-price">${esc(eur(it.line_total_cents))}</span>
       </div>
-      ${itemMods(it).map(m => `<div class="t-mod">${esc(m.text)}</div>`).join('')}`).join('');
+      ${itemMods(it).map(m => `<div class="t-mod">${esc(m.text)}</div>`).join('')}`;
     return `
       <div class="ticket">
         <div class="t-head">
@@ -1532,13 +1556,18 @@
           <p class="t-mode">LIVRAISON</p>
           <p class="t-address">${esc(addressLine(o.delivery_address))}</p>
         </div>` : ''}
-        <div class="t-items">${items}</div>
+        <div class="t-items">${plats.map(itemLine).join('')}</div>
         <div class="t-rule t-bottom"></div>
         ${Number(o.delivery_fee_cents) > 0 ? `<div class="t-line"><span>Frais de livraison</span><span>${esc(eur(o.delivery_fee_cents))}</span></div>` : ''}
         <div class="t-line t-total"><strong>TOTAL</strong><strong>${esc(eur(o.total_cents))}</strong></div>
         ${o.delay_minutes ? `<div class="t-line"><span>Délai annoncé</span><span>${esc(delayLabel(o.delay_minutes))}</span></div>` : ''}
         ${ready ? `<div class="t-line"><span>Prête vers</span><span>${esc(hm(ready))}</span></div>` : ''}
         ${o.status === 'ready' ? `<div class="t-line"><span>État</span><span>Prête</span></div>` : ''}
+        ${desserts.length ? `
+        <div class="t-dessert">
+          <p class="t-dessert-label">Dessert</p>
+          ${desserts.map(itemLine).join('')}
+        </div>` : ''}
       </div>`;
   }
 
@@ -1546,12 +1575,13 @@
   function printerPayload(o) {
     const delivery = o.mode === 'delivery';
     const received = toDate(o.created_at);
-    const items = (o.items || []).map(it => ({
+    const asLine = it => ({
       qty: Number(it.qty) || 1,
       title: ticketItemTitle(it),
       lineTotal: eur(it.line_total_cents),
       mods: itemMods(it).map(m => m.text)
-    }));
+    });
+    const { plats, desserts } = splitTicketItems(o.items);
     return {
       orderId: String(o.id),
       shop: 'Subito Pizza',
@@ -1560,7 +1590,8 @@
       customer: customerLabel(o),
       phone: o.customer_phone || '',
       receivedAt: received ? hm(received) : '',
-      items,
+      items: plats.map(asLine),
+      desserts: desserts.map(asLine),
       deliveryFee: Number(o.delivery_fee_cents) > 0 ? eur(o.delivery_fee_cents) : null,
       total: eur(o.total_cents),
       delay: o.delay_minutes ? delayLabel(o.delay_minutes) : null
@@ -1723,6 +1754,21 @@
     charSize(1, 1); bold(false);
     blank(1);
     if (o.delay) text(escRow('Delai annonce', o.delay));
+
+    // Dessert : bloc à part, après le total — donné par la personne à l'accueil, pas par celle qui
+    // prépare les pizzas ; il ne doit jamais se mélanger aux articles lus pendant la préparation.
+    if (o.desserts && o.desserts.length) {
+      blank(2); sep();
+      align(1); bold(true); charSize(2, 2);
+      text('DESSERT\n');
+      charSize(1, 1); bold(false);
+      align(0);
+      o.desserts.forEach(it => {
+        text(escTwoCol(`${it.qty}x ${it.title}`, it.lineTotal));
+        (it.mods || []).forEach(m => text('  ' + escAscii(m) + '\n'));
+      });
+    }
+
     blank(3); // espace généreux avant la coupe : un ticket nettement plus long, pas tassé.
     cut();
 

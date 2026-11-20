@@ -781,6 +781,13 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .ticket .t-mod { padding-left: 16px; font-size: 14px; color: #444; margin-top: 2px; }
 .ticket .t-bottom { margin-top: 4mm; }
 .ticket .t-total { font-size: 20px; margin-top: 8px; padding-top: 8px; border-top: 2px solid #111; }
+.ticket .t-dessert {
+  margin-top: 14px; padding: 10px 12px; background: var(--gold-tint); border: 2px dashed var(--gold); border-radius: 8px;
+}
+.ticket .t-dessert .t-dessert-label { margin: 0 0 6px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #8A6B1E; }
+.ticket .t-dessert .t-item { margin-top: 8px; }
+.ticket .t-dessert .t-item:first-of-type { margin-top: 0; }
+.ticket .t-dessert .t-item-name { font-size: 16px; font-weight: 700; }
 .ticket-pair { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; align-items: flex-start; }
 .ticket-pair > div { flex: 0 1 300px; }
 .cm-dialog.is-wide { width: min(940px, calc(100vw - 32px)); }
