@@ -773,6 +773,7 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .ticket .t-mode-box { border: 2px solid #1C1B19; padding: 3mm 2mm; margin-bottom: 10px; text-align: center; }
 .ticket .t-mode-box .t-mode { margin: 0; padding: 0; border: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.04em; }
 .ticket .t-mode-box .t-address { margin: 2mm 0 0; font-size: 15px; font-weight: 700; }
+.ticket .t-mode-box .t-payment { margin: 2mm 0 0; padding-top: 2mm; border-top: 1px dashed #1C1B19; font-size: 14px; font-weight: 700; }
 .ticket .t-items { margin: 4px 0; }
 .ticket .t-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 16px; }
 .ticket .t-item:first-child { margin-top: 0; }

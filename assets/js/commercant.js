@@ -1591,6 +1591,7 @@
         <div class="t-mode-box">
           <p class="t-mode">LIVRAISON</p>
           <p class="t-address">${esc(addressLine(o.delivery_address))}</p>
+          <p class="t-payment">${esc(paymentLabel(o))}</p>
         </div>` : ''}
         <div class="t-items">${plats.map(itemLine).join('')}</div>
         <div class="t-rule t-bottom"></div>
@@ -1632,6 +1633,7 @@
       shop: 'Subito Pizza',
       mode: delivery ? 'LIVRAISON' : 'A EMPORTER',
       address: delivery ? addressLine(o.delivery_address) : null,
+      payment: delivery ? paymentLabel(o) : null,
       customer: customerLabel(o),
       phone: o.customer_phone || '',
       receivedAt: received ? hm(received) : '',
@@ -1791,6 +1793,7 @@
       text('LIVRAISON\n');
       charSize(1, 1); bold(false);
       if (o.address) { align(0); text(escWrapWordsAt(o.address, PRINT_WIDTH) + '\n'); }
+      if (o.payment) { align(0); bold(true); text(escWrapWordsAt(o.payment, PRINT_WIDTH) + '\n'); bold(false); }
       blank(1); sep(); blank(1);
     }
 
