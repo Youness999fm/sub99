@@ -663,6 +663,11 @@ function initHeaderCompact() {
 // (Partager -> Sur l'écran d'accueil) à la place. Rien n'apparaît si le site est déjà installé
 // (display-mode: standalone) ni sur un navigateur qui ne gère ni l'un ni l'autre (ex. Firefox desktop).
 function initInstallPrompt() {
+  // Seulement là où le client doit le voir (demande du 20/11) : accueil, menu, son espace client —
+  // pas sur les autres pages, pas après une commande, pas dans l'espace commerçant.
+  const page = location.pathname.split('/').pop() || 'index.html';
+  if (!['index.html', 'menu.html', 'compte.html'].includes(page)) return;
+
   const nav = document.querySelector('.site-nav__list');
   if (!nav) return;
   if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return;
@@ -679,7 +684,9 @@ function initInstallPrompt() {
   nav.appendChild(li);
   const btn = li.querySelector('#pwaInstallBtn');
 
-  function showIOSHelp() {
+  // iOS Safari n'offre aucune API pour ajouter à l'écran d'accueil automatiquement : marche à suivre
+  // affichée après confirmation, à la place de l'invite native (qui n'existe pas sur cette plateforme).
+  function showIOSSteps() {
     if (document.querySelector('.pwa-ios-tip')) return;
     const tip = document.createElement('div');
     tip.className = 'pwa-ios-tip';
@@ -695,29 +702,56 @@ function initInstallPrompt() {
     setTimeout(close, 9000);
   }
 
+  let deferredPrompt = null;
   if (isIOS) {
-    li.hidden = false;
-    btn.addEventListener('click', showIOSHelp);
-    return;
+    li.hidden = false; // pas d'événement à attendre : toujours proposable (hors mode déjà installé, filtré plus haut)
+  } else {
+    // L'événement n'arrive que si le site est jugé installable (manifest + service worker, voir sw.js).
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      li.hidden = false;
+    });
+    window.addEventListener('appinstalled', () => { li.hidden = true; closeConfirm(); });
   }
 
-  // Android/Chrome (et navigateurs compatibles) : l'événement n'arrive que si le site est jugé
-  // installable (manifest + service worker déjà en place, voir sw.js) — rien à faire si ça ne vient jamais.
-  let deferredPrompt = null;
-  window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault();
-    deferredPrompt = e;
-    li.hidden = false;
-  });
-  btn.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    const evt = deferredPrompt;
-    deferredPrompt = null;
-    li.hidden = true; // un seul choix possible par invite native
-    evt.prompt();
-    try { await evt.userChoice; } catch (e) { /* ignoré : l'utilisateur a simplement fermé l'invite */ }
-  });
-  window.addEventListener('appinstalled', () => { li.hidden = true; });
+  // Petite confirmation maison avant l'invite (demande du 20/11) : le client sait ce qui va se passer
+  // avant que le navigateur (ou, sur iOS, la marche à suivre) ne s'affiche.
+  function closeConfirm() {
+    const box = document.querySelector('.pwa-confirm');
+    if (box) box.remove();
+  }
+  function showConfirm() {
+    if (document.querySelector('.pwa-confirm')) return;
+    const box = document.createElement('div');
+    box.className = 'pwa-confirm';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-label', 'Installer Subito Pizza');
+    box.innerHTML =
+      '<div class="pwa-confirm__card">' +
+        '<p>Vous allez ajouter <strong>Subito Pizza</strong> à votre écran d’accueil, comme une application.</p>' +
+        '<div class="pwa-confirm__actions">' +
+          '<button type="button" class="btn-outline" data-pwa="cancel">Annuler</button>' +
+          '<button type="button" class="btn-solid" data-pwa="confirm">Confirmer</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(box);
+    box.addEventListener('click', e => { if (e.target === box) closeConfirm(); });
+    box.querySelector('[data-pwa="cancel"]').addEventListener('click', closeConfirm);
+    box.querySelector('[data-pwa="confirm"]').addEventListener('click', async () => {
+      closeConfirm();
+      if (isIOS) { showIOSSteps(); return; }
+      if (!deferredPrompt) return;
+      const evt = deferredPrompt;
+      deferredPrompt = null;
+      li.hidden = true; // un seul choix possible par invite native
+      evt.prompt();
+      try { await evt.userChoice; } catch (e) { /* ignoré : l'utilisateur a simplement fermé l'invite */ }
+    });
+  }
+
+  btn.addEventListener('click', showConfirm);
 }
 
 function markActiveNavLink() {

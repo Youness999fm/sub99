@@ -777,6 +777,21 @@ button.site-nav__link { border: 0; background: none; font: inherit; cursor: poin
 }
 .pwa-ios-tip__close:hover { opacity: 1; }
 
+/* Confirmation avant l'installation ("Vous allez ajouter Subito Pizza à votre écran d'accueil"). */
+.pwa-confirm {
+  position: fixed; inset: 0; z-index: 210;
+  background: rgba(20, 16, 14, 0.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.pwa-confirm__card {
+  background: #fff; border-radius: 16px; padding: 22px 20px; max-width: 360px; width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); text-align: center;
+}
+.pwa-confirm__card p { margin: 0 0 18px; font-size: 1rem; line-height: 1.5; }
+.pwa-confirm__actions { display: flex; gap: 10px; }
+.pwa-confirm__actions .btn-outline,
+.pwa-confirm__actions .btn-solid { flex: 1; }
+
 .site-nav__link.is-active {
   border-bottom-color: var(--red);
 }
