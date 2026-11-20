@@ -779,6 +779,14 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .ticket .t-item-name { font-size: 24px; font-weight: 800; line-height: 1.2; }
 .ticket .t-item-price { font-size: 16px; font-weight: 700; white-space: nowrap; }
 .ticket .t-mod { padding-left: 16px; font-size: 14px; color: #444; margin-top: 2px; }
+.ticket .t-mod-half { font-weight: 700; color: #111; }
+.ticket .t-mod-plus { font-weight: 800; }
+.ticket .t-mod-note { font-weight: 800; }
+.ticket .t-mod-removed {
+  margin: 4px 0 4px 16px; padding: 4px 8px; border: 2px solid #111; border-radius: 4px;
+  display: inline-block; font-size: 14px; font-weight: 800;
+}
+.ticket .t-size-break { border-top: 1px dotted #B8B2A8; margin: 10px 0; }
 .ticket .t-bottom { margin-top: 4mm; }
 .ticket .t-total { font-size: 20px; margin-top: 8px; padding-top: 8px; border-top: 2px solid #111; }
 .ticket .t-dessert {

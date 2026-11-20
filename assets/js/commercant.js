@@ -1518,29 +1518,65 @@
   function isTicketDessert(it) {
     return !it.variant && /^Dessert\s/.test(String(it.name || ''));
   }
-  // Sépare les articles courants (lus par la personne qui prépare) des desserts (donnés par la
-  // personne à l'accueil) : les desserts ne doivent pas se mélanger aux pizzas dans le champ de lecture.
+  // Rang de taille pour regrouper les pizzas entre elles, peu importe l'ordre de saisie de la commande
+  // (demande du 20/11) : toutes les Solo ensemble, puis les Duo, etc. ; le reste (sans taille) à la fin.
+  const TICKET_SIZE_RANK = { Solo: 0, Duo: 1, Quatro: 2, XXL: 3 };
+  function ticketSizeRank(it) {
+    return it.variant && TICKET_SIZE_RANK[it.variant] !== undefined ? TICKET_SIZE_RANK[it.variant] : 4;
+  }
+  // Sépare les articles courants (lus par la personne qui prépare) des desserts (donnés par la personne
+  // à l'accueil), puis regroupe les premiers par taille (tri stable : l'ordre d'origine est conservé
+  // entre deux articles de même taille).
   function splitTicketItems(items) {
     const plats = [], desserts = [];
     (items || []).forEach(it => (isTicketDessert(it) ? desserts : plats).push(it));
+    plats.sort((a, b) => ticketSizeRank(a) - ticketSizeRank(b));
     return { plats, desserts };
+  }
+  // Préfixe quantité : jamais « 1× » (inutile), affiché à partir de 2 — fait déjà partie du nom en gros/gras.
+  // « x » en ASCII simple pour l'imprimante thermique (escAscii retire le « × » typographique, hors ASCII).
+  function ticketQtyPrefix(it, sep) {
+    const qty = Number(it.qty) || 1;
+    return qty >= 2 ? `${qty}${sep || '×'} ` : '';
+  }
+
+  // Modifications d'un article pour le ticket : moitié-moitié « saveur1 / saveur2 » (jamais le mot
+  // « moitié »), ingrédients retirés en gras encadrés de noir (bien visible), suppléments et remarque
+  // (préfixée #) en gras.
+  function ticketItemModsHtml(it) {
+    const parts = [];
+    if (it.half && (it.half.flavor1 || it.half.flavor2)) {
+      parts.push(`<div class="t-mod t-mod-half">${esc(it.half.flavor1 || '?')} / ${esc(it.half.flavor2 || '?')}</div>`);
+    }
+    if (it.removed && it.removed.length) {
+      parts.push(`<div class="t-mod-removed">${it.removed.map(r => `<div>− ${esc(r)}</div>`).join('')}</div>`);
+    }
+    (it.extras || []).forEach(x => {
+      const qty = Number(x.qty) || 1;
+      const price = Number(x.price_cents) || 0;
+      parts.push(`<div class="t-mod t-mod-plus">+ ${qty > 1 ? qty + '× ' : ''}${esc(x.name)}${price ? ` (${esc(eur(price))}${qty > 1 ? ' pièce' : ''})` : ''}</div>`);
+    });
+    if (it.note && String(it.note).trim()) parts.push(`<div class="t-mod t-mod-note">#${esc(String(it.note).trim())}</div>`);
+    return parts.join('');
   }
 
   // Ticket de commande : en-tête petit (logo + nom), client/tél/heure compacts en haut, PUIS les
-  // articles en très gros et gras (l'inverse de l'ancien ticket) pour une lecture en un coup d'œil
-  // en cuisine, le total toujours tout en bas, et les desserts dans leur propre bloc après le total
-  // (c'est la personne à l'accueil qui les donne, pas celle qui prépare — ils ne doivent pas se mélanger).
+  // articles en très gros et gras (l'inverse de l'ancien ticket) pour une lecture en un coup d'œil en
+  // cuisine, regroupés par taille (Solo avec Solo, Duo avec Duo…) avec un trait fin entre les tailles,
+  // le total toujours tout en bas, et les desserts dans leur propre bloc après le total (c'est la
+  // personne à l'accueil qui les donne, pas celle qui prépare — ils ne doivent pas se mélanger).
   function ticketHtml(o) {
     const delivery = o.mode === 'delivery';
     const received = toDate(o.created_at);
     const ready = toDate(o.ready_at);
     const { plats, desserts } = splitTicketItems(o.items);
-    const itemLine = it => `
+    const itemLine = (it, i, arr) => `
+      ${i > 0 && ticketSizeRank(arr[i - 1]) !== ticketSizeRank(it) ? '<div class="t-size-break"></div>' : ''}
       <div class="t-item">
-        <span class="t-item-name">${esc(it.qty)}× ${esc(ticketItemTitle(it))}</span>
+        <span class="t-item-name">${esc(ticketQtyPrefix(it))}${esc(ticketItemTitle(it))}</span>
         <span class="t-item-price">${esc(eur(it.line_total_cents))}</span>
       </div>
-      ${itemMods(it).map(m => `<div class="t-mod">${esc(m.text)}</div>`).join('')}`;
+      ${ticketItemModsHtml(it)}`;
     return `
       <div class="ticket">
         <div class="t-head">
@@ -1577,11 +1613,20 @@
     const received = toDate(o.created_at);
     const asLine = it => ({
       qty: Number(it.qty) || 1,
+      qtyPrefix: ticketQtyPrefix(it, 'x'),
       title: ticketItemTitle(it),
       lineTotal: eur(it.line_total_cents),
-      mods: itemMods(it).map(m => m.text)
+      half: (it.half && (it.half.flavor1 || it.half.flavor2)) ? `${it.half.flavor1 || '?'} / ${it.half.flavor2 || '?'}` : null,
+      removed: (it.removed || []).slice(),
+      extrasText: (it.extras || []).map(x => {
+        const qty = Number(x.qty) || 1;
+        const price = Number(x.price_cents) || 0;
+        return `+ ${qty > 1 ? qty + 'x ' : ''}${x.name}${price ? ` (${eur(price)}${qty > 1 ? ' piece' : ''})` : ''}`;
+      }),
+      note: it.note && String(it.note).trim() ? String(it.note).trim() : null
     });
     const { plats, desserts } = splitTicketItems(o.items);
+    const itemsWithBreaks = plats.map((it, i) => ({ ...asLine(it), sizeBreakBefore: i > 0 && ticketSizeRank(plats[i - 1]) !== ticketSizeRank(it) }));
     return {
       orderId: String(o.id),
       shop: 'Subito Pizza',
@@ -1590,7 +1635,7 @@
       customer: customerLabel(o),
       phone: o.customer_phone || '',
       receivedAt: received ? hm(received) : '',
-      items: plats.map(asLine),
+      items: itemsWithBreaks,
       desserts: desserts.map(asLine),
       deliveryFee: Number(o.delivery_fee_cents) > 0 ? eur(o.delivery_fee_cents) : null,
       total: eur(o.total_cents),
@@ -1708,7 +1753,21 @@
     const feed = n => push(0x1B, 0x64, n);
     const cut = () => { feed(4); push(0x1D, 0x56, 0x00); };
     const sep = () => text('-'.repeat(PRINT_WIDTH) + '\n');
+    const thinSep = () => text('.'.repeat(PRINT_WIDTH) + '\n'); // trait fin : sépare les tailles entre elles, sans peser comme sep()
+    const reverse = on => push(0x1D, 0x42, on ? 1 : 0); // GS B : vidéo inversée (blanc sur noir) = le « cadre noir » des ingrédients retirés
     const blank = (n = 1) => text('\n'.repeat(n));
+    // Moitié-moitié (saveur1 / saveur2, jamais « moitié »), ingrédients retirés en gras sur fond noir,
+    // suppléments et remarque (préfixée #) en gras — mêmes règles que ticketItemModsHtml (aperçu HTML).
+    const printMods = it => {
+      if (it.half) text('  ' + escAscii(it.half) + '\n');
+      if (it.removed && it.removed.length) {
+        bold(true); reverse(true);
+        it.removed.forEach(r => text('  - ' + escAscii(r) + ' \n'));
+        reverse(false); bold(false);
+      }
+      (it.extrasText || []).forEach(e => { bold(true); text('  ' + escAscii(e) + '\n'); bold(false); });
+      if (it.note) { bold(true); text('  #' + escAscii(it.note) + '\n'); bold(false); }
+    };
 
     push(0x1B, 0x40); // initialisation
 
@@ -1735,13 +1794,15 @@
       blank(1); sep(); blank(1);
     }
 
-    // Articles : le cœur du ticket — très gros, gras, bien espacés pour se voir de loin.
+    // Articles : le cœur du ticket — très gros, gras, bien espacés pour se voir de loin, regroupés par
+    // taille (Solo avec Solo, Duo avec Duo…) avec un trait fin entre deux tailles différentes.
     align(0);
     (o.items || []).forEach(it => {
+      if (it.sizeBreakBefore) thinSep();
       bold(true); charSize(2, 3);
-      text(escWrapWordsAt(`${it.qty}x ${it.title}`, PRINT_WIDTH_X2) + '\n');
+      text(escWrapWordsAt(`${it.qtyPrefix}${it.title}`, PRINT_WIDTH_X2) + '\n');
       charSize(1, 1); bold(false);
-      (it.mods || []).forEach(m => text('  ' + escAscii(m) + '\n'));
+      printMods(it);
       blank(1);
     });
     sep();
@@ -1764,8 +1825,8 @@
       charSize(1, 1); bold(false);
       align(0);
       o.desserts.forEach(it => {
-        text(escTwoCol(`${it.qty}x ${it.title}`, it.lineTotal));
-        (it.mods || []).forEach(m => text('  ' + escAscii(m) + '\n'));
+        text(escTwoCol(`${it.qtyPrefix}${it.title}`, it.lineTotal));
+        printMods(it);
       });
     }
 
