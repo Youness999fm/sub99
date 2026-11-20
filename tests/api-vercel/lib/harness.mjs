@@ -23,6 +23,9 @@ export const ORIGIN = `http://localhost:${PORT}`;
 /** Code patron de test : fabriqué pour les tests, sans lien avec un vrai code. */
 export const OWNER_CODE = 'code-patron-test-' + crypto.randomBytes(5).toString('hex');
 
+/** Code « accès supérieur » de test (espace patron : fiches clients, suppression de la recette). */
+export const SUPER_CODE = 'code-superieur-test-' + crypto.randomBytes(5).toString('hex');
+
 /** Toutes les réponses reçues, pour les contrôles transverses. */
 export const responses = [];
 
@@ -40,6 +43,7 @@ export function makeEnv() {
       SUBITO_COOKIE_SECURE: '0',
       SUBITO_TEST_MODE: '1',
       OWNER_CODE_HASH: bcrypt.hashSync(OWNER_CODE, 4),
+      SUPER_CODE_HASH: bcrypt.hashSync(SUPER_CODE, 4),
       SESSION_SECRET: crypto.randomBytes(24).toString('hex')
     }
   };

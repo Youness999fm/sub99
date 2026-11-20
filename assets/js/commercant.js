@@ -7,7 +7,10 @@
 
   const API = '/api/';
   const TZ = 'Europe/Paris';
-  const DELAYS = [20, 30, 40, 50, 60];
+  const DELAYS = [10, 20, 30, 40, 50, 60];
+  // Valeur spéciale pour « venir tout de suite » (le client est invité à venir sans attendre,
+  // ex. le restaurant va bientôt fermer) : jamais un délai par défaut, seulement au cas par cas.
+  const DELAY_IMMEDIATE = 0;
   const SERVICE_START = '18h';
   const SERVICE_END = '23h';
   const POLL_VISIBLE_MS = 4000;
@@ -124,6 +127,10 @@
     availBusy: new Set(),
     catKey: MENU[0].key,
     patronTab: 'recap',
+    superUnlocked: false,
+    superCode: '',
+    superBusy: false,
+    recetteClearBusy: false,
     clientQuery: '',
     customers: [],
     customersState: 'idle',
@@ -210,6 +217,7 @@
     return ((Number(cents) || 0) / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
   }
   function delayLabel(m) {
+    if (m === DELAY_IMMEDIATE) return 'tout de suite';
     return m === 60 ? '1 heure' : m + ' min';
   }
   function dateFR(dayKey) {
@@ -381,6 +389,9 @@
     state.availBusy.clear();
     state.view = 'orders';
     state.patronTab = 'recap';
+    state.superUnlocked = false;
+    state.superCode = '';
+    state.recetteClearBusy = false;
     setNetLost(false);
     closeDialog();
     lastHtml.clear();
@@ -1014,16 +1025,24 @@
         <button type="button" class="btn btn-accept btn-xl dec-main" data-action="accept" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : 'Accepter'}</button>
         <button type="button" class="btn btn-refuse btn-xl" data-action="refuse" data-id="${esc(o.id)}" ${dis}>Refuser</button>`;
     }
-    const m = state.draftDelay || state.defaultDelay;
+    const m = state.draftDelay != null ? state.draftDelay : state.defaultDelay;
     const tiles = DELAYS.map(v => `
       <button type="button" class="dl-tile ${m === v ? 'is-on' : ''}" aria-pressed="${m === v}"
         data-action="delay" data-min="${v}" ${dis}>
         <span class="dl-num">${v === 60 ? '1' : v}</span><span class="dl-unit">${v === 60 ? 'h' : 'min'}</span>
       </button>`).join('');
+    // « Venir tout de suite » (restaurant qui va fermer, par ex.) : seulement en retrait, le client
+    // vient lui-même — n'a pas de sens pour une livraison où c'est le livreur qui se déplace.
+    const immediateTile = o.mode !== 'delivery' ? `
+      <button type="button" class="dl-tile dl-tile--urgent ${m === DELAY_IMMEDIATE ? 'is-on' : ''}" aria-pressed="${m === DELAY_IMMEDIATE}"
+        data-action="delay" data-min="${DELAY_IMMEDIATE}" ${dis}>
+        <span class="dl-unit">Tout de suite</span>
+      </button>` : '';
+    const confirmLabel = m === DELAY_IMMEDIATE ? 'tout de suite' : m === 60 ? '1 h' : m + ' min';
     return `
       <p class="ask" id="delay-ask">Délai annoncé au client</p>
-      <div class="dl-grid" role="group" aria-labelledby="delay-ask">${tiles}</div>
-      <button type="button" class="btn btn-accept btn-xl dec-main" data-action="accept-confirm" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : 'Confirmer · ' + (m === 60 ? '1 h' : m + ' min')}</button>
+      <div class="dl-grid" role="group" aria-labelledby="delay-ask">${tiles}${immediateTile}</div>
+      <button type="button" class="btn btn-accept btn-xl dec-main" data-action="accept-confirm" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : 'Confirmer · ' + confirmLabel}</button>
       <button type="button" class="btn btn-ghost" data-action="edit-cancel" ${dis}>Annuler</button>`;
   }
 
@@ -1195,10 +1214,16 @@
 
   function patronTabs() {
     const tab = (k, label) => `<button type="button" class="sub-tab" data-action="patron-tab" data-tab="${k}" aria-pressed="${state.patronTab === k}">${label}</button>`;
+    const locked = !state.superUnlocked;
     return `
-      <nav class="sub-tabs" aria-label="Espace patron">
-        ${tab('recap', 'Recette du jour')}${tab('clients', 'Clients')}${tab('devices', 'Appareils connectés')}
-      </nav>`;
+      <div class="patron-head">
+        <nav class="sub-tabs" aria-label="Espace patron">
+          ${tab('recap', 'Recette du jour')}${locked ? '' : tab('clients', 'Clients')}${locked ? '' : tab('devices', 'Appareils connectés')}
+        </nav>
+        <button type="button" class="btn btn-soft btn-sm super-btn" data-action="${locked ? 'super-open' : 'super-lock'}">
+          ${locked ? 'Accès supérieur' : 'Verrouiller l’accès supérieur'}
+        </button>
+      </div>`;
   }
 
   function recapShell() {
@@ -1214,10 +1239,11 @@
         <aside class="recap-summary">
           <p class="eyebrow-light">Total de la recette</p>
           <strong class="recap-total-amount" id="recap-total">0,00 €</strong>
-          <p class="recap-note">Les commandes refusées ne sont pas comptées.</p>
+          <p class="recap-note">Les commandes refusées ne sont pas comptées. L’impression et la copie ne reprennent que le total, jamais le détail des commandes.</p>
           <div class="recap-actions">
             <button type="button" class="btn btn-light" data-action="copy-recap">Copier la recette</button>
             <button type="button" class="btn btn-light" data-action="print-recap">Imprimer la recette</button>
+            ${state.superUnlocked ? `<button type="button" class="btn btn-refuse" data-action="recette-clear-open" ${state.recetteClearBusy ? 'disabled' : ''}>Supprimer la recette</button>` : ''}
           </div>
         </aside>
       </div>`;
@@ -1227,7 +1253,10 @@
     return `
       <div class="clients-layout">
         <div class="clients-card">
-          <div class="col-head"><h2>Clients</h2></div>
+          <div class="col-head">
+            <h2>Clients</h2>
+            <button type="button" class="btn btn-light btn-sm" data-action="copy-client-numbers">Copier tous les numéros</button>
+          </div>
           <label class="search-field">
             <span class="sr-only">Rechercher un client</span>
             <input type="search" id="client-search" placeholder="Nom, prénom, téléphone ou e-mail" autocomplete="off" maxlength="80" value="${esc(state.clientQuery)}">
@@ -1254,10 +1283,12 @@
   }
 
   function renderPatron() {
-    const sig = state.patronTab;
+    // Un onglet verrouillé ne doit jamais rester affiché (ex. verrouillage pendant qu'il était ouvert).
+    if (!state.superUnlocked && state.patronTab !== 'recap') state.patronTab = 'recap';
+    const sig = state.patronTab + '|' + state.superUnlocked;
     if (sig !== patronSig) {
       patronSig = sig;
-      const body = sig === 'clients' ? clientsShell() : sig === 'devices' ? devicesShell() : recapShell();
+      const body = state.patronTab === 'clients' ? clientsShell() : state.patronTab === 'devices' ? devicesShell() : recapShell();
       setHTML(el.patronBody, patronTabs() + body);
     }
     if (state.patronTab === 'recap') fillRecap();
@@ -1287,18 +1318,25 @@
     total.textContent = eur(accepted.reduce((s, o) => s + (Number(o.total_cents) || 0), 0));
   }
 
-  // Clients : recherche côté serveur, saisie avec un léger délai.
+  // Clients : réservé à l'accès supérieur (code 1109 par défaut en local), recherche côté serveur,
+  // saisie avec un léger délai.
   let clientTimer = null;
   let clientReq = 0;
   async function loadCustomers() {
+    if (!state.superUnlocked) return;
     const req = ++clientReq;
     state.customersState = 'loading';
     fillClients();
     try {
       const q = state.clientQuery.trim().slice(0, 80);
-      const r = await api('owner_customers.php', { method: 'POST', body: { q } });
+      const r = await api('owner_customers.php', { method: 'POST', body: { code: state.superCode, q } });
       if (req !== clientReq || r.unauth) return;
-      if (!r.ok) throw new Error('http');
+      if (!r.ok) {
+        // Le code supérieur a changé ou n'est plus valide entre-temps : on reverrouille plutôt que
+        // d'afficher une simple erreur réseau.
+        if (r.data.error === 'invalid_super_code') { superLock('Accès supérieur invalide, reverrouillé.'); return; }
+        throw new Error('http');
+      }
       state.customers = Array.isArray(r.data.customers) ? r.data.customers : [];
       state.customersState = 'ok';
       if (!state.customers.some(c => String(c.id) === String(state.selectedClientId))) state.selectedClientId = null;
@@ -1417,16 +1455,10 @@
     }
   }
 
+  // Copie et impression de la recette : seulement le total du jour, jamais le détail commande par commande.
   function recapPlainText() {
-    const accepted = recapOrders();
-    const lines = accepted.map(o => {
-      const at = toDate(o.accepted_at);
-      return `${customerLabel(o)}  ${at ? hm(at) : '—'}  délai ${delayLabel(o.delay_minutes)}  ${eur(o.total_cents)}`;
-    });
-    const sum = accepted.reduce((s, o) => s + (Number(o.total_cents) || 0), 0);
-    return [dayLabel(state.serviceDay),
-      ...(lines.length ? lines : ['Aucune commande acceptée.']),
-      `TOTAL ${eur(sum)}`].join('\n');
+    const sum = recapOrders().reduce((s, o) => s + (Number(o.total_cents) || 0), 0);
+    return [dayLabel(state.serviceDay), `TOTAL ${eur(sum)}`].join('\n');
   }
 
   // ---------- Rendu global ----------
@@ -1498,16 +1530,14 @@
   // champ line_name) préfixe déjà le nom enregistré selon la catégorie — jamais pour les pizzas/calzones
   // (ex. « Kebab »), « Pâtes X », « Subitowich X », « Tex-Mex X », « Salade X », « Dessert X » pour le reste :
   // pas besoin de redeviner la catégorie, juste adapter ce préfixe déjà présent dans it.name.
-  //  - Pizza (a une taille) : jamais « Pizza » devant, taille abrégée (S/D/Q, XXL inchangé).
+  //  - Pizza (a une taille) : jamais « Pizza » devant, taille écrite en entier (assez de place sur le ticket).
   //  - « Subitowich » renommé « Panini » (demande explicite). Pâtes/Tex-Mex/Salade : préfixe inchangé.
   //  - Dessert : préfixe inchangé, mais traité à part (voir splitTicketItems, isTicketDessert ci-dessous).
-  const TICKET_SIZE_ABBR = { Solo: 'S', Duo: 'D', Quatro: 'Q', XXL: 'XXL' };
   const TICKET_PREFIX_RENAME = { Subitowich: 'Panini' };
   function ticketItemTitle(it) {
     const name = String(it.name || '');
     if (it.variant) {
-      const taille = TICKET_SIZE_ABBR[it.variant] || it.variant;
-      return `${name} ${taille}`;
+      return `${name} ${it.variant}`;
     }
     const m = /^(\S+)\s+(.+)$/.exec(name);
     if (m && TICKET_PREFIX_RENAME[m[1]]) return `${TICKET_PREFIX_RENAME[m[1]]} ${m[2]}`;
@@ -1597,7 +1627,7 @@
         <div class="t-rule t-bottom"></div>
         ${Number(o.delivery_fee_cents) > 0 ? `<div class="t-line"><span>Frais de livraison</span><span>${esc(eur(o.delivery_fee_cents))}</span></div>` : ''}
         <div class="t-line t-total"><strong>TOTAL</strong><strong>${esc(eur(o.total_cents))}</strong></div>
-        ${o.delay_minutes ? `<div class="t-line"><span>Délai annoncé</span><span>${esc(delayLabel(o.delay_minutes))}</span></div>` : ''}
+        ${o.delay_minutes != null ? `<div class="t-line"><span>Délai annoncé</span><span>${esc(delayLabel(o.delay_minutes))}</span></div>` : ''}
         ${ready ? `<div class="t-line"><span>Prête vers</span><span>${esc(hm(ready))}</span></div>` : ''}
         ${o.status === 'ready' ? `<div class="t-line"><span>État</span><span>Prête</span></div>` : ''}
         ${desserts.length ? `
@@ -1641,7 +1671,7 @@
       desserts: desserts.map(asLine),
       deliveryFee: Number(o.delivery_fee_cents) > 0 ? eur(o.delivery_fee_cents) : null,
       total: eur(o.total_cents),
-      delay: o.delay_minutes ? delayLabel(o.delay_minutes) : null
+      delay: o.delay_minutes != null ? delayLabel(o.delay_minutes) : null
     };
   }
 
@@ -1953,18 +1983,9 @@
   }
 
   function recapPrintHtml() {
-    const accepted = recapOrders();
-    const body = accepted.length ? `
-      <div class="pa-day">
-        <p class="pa-label">${esc(dayLabel(state.serviceDay))}</p>
-        ${accepted.map(o => {
-          const at = toDate(o.accepted_at);
-          return `<div class="pa-line"><span>${esc(customerLabel(o))} · ${at ? esc(hm(at)) : '—'} · délai ${esc(delayLabel(o.delay_minutes))}</span><span>${esc(eur(o.total_cents))}</span></div>`;
-        }).join('')}
-      </div>`
-      : '<p class="pa-label">Aucune commande acceptée.</p>';
-    const sum = accepted.reduce((s, o) => s + (Number(o.total_cents) || 0), 0);
-    return `${body}<div class="pa-total"><span>TOTAL</span><span>${esc(eur(sum))}</span></div>`;
+    const sum = recapOrders().reduce((s, o) => s + (Number(o.total_cents) || 0), 0);
+    return `<div class="pa-day"><p class="pa-label">${esc(dayLabel(state.serviceDay))}</p></div>`
+      + `<div class="pa-total"><span>TOTAL</span><span>${esc(eur(sum))}</span></div>`;
   }
 
   function defaultDelayHtml() {
@@ -2009,6 +2030,153 @@
     `);
   }
 
+  // ---------- Accès supérieur (espace patron : clients, appareils, suppression de la recette) ----------
+  function openSuperDialog() {
+    openDialog(`
+      <h3>Accès supérieur</h3>
+      <p>Code requis pour voir les clients, copier leurs numéros et supprimer la recette.</p>
+      <form id="super-form" novalidate>
+        <div class="field">
+          <label for="super-code">Code</label>
+          <input type="password" id="super-code" name="code" inputmode="numeric" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" required>
+        </div>
+        <p class="login-error" id="super-error" role="alert" aria-live="assertive"></p>
+        <div class="dlg-actions">
+          <button type="submit" class="btn btn-accept" id="super-submit">Valider</button>
+          <button type="button" class="btn btn-ghost" data-action="dlg-close">Annuler</button>
+        </div>
+      </form>
+    `);
+    const input = document.getElementById('super-code');
+    const form = document.getElementById('super-form');
+    if (input) setTimeout(() => input.focus(), 0);
+    if (!form) return;
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('super-submit');
+      const errEl = document.getElementById('super-error');
+      const code = input ? input.value : '';
+      if (!code) {
+        if (errEl) errEl.textContent = 'Saisissez le code.';
+        if (input) input.focus();
+        return;
+      }
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Vérification…'; }
+      if (errEl) errEl.textContent = '';
+      try {
+        const r = await api('owner_customers.php', { method: 'POST', body: { code, q: '' } });
+        if (r.unauth) return;
+        if (r.ok) {
+          state.superUnlocked = true;
+          state.superCode = code;
+          state.customers = Array.isArray(r.data.customers) ? r.data.customers : [];
+          state.customersState = 'ok';
+          state.patronTab = 'clients';
+          closeDialog();
+          toast('Accès supérieur déverrouillé');
+          scheduleRender();
+          return;
+        }
+        const err = r.data.error;
+        if (errEl) {
+          errEl.textContent = err === 'invalid_super_code' ? 'Code incorrect.'
+            : err === 'too_many_attempts'
+              ? `Trop de tentatives. Réessayez dans ${Math.max(1, Math.ceil((Number(r.data.retry_after_seconds) || 60) / 60))} minute(s).`
+              : (r.data.message || 'Connexion impossible pour le moment. Réessayez.');
+        }
+        if (input) { input.value = ''; input.focus(); }
+      } catch (e2) {
+        if (e2 instanceof StaleError) return;
+        if (errEl) errEl.textContent = 'Connexion au serveur impossible. Vérifiez le réseau puis réessayez.';
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Valider'; }
+      }
+    });
+  }
+
+  function superLock(message) {
+    state.superUnlocked = false;
+    state.superCode = '';
+    state.customers = [];
+    state.customersState = 'idle';
+    state.selectedClientId = null;
+    state.clientQuery = '';
+    state.sessions = [];
+    state.sessionsState = 'idle';
+    state.patronTab = 'recap';
+    toast(message || 'Accès supérieur verrouillé');
+    scheduleRender();
+  }
+
+  async function copyAllClientNumbers() {
+    // « Tous » : si une recherche filtre la liste affichée, on recharge sans filtre pour ne pas en copier
+    // qu'une partie sous un intitulé qui promet le total.
+    let list = state.customers;
+    if (state.clientQuery.trim() !== '') {
+      try {
+        const r = await api('owner_customers.php', { method: 'POST', body: { code: state.superCode, q: '' } });
+        if (r.unauth) return;
+        if (!r.ok) {
+          if (r.data.error === 'invalid_super_code') { superLock('Accès supérieur invalide, reverrouillé.'); return; }
+          toast('Impossible de charger tous les clients, copie annulée.');
+          return;
+        }
+        list = Array.isArray(r.data.customers) ? r.data.customers : [];
+      } catch (e) {
+        if (e instanceof StaleError) return;
+        toast('Connexion impossible, copie annulée.');
+        return;
+      }
+    }
+    const nums = list.map(c => (c.phone || '').trim()).filter(Boolean);
+    if (!nums.length) { toast('Aucun numéro à copier.'); return; }
+    copyText(nums.join('\n'), `${nums.length} numéro${nums.length > 1 ? 's' : ''} copié${nums.length > 1 ? 's' : ''}`);
+  }
+
+  function openRecetteClearConfirm() {
+    const sum = recapOrders().reduce((s, o) => s + (Number(o.total_cents) || 0), 0);
+    openDialog(`
+      <h3>Supprimer la recette du jour ?</h3>
+      <p>Le total actuel (${esc(eur(sum))}) et les commandes qui le composent seront supprimés définitivement,
+      sur tous les appareils. Cette action est irréversible.</p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-refuse" data-action="dlg-confirm-recette-clear" ${state.recetteClearBusy ? 'disabled' : ''}>
+          ${state.recetteClearBusy ? 'Suppression…' : 'Oui, supprimer'}
+        </button>
+        <button type="button" class="btn btn-ghost" data-action="dlg-close">Annuler</button>
+      </div>
+    `);
+  }
+
+  async function clearRecette() {
+    if (state.recetteClearBusy) return;
+    state.recetteClearBusy = true;
+    scheduleRender();
+    try {
+      const r = await api('owner_recette_clear.php', { method: 'POST', body: { code: state.superCode } });
+      if (r.unauth) return;
+      if (!r.ok) {
+        if (r.data.error === 'invalid_super_code') { closeDialog(); superLock('Accès supérieur invalide, reverrouillé.'); return; }
+        toast(r.data.message || 'Suppression impossible pour le moment. Réessayez.');
+        return;
+      }
+      const removedIds = new Set(recapOrders().map(o => o.id));
+      state.orders = state.orders.filter(o => !removedIds.has(o.id));
+      // Les commandes supprimées ne doivent plus laisser de trace ailleurs (sélection, envois en cours,
+      // incidents d'impression affichés) : sinon un incident resterait affiché pour une commande qui n'existe plus.
+      removedIds.forEach(id => { state.sending.delete(id); state.printIssues.delete(id); });
+      if (removedIds.has(state.selectedId)) state.selectedId = null;
+      closeDialog();
+      toast('Recette supprimée');
+    } catch (e) {
+      if (e instanceof StaleError) return;
+      toast('Connexion impossible : la recette n\'a pas été supprimée.');
+    } finally {
+      state.recetteClearBusy = false;
+      scheduleRender();
+    }
+  }
+
   // ---------- Changement d'onglet ----------
   function openView(v) {
     state.view = v;
@@ -2016,9 +2184,10 @@
     if (v === 'patron') openPatronTab(state.patronTab);
   }
   function openPatronTab(tab) {
-    state.patronTab = tab;
-    if (tab === 'clients') loadCustomers();
-    if (tab === 'devices') loadSessions();
+    const t = (tab === 'clients' || tab === 'devices') && !state.superUnlocked ? 'recap' : tab;
+    state.patronTab = t;
+    if (t === 'clients') loadCustomers();
+    if (t === 'devices') loadSessions();
   }
 
   // ---------- Gestion des clics (délégation) ----------
@@ -2063,7 +2232,7 @@
         break;
       case 'accept-confirm': {
         const o = findOrder(id);
-        if (o && state.editingId === o.id) decide(o.id, 'accept', state.draftDelay || state.defaultDelay);
+        if (o && state.editingId === o.id) decide(o.id, 'accept', state.draftDelay != null ? state.draftDelay : state.defaultDelay);
         return;
       }
       case 'edit-cancel':
@@ -2149,6 +2318,21 @@
         return;
       case 'print-recap':
         printInto(recapPrintHtml());
+        return;
+      case 'super-open':
+        openSuperDialog();
+        return;
+      case 'super-lock':
+        superLock();
+        return;
+      case 'copy-client-numbers':
+        copyAllClientNumbers();
+        return;
+      case 'recette-clear-open':
+        openRecetteClearConfirm();
+        return;
+      case 'dlg-confirm-recette-clear':
+        clearRecette();
         return;
       case 'print-order':
       case 'prep-open': {

@@ -1,7 +1,9 @@
-// POST owner_customers {"q": "..."} — fiches clients (500 au plus).
+// POST owner_customers {"code": "...", "q": "..."} — fiches clients (500 au plus).
 // POST uniquement : la recherche (nom, téléphone, e-mail) ne passe jamais dans l'URL ni les journaux.
-import { allowMethods, readJsonBody, failValidation, ok } from '../core.js';
-import { requireOwner } from '../auth.js';
+// Réservé à l'« accès supérieur » (code distinct du code de connexion, haché dans SUPER_CODE_HASH) : le code de
+// connexion commerçant seul ne donne plus accès aux fiches clients (nom, téléphone, e-mail, adresse).
+import { allowMethods, readJsonBody, failValidation, bodyStr, ok } from '../core.js';
+import { requireOwner, requireSuperCode } from '../auth.js';
 import { all } from '../db.js';
 import { customerView } from '../customers.js';
 import { cleanSpaces, strChars } from '../util.js';
@@ -10,6 +12,7 @@ export default async function ownerCustomers(c) {
   allowMethods(c, ['POST']);
   const b = await readJsonBody(c);
   await requireOwner(c);
+  await requireSuperCode(c, bodyStr(b, 'code'));
   // isset() PHP : une valeur null équivaut à une clé absente.
   if (b.q !== undefined && b.q !== null && typeof b.q !== 'string') {
     failValidation({ q: 'Recherche invalide.' });

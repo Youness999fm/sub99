@@ -74,7 +74,7 @@ async function prepare(env) {
   const s = await startServer(env);
   const su = await cust.post('customer_signup.php', {
     first_name: 'Cata', last_name: 'Logue', email: `cata${Date.now()}@example.test`, phone: '06 00 00 00 09',
-    password: CUSTOMER_PASSWORD, street: '1 rue du test', city: 'Hénin-Beaumont',
+    password: CUSTOMER_PASSWORD, street: '1 rue du test', city: 'Hénin-Beaumont', housing_type: 'maison',
   });
   assert.equal(su.status, 201, su.text);
   return s;

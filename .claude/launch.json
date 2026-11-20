@@ -5,7 +5,8 @@
       "name": "subito-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 8095
+      "port": 8095,
+      "autoPort": true
     }
   ]
 }

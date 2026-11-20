@@ -2,7 +2,10 @@
 import crypto from 'node:crypto';
 import { maintenantEpoch } from './horloge.js';
 
-export const DELAY_CHOICES = [20, 30, 40, 50, 60];
+export const DELAY_CHOICES = [10, 20, 30, 40, 50, 60];
+// Valeur spéciale envoyée par le commerçant à la place d'un délai : le client est invité à venir
+// tout de suite (ex. le restaurant va bientôt fermer). N'est jamais un délai par défaut.
+export const DELAY_IMMEDIATE = 0;
 
 /**
  * Texte transmis à bcrypt. bcrypt ne lit que les 72 premiers octets : au-delà, on passe d'abord par SHA-256

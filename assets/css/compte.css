@@ -192,3 +192,55 @@ a.account-order:focus-visible {
 .account-order__status--accepted { background: #E3F3E9; color: var(--green-dark); }
 .account-order__status--ready { background: var(--green-dark); color: #fff; }
 .account-order__status--refused { background: #FCECEC; color: var(--red-dark); }
+
+/* Écran "Compte créé !" juste après l'inscription, avant d'arriver sur l'espace client habituel. */
+.account-created {
+  text-align: center;
+}
+
+.account-created__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: var(--green-tint);
+  color: var(--green-dark);
+  font-size: 1.6rem;
+}
+
+.account-created__title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--green-dark);
+}
+
+.account-created__text {
+  margin: 0 0 20px;
+  color: var(--gray);
+}
+
+.account-created .btn-solid {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Résumé "Mes informations" replié par défaut (.faq-item réutilisé depuis style.css). */
+.account-summary {
+  margin: 18px 0;
+}
+
+.account-summary p {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.account-summary__label {
+  font-weight: 700;
+  color: var(--green-dark);
+}

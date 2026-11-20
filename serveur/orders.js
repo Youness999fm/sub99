@@ -327,7 +327,7 @@ export function orderView(o, items, owner) {
     status: String(o.status),
     mode: String(o.mode),
     customer_name: phpTrim(o.customer_first_name + ' ' + o.customer_last_name),
-    delivery_address: o.mode === 'delivery' ? { street: o.delivery_street, city: o.delivery_city } : null,
+    delivery_address: o.mode === 'delivery' ? { street: o.delivery_street, city: o.delivery_city, housing_type: o.delivery_housing_type } : null,
     payment_methods: Array.isArray(methods) ? methods : [],
     cash_change_for: o.cash_change_for === null ? null : Number(o.cash_change_for),
     items,

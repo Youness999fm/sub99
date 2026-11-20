@@ -267,6 +267,14 @@
           '<p>' + SubitoIcons.svg('hourglass') + (order.scheduled_for ? ' Commande programmée bien reçue — le restaurant la prépare au bon moment.' : ' En attente de confirmation du restaurant…') + '</p>' +
           '<p class="order-track-hint">Cette page se met à jour toute seule, inutile de recharger.</p>' +
         '</div>';
+    } else if (order.status === "accepted" && order.delay_minutes === 0) {
+      // Le restaurant a choisi « venir tout de suite » (ex. il va bientôt fermer) : pas de minuteur,
+      // le message doit être vu dès l'acceptation.
+      statusHtml =
+        '<div class="order-track-status order-track-status--urgent" role="status">' +
+          '<p class="order-track-status__title">' + SubitoIcons.svg('alarm-clock', '1em', 'subito-icon--ok') + ' Venez vite !</p>' +
+          '<p class="order-track-hint">Merci de venir de suite au restaurant, car celui-ci va bientôt fermer.</p>' +
+        '</div>';
     } else if (order.status === "accepted") {
       statusHtml =
         '<div class="order-track-status order-track-status--ok" role="status">' +
@@ -300,7 +308,7 @@
       '<div class="order-track-total"><span>Total</span><strong>' + formatCents(order.total_cents) + '</strong></div>' +
       (order.mode === "delivery" && order.payment_methods && order.payment_methods.length ? '<p class="order-track-payment">' + paymentLabel(order.payment_methods, order.cash_change_for) + '</p>' : "");
 
-    if (readyAtMs !== null) {
+    if (readyAtMs !== null && order.delay_minutes !== 0) {
       startCountdown(order.mode);
     } else if (countdownTimer) {
       clearInterval(countdownTimer);

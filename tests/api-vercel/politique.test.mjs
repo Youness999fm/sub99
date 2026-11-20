@@ -12,7 +12,7 @@ import path from 'node:path';
 import { throttleIpKey } from '../../serveur/throttle.js';
 
 process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 1);
-const { PORT, ORIGIN, OWNER_CODE, Client, openTestDb, makeEnv, runTool, startServer, stopServer, responses, secretScanText } = await import('./lib/harness.mjs');
+const { PORT, ORIGIN, OWNER_CODE, SUPER_CODE, Client, openTestDb, makeEnv, runTool, startServer, stopServer, responses, secretScanText } = await import('./lib/harness.mjs');
 
 // Mot de passe client de test généré à l'exécution (jamais écrit en clair dans le dépôt).
 const randomPassword = () => Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(18))).toString('base64url') + 'Aa1!';
@@ -281,7 +281,7 @@ test('3. profil client (customer_update_profile.php)', async (t) => {
     assert.equal(r.json.ok, true);
     assert.deepEqual(r.json.customer, {
       id: ids.p, first_name: 'Paul Henri', last_name: 'Nouveau', email: 'paul@example.test', phone: '07 11 22 33 44',
-      street: '5 rue haute', city: 'Dourges',
+      street: '5 rue haute', city: 'Dourges', housing_type: null,
     });
     assert.deepEqual((await p.get('customer_me.php')).json.customer, r.json.customer);
   });
@@ -355,7 +355,7 @@ test('4. recherche clients : POST {q} uniquement', async (t) => {
 
   await t.test('POST : résultats de la recherche', async () => {
     const emails = async (body) => {
-      const r = await owner.post('owner_customers.php', body);
+      const r = await owner.post('owner_customers.php', { code: SUPER_CODE, ...body });
       assert.equal(r.status, 200, r.text);
       return r.json.customers.map((c) => c.email).sort();
     };
@@ -377,17 +377,22 @@ test('4. recherche clients : POST {q} uniquement', async (t) => {
   });
 
   await t.test('POST : q trop long ou non textuel : 422', async () => {
-    const long = await owner.post('owner_customers.php', { q: 'x'.repeat(81) });
+    const long = await owner.post('owner_customers.php', { code: SUPER_CODE, q: 'x'.repeat(81) });
     expectError(long, 422, 'validation');
     assert.ok(long.json.fields.q);
-    const bad = await owner.post('owner_customers.php', { q: ['Paul'] });
+    const bad = await owner.post('owner_customers.php', { code: SUPER_CODE, q: ['Paul'] });
     expectError(bad, 422, 'validation');
     assert.equal(bad.json.fields.q, 'Recherche invalide.');
   });
 
   await t.test('POST sans session : 401 ; session client : 403', async () => {
-    expectError(await new IpClient('anonyme-recherche').post('owner_customers.php', { q: 'Paul' }), 401, 'unauthorized');
-    expectError(await cust.post('owner_customers.php', { q: 'Paul' }), 403, 'forbidden');
+    expectError(await new IpClient('anonyme-recherche').post('owner_customers.php', { code: SUPER_CODE, q: 'Paul' }), 401, 'unauthorized');
+    expectError(await cust.post('owner_customers.php', { code: SUPER_CODE, q: 'Paul' }), 403, 'forbidden');
+  });
+
+  await t.test('POST sans code supérieur ou code faux : 403 invalid_super_code', async () => {
+    expectError(await owner.post('owner_customers.php', { q: 'Paul' }), 403, 'invalid_super_code');
+    expectError(await owner.post('owner_customers.php', { code: 'faux', q: 'Paul' }), 403, 'invalid_super_code');
   });
 });
 

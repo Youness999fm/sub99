@@ -6,7 +6,8 @@ import bcrypt from 'bcryptjs';
 import { fail, setCookie } from './core.js';
 import { one, exec, insert, estViolationUnique } from './db.js';
 import { maintenantEpoch } from './horloge.js';
-import { nowUtc, utcAt, utcToEpoch } from './util.js';
+import { nowUtc, utcAt, utcToEpoch, entreeBcrypt } from './util.js';
+import { throttleEnforce, throttleRefund, throttleIpKey } from './throttle.js';
 
 export const OWNER_COOKIE = 'subito_owner';
 export const CUSTOMER_COOKIE = 'subito_customer';
@@ -115,6 +116,25 @@ export async function dummyPasswordHash() {
     if (!estViolationUnique(e)) throw e;
   }
   return (dummyHash = hash);
+}
+
+/**
+ * Code « accès supérieur » (espace patron) : PIN distinct du code de connexion, haché dans SUPER_CODE_HASH.
+ * Un échec répond 403 (jamais 401) pour ne jamais déclencher la déconnexion du commerçant déjà identifié.
+ * Verrou par IP, comme owner_login : 5 tentatives / 15 min.
+ */
+export async function requireSuperCode(c, code) {
+  const hash = process.env.SUPER_CODE_HASH;
+  if (!hash) throw Object.assign(new Error('SUPER_CODE_HASH absente'), { code: 'CONFIG_CODE' });
+
+  const bucket = 'owner_super:ip:' + throttleIpKey(c.ip);
+  await throttleEnforce(bucket, 5, 900, 900);
+
+  const valid = typeof code === 'string' && code !== '' && Buffer.byteLength(code) <= 4096
+    && (await bcrypt.compare(entreeBcrypt(code), hash));
+  if (!valid) fail(403, 'invalid_super_code', 'Code incorrect.');
+
+  await throttleRefund(bucket, 5);
 }
 
 export async function revokeSession(id) {

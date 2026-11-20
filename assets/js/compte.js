@@ -124,9 +124,9 @@
     return false;
   }
 
-  // Les villes proposées viennent de window.SUBITO_DELIVERY_ZONES (défini
-  // dans cart.js, chargé avant ce fichier) : une seule liste de villes dans
-  // tout le site, jamais dupliquée ici.
+  // Les villes et types de logement proposés viennent de window.SUBITO_DELIVERY_ZONES /
+  // SUBITO_HOUSING_TYPES (définis dans cart.js, chargé avant ce fichier) : une seule liste
+  // de chaque dans tout le site, jamais dupliquée ici.
   function populateCitySelects() {
     const zones = window.SUBITO_DELIVERY_ZONES || [];
     [qs("signupCity"), qs("addressCity")].forEach(function (select) {
@@ -135,6 +135,21 @@
         return '<option value="' + escText(z.city) + '">' + escText(z.city) + '</option>';
       }).join("");
     });
+    const housingTypes = window.SUBITO_HOUSING_TYPES || [];
+    [qs("signupHousingType"), qs("addressHousingType")].forEach(function (select) {
+      if (!select) return;
+      select.innerHTML = '<option value="">— Sélectionner —</option>' + housingTypes.map(function (h) {
+        return '<option value="' + escText(h.value) + '">' + escText(h.label) + '</option>';
+      }).join("");
+    });
+  }
+
+  // « 12 rue de la Paix — Hénin-Beaumont (Maison) » pour le résumé replié ; rien si pas d'adresse.
+  function addressSummary(session) {
+    if (!session.city) return "";
+    const housingLabel = (window.SUBITO_HOUSING_TYPES || []).find(function (h) { return h.value === session.housing_type; });
+    const bits = [session.street, session.city].filter(Boolean).join(" — ");
+    return bits + (housingLabel ? " (" + housingLabel.label + ")" : "");
   }
 
   // Pas de numéro de commande ici (le restaurant identifie par nom, pas par
@@ -173,13 +188,14 @@
       return (
         '<' + tag + ' class="account-order"' + href + '>' +
           '<div class="account-order__head"><span>' + escText(formatOrderDate(o.created_at)) + '</span><span class="account-order__status account-order__status--' + status + '">' + escText(statusLabel[status]) + '</span></div>' +
-          '<div>' + (isFinite(total) && total > 0 ? escText(formatCents(total)) : '') + (isFinite(delay) && delay > 0 ? ' — prête dans ' + escText(delay) + ' min' : '') + '</div>' +
+          '<div>' + (isFinite(total) && total > 0 ? escText(formatCents(total)) : '') + (isFinite(delay) && delay === 0 ? ' — tout de suite' : isFinite(delay) && delay > 0 ? ' — prête dans ' + escText(delay) + ' min' : '') + '</div>' +
         '</' + tag + '>'
       );
     }).join("");
   }
 
   function showLoggedIn(session) {
+    qs("accountCreated").hidden = true;
     qs("accountGuest").hidden = true;
     const loggedIn = qs("accountLoggedIn");
     loggedIn.hidden = false;
@@ -190,6 +206,21 @@
     qs("profilePhone").value = session.phone || "";
     qs("addressStreet").value = session.street || "";
     qs("addressCity").value = session.city || "";
+    qs("addressHousingType").value = session.housing_type || "";
+
+    // Résumé replié (fermé par défaut, voir <details> dans compte.html) : juste de quoi se repérer
+    // d'un coup d'œil, l'adresse n'apparaît que si elle est enregistrée.
+    qs("summaryFirstName").textContent = session.first_name || "";
+    qs("summaryLastName").textContent = session.last_name || "";
+    qs("summaryPhone").textContent = session.phone || "";
+    const addrRow = qs("summaryAddressRow");
+    if (session.city) {
+      qs("summaryAddress").textContent = addressSummary(session);
+      addrRow.hidden = false;
+    } else {
+      addrRow.hidden = true;
+    }
+
     if (window.SubitoAccount) {
       window.SubitoAccount.myOrders().then(renderOrders).catch(function () {
         qs("accountOrders").innerHTML = '<p class="account-hint">Historique indisponible pour l’instant.</p>';
@@ -198,8 +229,20 @@
   }
 
   function showGuest() {
+    qs("accountCreated").hidden = true;
     qs("accountGuest").hidden = false;
     qs("accountLoggedIn").hidden = true;
+  }
+
+  // Écran dédié juste après la création du compte (demande du 20/11) : la page change complètement,
+  // au lieu d'enchaîner directement sur l'écran "connecté" habituel comme après une simple reconnexion.
+  let createdSession = null;
+  function showAccountCreated(session) {
+    createdSession = session;
+    qs("accountGuest").hidden = true;
+    qs("accountLoggedIn").hidden = true;
+    qs("accountCreated").hidden = false;
+    qs("accountCreatedName").textContent = session.first_name || "";
   }
 
   function init() {
@@ -262,6 +305,7 @@
         phone: qs("signupPhone").value.trim(),
         street: qs("signupStreet").value.trim(),
         city: qs("signupCity").value,
+        housing_type: qs("signupHousingType").value,
         password: password
       };
       // Le formulaire a `novalidate` (on gère nous-mêmes les messages
@@ -276,7 +320,7 @@
       btn.disabled = true;
       window.SubitoAccount.signup(fields).then(function (session) {
         btn.disabled = false;
-        if (!redirectAfterAuth()) showLoggedIn(session);
+        if (!redirectAfterAuth()) showAccountCreated(session);
       }).catch(function (err) {
         btn.disabled = false;
         if (err.code === "email_taken") showError(errorEl, "Un compte existe déjà avec cet e-mail — connectez-vous plutôt.");
@@ -301,6 +345,10 @@
         // Déconnexion non confirmée : la session peut encore être active, l'écran ne change pas.
         purgeOrderIntent();
       });
+    });
+
+    qs("accountCreatedContinue").addEventListener("click", function () {
+      if (createdSession) showLoggedIn(createdSession);
     });
 
     qs("profileForm").addEventListener("submit", function (e) {
@@ -354,18 +402,27 @@
       successEl.hidden = true;
       const fields = {
         street: qs("addressStreet").value.trim(),
-        city: qs("addressCity").value
+        city: qs("addressCity").value,
+        housing_type: qs("addressHousingType").value
       };
       const btn = qs("addressSubmit");
       btn.disabled = true;
-      window.SubitoAccount.updateAddress(fields).then(function () {
+      window.SubitoAccount.updateAddress(fields).then(function (session) {
         btn.disabled = false;
         if (redirectAfterAddress()) return;
+        const addrRow = qs("summaryAddressRow");
+        if (session.city) {
+          qs("summaryAddress").textContent = addressSummary(session);
+          addrRow.hidden = false;
+        } else {
+          addrRow.hidden = true;
+        }
         successEl.textContent = "Adresse enregistrée ✓";
         successEl.hidden = false;
       }).catch(function (err) {
         btn.disabled = false;
         if (err.code === "validation" && err.fields && err.fields.city) showError(errorEl, "Nous ne livrons pas dans cette ville : choisissez une ville de la liste.");
+        else if (err.code === "validation" && err.fields && err.fields.housing_type) showError(errorEl, "Précisez le type de logement (maison, appartement, immeuble).");
         else if (err.code === "validation") showError(errorEl, validationMessage(err, "Adresse invalide : vérifiez la rue et la ville."));
         else if (err.code === "unauthorized") showError(errorEl, "Votre session a expiré : reconnectez-vous.");
         else if (err.code === "network") showError(errorEl, NETWORK_MESSAGE);

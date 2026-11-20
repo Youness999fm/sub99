@@ -25,7 +25,7 @@ export default async function ownerSettings(c) {
     if (b.default_delay_minutes !== undefined) {
       const d = b.default_delay_minutes;
       if (!Number.isInteger(d) || !DELAY_CHOICES.includes(d)) {
-        failValidation({ default_delay_minutes: 'Délai attendu : 20, 30, 40, 50 ou 60 minutes.' });
+        failValidation({ default_delay_minutes: 'Délai attendu : 10, 20, 30, 40, 50 ou 60 minutes.' });
       }
       await ecrireReglage('default_delay_minutes', String(d));
     }

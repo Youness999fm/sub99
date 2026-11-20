@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 import {
-  ROOT, BASE, ORIGIN, OWNER_CODE, Client, openTestDb, makeEnv, runTool, startServer, stopServer, responses, secretScanText,
+  ROOT, BASE, ORIGIN, OWNER_CODE, SUPER_CODE, Client, openTestDb, makeEnv, runTool, startServer, stopServer, responses, secretScanText,
 } from './lib/harness.mjs';
 import { DELIVERY_ZONES } from '../../serveur/util.js';
 
@@ -180,7 +180,7 @@ test('1. accès propriétaire et sessions', async (t) => {
 // ---------------------------------------------------------------- 2. clients
 const signupBody = (over = {}) => ({
   first_name: 'Léo', last_name: 'Démo', email: 'leo@example.test', phone: '06 00 00 00 01',
-  password: CUSTOMER_PASSWORD, street: '1 rue de l\'exemple', city: 'Rouvroy', ...over,
+  password: CUSTOMER_PASSWORD, street: '1 rue de l\'exemple', city: 'Rouvroy', housing_type: 'maison', ...over,
 });
 
 test('2. comptes clients', async (t) => {
@@ -205,7 +205,7 @@ test('2. comptes clients', async (t) => {
   await t.test('inscription, email_taken', async () => {
     const r = await custA.post('customer_signup.php', signupBody({ email: 'Leo@Example.test' }));
     assert.equal(r.status, 201, r.text);
-    assert.deepEqual(Object.keys(r.json.customer).sort(), ['city', 'email', 'first_name', 'id', 'last_name', 'phone', 'street']);
+    assert.deepEqual(Object.keys(r.json.customer).sort(), ['city', 'email', 'first_name', 'housing_type', 'id', 'last_name', 'phone', 'street']);
     assert.equal(r.json.customer.email, 'leo@example.test');
     ids.custA = r.json.customer.id;
     const sc = r.setCookies.find((c) => c.startsWith('subito_customer='));
@@ -251,7 +251,7 @@ test('2. comptes clients', async (t) => {
     const bad = await custA.post('customer_update_address.php', { street: '2 rue', city: 'Lille' });
     expectError(bad, 422, 'validation');
     assert.ok(bad.json.fields.city);
-    const r = await custA.post('customer_update_address.php', { street: '3 place de la mairie', city: 'Hénin-Beaumont' });
+    const r = await custA.post('customer_update_address.php', { street: '3 place de la mairie', city: 'Hénin-Beaumont', housing_type: 'appartement' });
     assert.equal(r.status, 200, r.text);
     assert.equal(r.json.customer.city, 'Hénin-Beaumont');
     assert.equal(r.json.customer.street, '3 place de la mairie');
@@ -336,7 +336,7 @@ test('3. création de commande', async (t) => {
     assert.equal(r.json.order.promo_cents, 1350);
     assert.equal(r.json.order.total_cents, 5250);
     assert.equal(r.json.order.delivery_fee_cents, 0);
-    assert.deepEqual(r.json.order.delivery_address, { street: '1 rue de l\'exemple', city: 'Rouvroy' });
+    assert.deepEqual(r.json.order.delivery_address, { street: '1 rue de l\'exemple', city: 'Rouvroy', housing_type: 'maison' });
     assert.deepEqual(r.json.order.payment_methods, ['card']);
   });
 
@@ -523,6 +523,16 @@ test('4. décisions du propriétaire', async (t) => {
     expectError(await ownerA.post('owner_order_decide.php', { id: 999999, action: 'refuse' }), 404, 'not_found');
   });
 
+  await t.test('accepter « venir tout de suite » (délai 0)', async () => {
+    const r = await ownerA.post('owner_order_decide.php', { id: ids.orderC1, action: 'accept', delay_minutes: 0 });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.order.status, 'accepted');
+    assert.equal(r.json.order.delay_minutes, 0);
+    assert.equal(r.json.order.ready_at, r.json.order.accepted_at);
+    const seen = await custC.get(`order_status.php?id=${ids.orderC1}`);
+    assert.equal(seen.json.order.delay_minutes, 0);
+  });
+
   await t.test('refus puis refus rejoué', async () => {
     const r = await ownerA.post('owner_order_decide.php', { id: ids.orderB1, action: 'refuse' });
     assert.equal(r.status, 200);
@@ -544,20 +554,22 @@ test('4. décisions du propriétaire', async (t) => {
     assert.equal(list.json.orders.find((x) => x.id === ids.orderA1).ready_at, o.ready_at);
   });
 
-  await t.test('fiches clients', async () => {
+  await t.test('fiches clients : réservé à l\'accès supérieur (code distinct du code commerçant)', async () => {
     expectError(await ownerA.get('owner_customers.php?q=calc'), 405, 'method_not_allowed');
-    const all = await ownerA.post('owner_customers.php', {});
+    expectError(await ownerA.post('owner_customers.php', {}), 403, 'invalid_super_code');
+    expectError(await ownerA.post('owner_customers.php', { code: 'faux-code' }), 403, 'invalid_super_code');
+    const all = await ownerA.post('owner_customers.php', { code: SUPER_CODE });
     assert.equal(all.status, 200);
     assert.equal(all.json.customers.length, 5);
     const a = all.json.customers.find((c) => c.id === ids.custA);
     assert.match(a.created_at, /Z$/);
     assert.match(a.last_order_at, /Z$/);
     assert.equal(all.json.customers.find((c) => c.id === ids.custD).last_order_at, null);
-    const q = await ownerA.post('owner_customers.php', { q: 'calc' });
+    const q = await ownerA.post('owner_customers.php', { code: SUPER_CODE, q: 'calc' });
     assert.deepEqual(q.json.customers.map((c) => c.id), [ids.custC]);
-    const pct = await ownerA.post('owner_customers.php', { q: '%' });
+    const pct = await ownerA.post('owner_customers.php', { code: SUPER_CODE, q: '%' });
     assert.equal(pct.json.customers.length, 0);
-    expectError(await ownerA.post('owner_customers.php', { q: 'x'.repeat(81) }), 422, 'validation');
+    expectError(await ownerA.post('owner_customers.php', { code: SUPER_CODE, q: 'x'.repeat(81) }), 422, 'validation');
   });
 });
 
@@ -611,6 +623,11 @@ test('6. réglages', async () => {
   assert.equal((await ownerA.get('owner_settings.php')).json.default_delay_minutes, 40);
   expectError(await ownerA.post('owner_settings.php', { default_delay_minutes: 45 }), 422, 'validation');
   expectError(await ownerA.post('owner_settings.php', { default_delay_minutes: '40' }), 422, 'validation');
+  // 0 = « venir tout de suite » n'a de sens qu'au cas par cas (owner_order_decide), jamais comme délai par défaut.
+  expectError(await ownerA.post('owner_settings.php', { default_delay_minutes: 0 }), 422, 'validation');
+  const withTen = await ownerA.post('owner_settings.php', { default_delay_minutes: 10 });
+  assert.equal(withTen.json.default_delay_minutes, 10);
+  await ownerA.post('owner_settings.php', { default_delay_minutes: 40 });
   assert.equal((await ownerA.get('owner_settings.php')).json.default_delay_minutes, 40);
 
   // Bouton ouvert/fermé : fermeture manuelle, prioritaire sur l'horaire (créneau « off » dans ces tests).

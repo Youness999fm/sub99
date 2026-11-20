@@ -10,7 +10,7 @@
 // Aucune requête hors de la machine ; mots de passe et code patron sont fabriqués par les scripts ; graines fixes.
 import { readdirSync } from 'node:fs';
 import crypto from 'node:crypto';
-import { demarrerSite, reponses, OWNER_CODE, PORT } from './lib/env.mjs';
+import { demarrerSite, reponses, OWNER_CODE, SUPER_CODE, PORT } from './lib/env.mjs';
 import { creerClients, patronConnecte, enParallele, ClientIP, ipFictive, corpsInscription } from './lib/clients.mjs';
 import { rng, construireCommande } from './lib/commandes.mjs';
 import {
@@ -569,7 +569,7 @@ async function phaseA() {
       ['order_create.php', cookieCX, () => bodyCmdX(`sans-${++nCle}-aa`), 201],
       ['owner_settings.php', cookiePX, () => ({ default_delay_minutes: 30 }), 200],
       ['owner_availability.php', cookiePX, () => ({ kind: 'pizza', name: 'Pizza Sans Origine', status: 'out_manual' }), 200],
-      ['owner_customers.php', cookiePX, () => ({ q: 'sec07' }), 200],
+      ['owner_customers.php', cookiePX, () => ({ code: SUPER_CODE, q: 'sec07' }), 200],
       ['owner_order_decide.php', cookiePX, () => ({ id: idNew3, action: 'refuse' }), 200],
       ['owner_sessions_revoke.php', cookiePX, () => ({}), 422],
       ['owner_logout.php', pX3.cookieHeader(), () => ({}), 200]
@@ -744,9 +744,9 @@ async function phaseA() {
       ['connexion client : e-mail avec NUL', 'customer_login.php', '', () => ({ email: `a${NUL}@example.test`, password: 'x'.repeat(12) })],
       ['connexion client : mot de passe avec NUL', 'customer_login.php', '', () => ({ email: cNul.email, password: `a${NUL}b` })],
       ['connexion patron : code avec NUL', 'owner_login.php', '', () => ({ code: `a${NUL}b` })],
-      ['patron : recherche clients avec NUL', 'owner_customers.php', cookiePX, () => ({ q: `a${NUL}b` })],
+      ['patron : recherche clients avec NUL', 'owner_customers.php', cookiePX, () => ({ code: SUPER_CODE, q: `a${NUL}b` })],
       ['patron : rupture avec NUL dans le nom', 'owner_availability.php', cookiePX, () => ({ kind: 'pizza', name: `a${NUL}b`, status: 'out_manual' })],
-      ['patron : recherche clients avec \\ et %_', 'owner_customers.php', cookiePX, () => ({ q: '\\%_!\\\\' })],
+      ['patron : recherche clients avec \\ et %_', 'owner_customers.php', cookiePX, () => ({ code: SUPER_CODE, q: '\\%_!\\\\' })],
       ['patron : décision avec id 2^31', 'owner_order_decide.php', cookiePX, () => ({ id: 2147483648, action: 'refuse' })],
       ['patron : décision avec id 1e308', 'owner_order_decide.php', cookiePX, () => ({ id: 1e308, action: 'refuse' })],
       ['patron : décision avec id texte', 'owner_order_decide.php', cookiePX, () => ({ id: '1 OR 1=1', action: 'refuse' })]
@@ -761,12 +761,15 @@ async function phaseA() {
     const profond = '{"a":'.repeat(5000) + '1' + '}'.repeat(5000);
     const protoCorps = '{"__proto__":{"admin":true},"constructor":{"prototype":{"owner":true}},"items":[{"__proto__":{"qty":99}}],"idempotency_key":"proto-00001","mode":"pickup","payment_methods":[],"delivery_fee_cents":0,"total_cents":1}';
     const bom = '﻿{"scope":"all"}';
-    const gros = JSON.stringify({ q: 'x'.repeat(60000) });
+    const gros = JSON.stringify({ code: SUPER_CODE, q: 'x'.repeat(60000) });
+    // code valide préfixé : les octets invalides (0xff, 0xfe) forment tout de même un JSON décodable (U+FFFD), donc
+    // la requête franchit le contrôle du code supérieur avant d'atteindre la validation de q.
+    const utf8Invalide = Buffer.concat([Buffer.from(`{"code":${JSON.stringify(SUPER_CODE)},"q":"`), Buffer.from([0xff, 0xfe]), Buffer.from('"}')]);
     const pathos = [
       ['JSON imbriqué sur 5 000 niveaux (corps de 30 Ko)', 'owner_customers.php', cookiePX, profond], ['clés __proto__ et constructor', 'order_create.php', cNulCookie, protoCorps],
       ['corps JSON précédé d\'un BOM', 'owner_sessions_revoke.php', cookiePX, bom], ['chaîne de 60 000 caractères', 'owner_customers.php', cookiePX, gros],
       ['corps tableau []', 'owner_customers.php', cookiePX, '[]'], ['corps « null »', 'owner_customers.php', cookiePX, 'null'], ['corps vide', 'owner_customers.php', cookiePX, ''],
-      ['corps non JSON', 'owner_customers.php', cookiePX, '{q: test'], ['corps UTF-8 invalide', 'owner_customers.php', cookiePX, Buffer.from([0x7b, 0x22, 0x71, 0x22, 0x3a, 0x22, 0xff, 0xfe, 0x22, 0x7d])]
+      ['corps non JSON', 'owner_customers.php', cookiePX, '{q: test'], ['corps UTF-8 invalide', 'owner_customers.php', cookiePX, utf8Invalide]
     ];
     for (const [nom, route, cookie, brut] of pathos) {
       const rep = await appel('POST', route, { cookie, brut });

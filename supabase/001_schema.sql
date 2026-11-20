@@ -15,11 +15,34 @@ CREATE TABLE IF NOT EXISTS "customers" (
   "phone" VARCHAR(20) NOT NULL,
   "street" VARCHAR(150) NULL,
   "city" VARCHAR(60) NULL,
+  "housing_type" VARCHAR(20) NULL,
   "created_at" CHAR(20) NOT NULL,
   "updated_at" CHAR(20) NOT NULL,
   "last_login_at" CHAR(20) NULL,
   CONSTRAINT "uq_customers_email" UNIQUE ("email")
 );
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "email" VARCHAR(190) NOT NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "password_hash" VARCHAR(255) NOT NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "first_name" VARCHAR(60) NOT NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "last_name" VARCHAR(60) NOT NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "phone" VARCHAR(20) NOT NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "street" VARCHAR(150) NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "city" VARCHAR(60) NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "housing_type" VARCHAR(20) NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "created_at" CHAR(20) NOT NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "updated_at" CHAR(20) NOT NULL;
+
+ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "last_login_at" CHAR(20) NULL;
 
 CREATE INDEX IF NOT EXISTS "ix_customers_name" ON "customers" ("last_name", "first_name");
 
@@ -39,6 +62,24 @@ CREATE TABLE IF NOT EXISTS "sessions" (
   CONSTRAINT "uq_sessions_token" UNIQUE ("token_hash")
 );
 
+ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "token_hash" CHAR(64) NOT NULL;
+
+ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "user_type" VARCHAR(10) NOT NULL;
+
+ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "user_id" INTEGER NOT NULL;
+
+ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "remember" INTEGER NOT NULL;
+
+ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "created_at" CHAR(20) NOT NULL;
+
+ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "last_seen_at" CHAR(20) NOT NULL;
+
+ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "expires_at" CHAR(20) NOT NULL;
+
+ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "revoked_at" CHAR(20) NULL;
+
+ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "device" VARCHAR(120) NOT NULL;
+
 CREATE INDEX IF NOT EXISTS "ix_sessions_user" ON "sessions" ("user_type", "user_id");
 
 ALTER TABLE "sessions" ENABLE ROW LEVEL SECURITY;
@@ -56,6 +97,7 @@ CREATE TABLE IF NOT EXISTS "orders" (
   "customer_email" VARCHAR(190) NOT NULL,
   "delivery_street" VARCHAR(150) NULL,
   "delivery_city" VARCHAR(60) NULL,
+  "delivery_housing_type" VARCHAR(20) NULL,
   "payment_methods" TEXT NOT NULL,
   "cash_change_for" INTEGER NULL,
   "products_cents" INTEGER NOT NULL,
@@ -72,6 +114,56 @@ CREATE TABLE IF NOT EXISTS "orders" (
   CONSTRAINT "uq_orders_idem" UNIQUE ("customer_id", "idempotency_key"),
   FOREIGN KEY ("customer_id") REFERENCES "customers" ("id") ON DELETE RESTRICT ON UPDATE RESTRICT
 );
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_id" INTEGER NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "idempotency_key" VARCHAR(64) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "payload_hash" CHAR(64) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "status" VARCHAR(10) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "mode" VARCHAR(10) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_first_name" VARCHAR(60) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_last_name" VARCHAR(60) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_phone" VARCHAR(20) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_email" VARCHAR(190) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "delivery_street" VARCHAR(150) NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "delivery_city" VARCHAR(60) NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "delivery_housing_type" VARCHAR(20) NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "payment_methods" TEXT NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "cash_change_for" INTEGER NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "products_cents" INTEGER NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "promo_cents" INTEGER NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "delivery_fee_cents" INTEGER NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "total_cents" INTEGER NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "delay_minutes" INTEGER NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "created_at" CHAR(20) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "accepted_at" CHAR(20) NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "refused_at" CHAR(20) NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "prepared_at" CHAR(20) NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "service_day" CHAR(10) NOT NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "scheduled_for" CHAR(20) NULL;
 
 CREATE INDEX IF NOT EXISTS "ix_orders_day" ON "orders" ("service_day");
 
@@ -99,6 +191,28 @@ CREATE TABLE IF NOT EXISTS "order_items" (
   FOREIGN KEY ("order_id") REFERENCES "orders" ("id") ON DELETE RESTRICT ON UPDATE RESTRICT
 );
 
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "order_id" INTEGER NOT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "position" INTEGER NOT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "name" VARCHAR(160) NOT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "variant" VARCHAR(20) NOT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "qty" INTEGER NOT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "unit_price_cents" INTEGER NOT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "line_total_cents" INTEGER NOT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "removed_json" TEXT NOT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "extras_json" TEXT NOT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "half_json" TEXT NULL;
+
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "note" VARCHAR(300) NOT NULL;
+
 CREATE INDEX IF NOT EXISTS "ix_items_order" ON "order_items" ("order_id");
 
 ALTER TABLE "order_items" ENABLE ROW LEVEL SECURITY;
@@ -113,12 +227,24 @@ CREATE TABLE IF NOT EXISTS "availability" (
   CONSTRAINT "uq_availability" UNIQUE ("kind", "name")
 );
 
+ALTER TABLE "availability" ADD COLUMN IF NOT EXISTS "kind" VARCHAR(20) NOT NULL;
+
+ALTER TABLE "availability" ADD COLUMN IF NOT EXISTS "name" VARCHAR(190) NOT NULL;
+
+ALTER TABLE "availability" ADD COLUMN IF NOT EXISTS "status" VARCHAR(20) NOT NULL;
+
+ALTER TABLE "availability" ADD COLUMN IF NOT EXISTS "service_day" CHAR(10) NULL;
+
+ALTER TABLE "availability" ADD COLUMN IF NOT EXISTS "updated_at" CHAR(20) NOT NULL;
+
 ALTER TABLE "availability" ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS "settings" (
   "skey" VARCHAR(64) NOT NULL PRIMARY KEY,
   "svalue" VARCHAR(255) NOT NULL
 );
+
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "svalue" VARCHAR(255) NOT NULL;
 
 ALTER TABLE "settings" ENABLE ROW LEVEL SECURITY;
 
@@ -130,6 +256,14 @@ CREATE TABLE IF NOT EXISTS "throttle" (
   "locked_until" INTEGER NULL,
   CONSTRAINT "uq_throttle_bucket" UNIQUE ("bucket")
 );
+
+ALTER TABLE "throttle" ADD COLUMN IF NOT EXISTS "bucket" VARCHAR(190) NOT NULL;
+
+ALTER TABLE "throttle" ADD COLUMN IF NOT EXISTS "attempts" INTEGER NOT NULL;
+
+ALTER TABLE "throttle" ADD COLUMN IF NOT EXISTS "window_start" INTEGER NOT NULL;
+
+ALTER TABLE "throttle" ADD COLUMN IF NOT EXISTS "locked_until" INTEGER NULL;
 
 ALTER TABLE "throttle" ENABLE ROW LEVEL SECURITY;
 

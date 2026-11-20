@@ -9,7 +9,7 @@ export const TABLES = {
     columns: [
       ['id', 'pk', false], ['email', 'str:190', false], ['password_hash', 'str:255', false],
       ['first_name', 'str:60', false], ['last_name', 'str:60', false], ['phone', 'str:20', false],
-      ['street', 'str:150', true], ['city', 'str:60', true],
+      ['street', 'str:150', true], ['city', 'str:60', true], ['housing_type', 'str:20', true],
       ['created_at', TS, false], ['updated_at', TS, false], ['last_login_at', TS, true]
     ],
     unique: { uq_customers_email: ['email'] },
@@ -33,7 +33,7 @@ export const TABLES = {
       ['payload_hash', 'char:64', false], ['status', 'str:10', false], ['mode', 'str:10', false],
       ['customer_first_name', 'str:60', false], ['customer_last_name', 'str:60', false],
       ['customer_phone', 'str:20', false], ['customer_email', 'str:190', false],
-      ['delivery_street', 'str:150', true], ['delivery_city', 'str:60', true],
+      ['delivery_street', 'str:150', true], ['delivery_city', 'str:60', true], ['delivery_housing_type', 'str:20', true],
       ['payment_methods', 'text', false], ['cash_change_for', 'int', true],
       ['products_cents', 'int', false], ['promo_cents', 'int', false],
       ['delivery_fee_cents', 'int', false], ['total_cents', 'int', false],
@@ -131,6 +131,12 @@ export function schemaSql() {
       lignes.push('FOREIGN KEY (' + quote(col) + ') REFERENCES ' + quote(refTable) + ' (' + quote(refCol) + ') ON DELETE RESTRICT ON UPDATE RESTRICT');
     }
     sortie.push('CREATE TABLE IF NOT EXISTS ' + quote(table) + ' (\n  ' + lignes.join(',\n  ') + '\n)');
+    // Colonne ajoutée après coup (table déjà créée en prod) : idempotent, sans la clé primaire
+    // (déjà posée à la création, jamais rejouée ici) ; no-op sur une table toute neuve qui l'a déjà.
+    for (const col of def.columns) {
+      if (col[1] === 'pk' || col[0] === def.primary) continue;
+      sortie.push('ALTER TABLE ' + quote(table) + ' ADD COLUMN IF NOT EXISTS ' + colonne(col, undefined));
+    }
     for (const [nom, cols] of Object.entries(def.index)) {
       sortie.push('CREATE INDEX IF NOT EXISTS ' + quote(nom) + ' ON ' + quote(table) + ' (' + cols.map(quote).join(', ') + ')');
     }

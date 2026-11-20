@@ -22,7 +22,7 @@ export default async function customerSignup(c) {
   const tailleMotDePasse = typeof password === 'string' ? Buffer.byteLength(password) : 0;
   if (tailleMotDePasse < 8) err.password = 'Mot de passe de 8 caractères au moins.';
   else if (tailleMotDePasse > 200) err.password = 'Mot de passe de 200 octets au plus.';
-  const [street, city] = validateAddress(b, err);
+  const [street, city, housingType] = validateAddress(b, err);
   if (Object.keys(err).length) failValidation(err);
 
   await throttleEnforce(ipBucket, 100, 3600);
@@ -34,9 +34,9 @@ export default async function customerSignup(c) {
   let id;
   try {
     id = await insert(
-      `INSERT INTO customers (email, password_hash, first_name, last_name, phone, street, city, created_at, updated_at, last_login_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [email, await bcrypt.hash(entreeBcrypt(password), 10), first, last, phone, street, city, now, now, now]
+      `INSERT INTO customers (email, password_hash, first_name, last_name, phone, street, city, housing_type, created_at, updated_at, last_login_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [email, await bcrypt.hash(entreeBcrypt(password), 10), first, last, phone, street, city, housingType, now, now, now]
     );
   } catch (e) {
     if (estViolationUnique(e)) fail(409, 'email_taken', 'Un compte existe déjà avec cette adresse e-mail.');

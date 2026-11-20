@@ -1,12 +1,12 @@
 // POST owner_order_decide — accepter (avec délai), refuser, puis marquer « prête » une commande.
-//   { id, action: "accept", delay_minutes: 20|30|40|50|60 }   new -> accepted
+//   { id, action: "accept", delay_minutes: 0|10|20|30|40|50|60 }   new -> accepted (0 = « venir tout de suite »)
 //   { id, action: "refuse" }                                  new -> refused
 //   { id, action: "ready" }                                   accepted -> ready (le client est prévenu par son suivi)
 // Un renvoi identique répond 200 avec replayed: true ; une décision contraire répond 409 already_decided.
 import { allowMethods, readJsonBody, fail, failValidation, ok } from '../core.js';
 import { exec } from '../db.js';
 import { requireOwner } from '../auth.js';
-import { DELAY_CHOICES, nowUtc } from '../util.js';
+import { DELAY_CHOICES, DELAY_IMMEDIATE, nowUtc } from '../util.js';
 import { orderLoad, orderViews } from '../orders.js';
 
 export default async function ownerOrderDecide(c) {
@@ -22,8 +22,8 @@ export default async function ownerOrderDecide(c) {
   let delay = null;
   if (action === 'accept') {
     delay = b.delay_minutes ?? null;
-    if (!Number.isInteger(delay) || !DELAY_CHOICES.includes(delay)) {
-      err.delay_minutes = 'Délai attendu : 20, 30, 40, 50 ou 60 minutes.';
+    if (!Number.isInteger(delay) || !(delay === DELAY_IMMEDIATE || DELAY_CHOICES.includes(delay))) {
+      err.delay_minutes = 'Délai attendu : tout de suite, 10, 20, 30, 40, 50 ou 60 minutes.';
     }
   }
   if (Object.keys(err).length > 0) failValidation(err);

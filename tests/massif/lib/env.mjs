@@ -2,7 +2,7 @@
 // Lancer un script avec son propre port :  $env:SUBITO_TEST_PORT='18510'; node tests/massif/mon-test.mjs
 import path from 'node:path';
 import { writeFileSync } from 'node:fs';
-import { makeEnv, openTestDb, runTool, startServer, stopServer, PORT, ORIGIN, OWNER_CODE, responses } from '../../api-vercel/lib/harness.mjs';
+import { makeEnv, openTestDb, runTool, startServer, stopServer, PORT, ORIGIN, OWNER_CODE, SUPER_CODE, responses } from '../../api-vercel/lib/harness.mjs';
 
 /**
  * Démarre un site local complet. Renvoie { db, base, origine, codePatron, journal, arreter }.
@@ -30,6 +30,7 @@ export async function demarrerSite({ statique = true, horloge = null, env = {} }
     origine: ORIGIN,
     base: ORIGIN,
     codePatron: OWNER_CODE,
+    codeSuperieur: SUPER_CODE,
     journal: () => ctx.serverLog(),
     fixerHeure: (epoch) => { if (fichierHorloge === null) throw new Error('Démarrer avec { horloge: epoch }'); writeFileSync(fichierHorloge, String(Math.floor(epoch))); },
     arreter: () => stopServer(proc)
@@ -39,4 +40,4 @@ export async function demarrerSite({ statique = true, horloge = null, env = {} }
 /** Toutes les réponses reçues par les clients du harnais (pour des contrôles transverses). Penser à la vider. */
 export const reponses = responses;
 export const viderReponses = () => { responses.length = 0; };
-export { PORT, ORIGIN, OWNER_CODE };
+export { PORT, ORIGIN, OWNER_CODE, SUPER_CODE };

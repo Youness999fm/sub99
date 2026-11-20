@@ -188,6 +188,13 @@ const SUBITO_CART_CONFIG = {
     { city: "Rouvroy", minimum: 25, fee: 8 }
   ];
   window.SUBITO_DELIVERY_ZONES = DELIVERY_ZONES;
+  // Type de logement : obligatoire avec l'adresse (le livreur doit savoir à qui/quoi s'attendre) —
+  // mêmes 3 valeurs que serveur/customers.js HOUSING_TYPES, une seule liste pour tout le site.
+  window.SUBITO_HOUSING_TYPES = [
+    { value: "maison", label: "Maison" },
+    { value: "appartement", label: "Appartement" },
+    { value: "immeuble", label: "Immeuble" }
+  ];
 
   function findDeliveryZone(city) {
     if (!city) return null;
@@ -1636,11 +1643,8 @@ const SUBITO_CART_CONFIG = {
       }
       const zone = findDeliveryZone(session.city);
       if (!session.city || !zone) {
-        current.innerHTML =
-          '<p class="delivery-status delivery-status--warn">' + SubitoIcons.svg("map-pin") + ' Ajoutez votre adresse dans Mon compte pour commander en livraison.</p>' +
-          '<button type="button" class="btn-outline delivery-status__link" id="deliveryAddAddress">Ajouter mon adresse</button>';
-        const btn = document.getElementById("deliveryAddAddress");
-        if (btn) btn.addEventListener("click", goAddAddress);
+        current.innerHTML = cartAddressFormHtml();
+        wireCartAddressForm(cart);
         return;
       }
       const cartNow = sortedCart();
@@ -1681,10 +1685,67 @@ const SUBITO_CART_CONFIG = {
   const PENDING_ADDRESS_KEY = "subito_pending_address_redirect";
   const RESUME_ADDRESS_PARAM = "subito_resume_address";
 
-  function goAddAddress() {
-    sessionStorage.setItem(PENDING_ADDRESS_KEY, "1");
-    const here = window.location.pathname + window.location.hash;
-    window.location.href = "compte.html?retour=" + encodeURIComponent(here) + "&addAddress=1";
+  // Formulaire d'adresse directement dans le tiroir (demande du 20/11) : plus besoin d'aller sur Mon
+  // compte pour une première commande livraison — rempli ici, elle s'enregistre aussitôt sur le compte
+  // (updateAddress), donc déjà là pour la commande en cours ET les suivantes.
+  function cartAddressFormHtml() {
+    const cityOptions = (window.SUBITO_DELIVERY_ZONES || []).map(function (z) {
+      return '<option value="' + escapeHtml(z.city) + '">' + escapeHtml(z.city) + '</option>';
+    }).join("");
+    const housingOptions = (window.SUBITO_HOUSING_TYPES || []).map(function (h) {
+      return '<option value="' + escapeHtml(h.value) + '">' + escapeHtml(h.label) + '</option>';
+    }).join("");
+    return (
+      '<p class="delivery-status delivery-status--warn">' + SubitoIcons.svg("map-pin") + ' Ajoutez votre adresse pour commander en livraison — elle sera enregistrée sur votre compte.</p>' +
+      '<form class="cart-address-form" id="cartAddressForm" novalidate>' +
+        '<label class="review-form__field">Numéro et rue' +
+          '<input type="text" id="cartAddressStreet" name="street" autocomplete="street-address" placeholder="Ex. 12 rue de la Paix">' +
+        '</label>' +
+        '<label class="review-form__field">Ville' +
+          '<select id="cartAddressCity" name="city"><option value="">— Sélectionner —</option>' + cityOptions + '</select>' +
+        '</label>' +
+        '<label class="review-form__field">Type de logement' +
+          '<select id="cartAddressHousingType" name="housing_type"><option value="">— Sélectionner —</option>' + housingOptions + '</select>' +
+        '</label>' +
+        '<p class="delivery-status delivery-status--error" id="cartAddressError" role="alert" hidden></p>' +
+        '<button type="submit" class="btn-outline delivery-status__link" id="cartAddressSubmit">Enregistrer mon adresse</button>' +
+      '</form>'
+    );
+  }
+
+  function wireCartAddressForm(cart) {
+    const form = document.getElementById("cartAddressForm");
+    if (!form) return;
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const errEl = document.getElementById("cartAddressError");
+      const btn = document.getElementById("cartAddressSubmit");
+      const city = document.getElementById("cartAddressCity").value;
+      const street = document.getElementById("cartAddressStreet").value.trim();
+      const housingType = document.getElementById("cartAddressHousingType").value;
+      if (!city) {
+        errEl.textContent = "Choisissez votre ville.";
+        errEl.hidden = false;
+        return;
+      }
+      if (!housingType) {
+        errEl.textContent = "Précisez le type de logement (maison, appartement, immeuble).";
+        errEl.hidden = false;
+        return;
+      }
+      errEl.hidden = true;
+      btn.disabled = true;
+      window.SubitoAccount.updateAddress({ street: street, city: city, housing_type: housingType }).then(function () {
+        if (orderMode === "delivery") renderDeliveryStatus(sortedCart());
+      }).catch(function (err) {
+        btn.disabled = false;
+        const fieldMsg = err && err.code === "validation" && err.fields && (err.fields.city || err.fields.housing_type || err.fields.street);
+        errEl.textContent = fieldMsg ? fieldMsg
+          : (err && err.code === "network") ? "Connexion impossible — réessayez."
+          : "Adresse invalide — vérifiez les champs.";
+        errEl.hidden = false;
+      });
+    });
   }
 
   // Pied fixe, toujours visible : le total, le bouton "Commander en ligne"
@@ -1763,6 +1824,9 @@ const SUBITO_CART_CONFIG = {
     const zone = findDeliveryZone(session.city);
     if (!session.city || !zone) {
       return SubitoIcons.svg("map-pin") + " Ajoutez votre adresse dans Mon compte pour commander en livraison.";
+    }
+    if (!session.housing_type) {
+      return SubitoIcons.svg("map-pin") + " Précisez le type de logement (maison, appartement, immeuble) dans Mon compte.";
     }
     const productsTotal = activeCartTotal(sortedCart());
     if (productsTotal < zone.minimum) {
@@ -2006,6 +2070,8 @@ const SUBITO_CART_CONFIG = {
         return alertIcon + "Le prix de « " + escapeHtml(data.name || "un article") + " » a changé : rechargez la page avant de commander.";
       case "address_required":
         return SubitoIcons.svg("map-pin") + ' Ajoutez une adresse dans une ville livrée pour commander en livraison : <a href="compte.html">Mon compte</a>.';
+      case "housing_type_required":
+        return SubitoIcons.svg("map-pin") + ' Précisez le type de logement (maison, appartement, immeuble) : <a href="compte.html">Mon compte</a>.';
       case "profile_incomplete":
         return alertIcon + 'Il manque votre numéro de téléphone pour commander : <a href="compte.html">Mon compte</a>.';
       case "idempotency_conflict":

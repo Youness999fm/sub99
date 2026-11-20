@@ -79,6 +79,25 @@
   .order-track-status--ready { animation: none; }
 }
 
+/* « Venir tout de suite » : même esprit visuel que le délai dépassé mais affiché dès
+   l'acceptation, pas de minuteur — doit se voir immédiatement, d'où le ton plus pressant. */
+.order-track-status--urgent {
+  background: #fff8e8;
+  color: var(--dark);
+  border: 2px solid var(--gold);
+  animation: order-ready-pulse 1.4s ease-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-track-status--urgent { animation: none; }
+}
+
+.order-track-status--urgent .order-track-hint {
+  color: var(--dark);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
 .order-track-status--info {
   background: var(--green-tint);
   color: var(--dark);

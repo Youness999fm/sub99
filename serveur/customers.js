@@ -9,9 +9,13 @@ export function customerView(c) {
     email: String(c.email),
     phone: String(c.phone),
     street: c.street === null ? null : String(c.street),
-    city: c.city === null ? null : String(c.city)
+    city: c.city === null ? null : String(c.city),
+    housing_type: c.housing_type === null ? null : String(c.housing_type)
   };
 }
+
+/** Précisé par le client en même temps que son adresse, pour que le livreur sache à qui/quoi s'attendre. */
+export const HOUSING_TYPES = ['maison', 'appartement', 'immeuble'];
 
 const EMAIL = /^(?!\.)(?!.*\.\.)[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+(?<!\.)@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
 
@@ -46,25 +50,39 @@ export function validateProfile(b, errors) {
   return [first, last, phone];
 }
 
-/** Valide rue + ville (ville vide = pas d'adresse). Ajoute les erreurs dans `errors`. Renvoie [street, city]. */
+/**
+ * Valide rue + ville + type de logement (ville vide = pas d'adresse, le type non plus).
+ * Le type de logement reste facultatif à l'enregistrement du profil (compte créé sans — ou avant
+ * l'ajout de ce champ) ; il n'est exigé qu'au moment de passer une commande en livraison
+ * (voir order_create.js, 'housing_type_required'), comme le moyen de paiement dans le panier.
+ * Ajoute les erreurs dans `errors`. Renvoie [street, city, housingType].
+ */
 export function validateAddress(b, errors) {
   let street = b.street !== undefined ? b.street : '';
   let city = b.city !== undefined ? b.city : '';
+  let housingType = b.housing_type !== undefined ? b.housing_type : '';
   if (street === null) street = '';
   if (city === null) city = '';
+  if (housingType === null) housingType = '';
   if (typeof street !== 'string') { errors.street = 'Adresse invalide.'; street = ''; }
   if (typeof city !== 'string') { errors.city = 'Ville invalide.'; city = ''; }
+  if (typeof housingType !== 'string') { errors.housing_type = 'Type de logement invalide.'; housingType = ''; }
   // Postgres refuse le caractère NUL dans un texte : refus propre (422) plutôt qu'une erreur 500.
   if (street.includes('\0') || city.includes('\0')) {
     errors.street = errors.street || 'Adresse invalide.';
-    return [null, null];
+    return [null, null, null];
   }
   street = cleanSpaces(street);
   city = city.trim();
+  housingType = housingType.trim();
   if (strChars(street) > 150) errors.street = 'Adresse trop longue (150 caractères au plus).';
   if (city !== '' && !Object.prototype.hasOwnProperty.call(DELIVERY_ZONES, city)) {
     errors.city = "Cette ville n'est pas dans notre zone de livraison.";
   }
-  if (city === '') return [null, null];
-  return [street === '' ? null : street, city];
+  if (city === '') return [null, null, null];
+  if (housingType !== '' && !HOUSING_TYPES.includes(housingType)) {
+    errors.housing_type = 'Type de logement invalide.';
+    return [street === '' ? null : street, city, null];
+  }
+  return [street === '' ? null : street, city, housingType === '' ? null : housingType];
 }

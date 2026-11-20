@@ -83,11 +83,17 @@ export default async function orderCreate(c) {
   let zone = null;
   let street = null;
   let city = null;
+  let housingType = null;
   if (o.mode === 'delivery') {
     city = customer.city === null ? '' : String(customer.city);
     street = customer.street === null ? '' : phpTrim(customer.street);
+    housingType = customer.housing_type === null ? '' : String(customer.housing_type);
     if (street === '' || !Object.prototype.hasOwnProperty.call(DELIVERY_ZONES, city)) {
       fail(422, 'address_required', 'Ajoutez une adresse de livraison dans notre zone.');
+    }
+    // Compte créé avant l'ajout de ce champ : adresse déjà complète mais type de logement jamais précisé.
+    if (housingType === '') {
+      fail(422, 'housing_type_required', 'Précisez le type de logement (maison, appartement, immeuble) dans votre adresse de livraison.');
     }
     zone = DELIVERY_ZONES[city];
   }
@@ -119,15 +125,15 @@ export default async function orderCreate(c) {
       const id = await tx.insert(
         `INSERT INTO orders (customer_id, idempotency_key, payload_hash, status, mode,
             customer_first_name, customer_last_name, customer_phone, customer_email,
-            delivery_street, delivery_city, payment_methods, cash_change_for,
+            delivery_street, delivery_city, delivery_housing_type, payment_methods, cash_change_for,
             products_cents, promo_cents, delivery_fee_cents, total_cents, delay_minutes,
             created_at, accepted_at, refused_at, service_day, scheduled_for)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, ?, ?)`,
         [
           customerId, o.idempotency_key, payloadHash, 'new', o.mode,
           String(customer.first_name), String(customer.last_name),
           String(customer.phone), String(customer.email),
-          street, city, JSON.stringify(o.payment_methods), o.cash_change_for,
+          street, city, housingType, JSON.stringify(o.payment_methods), o.cash_change_for,
           t.products_cents, t.promo_cents, t.delivery_fee_cents, t.total_cents,
           now, serviceDay(), o.scheduled_for
         ]
