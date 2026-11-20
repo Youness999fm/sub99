@@ -1494,28 +1494,45 @@
     el.dlgBody.innerHTML = '';
   }
 
-  // Ticket de commande : mode (avec l'adresse en livraison), client, téléphone, heure, articles, total, délai.
+  // Nom de ligne tel qu'imprimé sur le ticket : « Pizza Margherita Solo » pour un article à taille
+  // (pizza, calzone…), simple nom sinon (boisson, dessert…) — demande explicite du 20/11.
+  function ticketItemTitle(it) {
+    const name = String(it.name || '');
+    return it.variant ? `Pizza ${name} ${it.variant}` : name;
+  }
+
+  // Ticket de commande : en-tête petit (logo + nom), client/tél/heure compacts en haut, PUIS les
+  // articles en très gros et gras (l'inverse de l'ancien ticket) pour une lecture en un coup d'œil
+  // en cuisine, et le total toujours tout en bas. Mode/adresse (livraison) juste avant les articles.
   function ticketHtml(o) {
     const delivery = o.mode === 'delivery';
     const received = toDate(o.created_at);
     const ready = toDate(o.ready_at);
     const items = (o.items || []).map(it => `
-      <div class="t-line t-item"><span>${esc(it.qty)}× ${esc(itemTitle(it))}</span><span>${esc(eur(it.line_total_cents))}</span></div>
+      <div class="t-item">
+        <span class="t-item-name">${esc(it.qty)}× ${esc(ticketItemTitle(it))}</span>
+        <span class="t-item-price">${esc(eur(it.line_total_cents))}</span>
+      </div>
       ${itemMods(it).map(m => `<div class="t-mod">${esc(m.text)}</div>`).join('')}`).join('');
     return `
       <div class="ticket">
-        <div class="t-mode-box">
-          <p class="t-mode">${delivery ? 'LIVRAISON' : 'EMPORTER'}</p>
-          ${delivery ? `<p class="t-address">${esc(addressLine(o.delivery_address))}</p>` : ''}
+        <div class="t-head">
+          <img class="t-logo" src="../assets/img/logo.jpg" alt="" width="30" height="30">
+          <span class="t-brand">Subito Pizza</span>
         </div>
-        <div class="t-line t-big"><span>Client</span><span>${esc(customerLabel(o))}</span></div>
-        <div class="t-line t-big"><span>Téléphone</span><span>${esc(o.customer_phone || '')}</span></div>
-        <div class="t-line t-big"><span>Entrée</span><span>${received ? esc(hm(received)) : '—'}</span></div>
-        <div class="t-rule"></div>
-        ${items}
+        <div class="t-top">
+          <span>${esc(customerLabel(o))} · ${esc(o.customer_phone || '')}</span>
+          <span>Reçue à ${received ? esc(hm(received)) : '—'}</span>
+        </div>
+        ${delivery ? `
+        <div class="t-mode-box">
+          <p class="t-mode">LIVRAISON</p>
+          <p class="t-address">${esc(addressLine(o.delivery_address))}</p>
+        </div>` : ''}
+        <div class="t-items">${items}</div>
         <div class="t-rule t-bottom"></div>
         ${Number(o.delivery_fee_cents) > 0 ? `<div class="t-line"><span>Frais de livraison</span><span>${esc(eur(o.delivery_fee_cents))}</span></div>` : ''}
-        <div class="t-line"><strong>TOTAL</strong><strong>${esc(eur(o.total_cents))}</strong></div>
+        <div class="t-line t-total"><strong>TOTAL</strong><strong>${esc(eur(o.total_cents))}</strong></div>
         ${o.delay_minutes ? `<div class="t-line"><span>Délai annoncé</span><span>${esc(delayLabel(o.delay_minutes))}</span></div>` : ''}
         ${ready ? `<div class="t-line"><span>Prête vers</span><span>${esc(hm(ready))}</span></div>` : ''}
         ${o.status === 'ready' ? `<div class="t-line"><span>État</span><span>Prête</span></div>` : ''}
@@ -1528,13 +1545,13 @@
     const received = toDate(o.created_at);
     const items = (o.items || []).map(it => ({
       qty: Number(it.qty) || 1,
-      title: itemTitle(it),
+      title: ticketItemTitle(it),
       lineTotal: eur(it.line_total_cents),
       mods: itemMods(it).map(m => m.text)
     }));
     return {
       orderId: String(o.id),
-      shop: 'SUBITO PIZZA',
+      shop: 'Subito Pizza',
       mode: delivery ? 'LIVRAISON' : 'A EMPORTER',
       address: delivery ? addressLine(o.delivery_address) : null,
       customer: customerLabel(o),
@@ -1553,6 +1570,7 @@
   // But : qu'une évolution de la mise en forme du ticket ou des tentatives de renvoi se déploie
   // avec le site, sans jamais devoir réinstaller l'appli sur la tablette.
   const PRINT_WIDTH = 42; // colonnes : 42 ~ rouleau 80mm police standard. 32 = 58mm, 48 = 80mm police fine.
+  const PRINT_WIDTH_X2 = Math.floor(PRINT_WIDTH / 2); // largeur en caractères une fois le texte imprimé en largeur x2
   const PRINT_RETRY_DELAYS_MS = [0, 2500, 6000]; // 1re tentative immédiate, puis +2,5s, +6s avant d'abandonner.
 
   function escAscii(s) {
@@ -1562,74 +1580,147 @@
     return norm.replace(/œ/g, 'oe').replace(/Œ/g, 'OE').replace(/€/g, 'EUR')
       .split('').filter(ch => { const c = ch.charCodeAt(0); return (c >= 32 && c <= 126) || ch === '\n'; }).join('');
   }
-  function escTwoCol(left, right) {
+  function escTwoColAt(left, right, width) {
     const l = escAscii(left), r = escAscii(right);
-    const maxLeft = Math.max(1, PRINT_WIDTH - r.length - 1);
+    const maxLeft = Math.max(1, width - r.length - 1);
     const lTrim = l.length > maxLeft ? l.slice(0, maxLeft) : l;
-    const spaces = Math.max(1, PRINT_WIDTH - lTrim.length - r.length);
+    const spaces = Math.max(1, width - lTrim.length - r.length);
     return lTrim + ' '.repeat(spaces) + r + '\n';
   }
+  const escTwoCol = (left, right) => escTwoColAt(left, right, PRINT_WIDTH);
   function escRow(label, value) {
-    return escAscii(label.padEnd(12) + ': ' + value) + '\n';
+    return escAscii(label.padEnd(10) + ': ' + value) + '\n';
   }
-  function escCenter(s) {
+  // Découpe aux espaces (jamais au milieu d'un mot, sauf mot isolé trop long) : pour les lignes en
+  // gros caractères, où une coupure en plein milieu d'un mot serait beaucoup plus visible et moche.
+  function escWrapWordsAt(s, width) {
     const a = escAscii(s);
-    const pad = Math.max(0, Math.floor((PRINT_WIDTH - a.length) / 2));
-    return ' '.repeat(pad) + a;
-  }
-  function escWrap(s) {
-    const a = escAscii(s);
-    if (a.length <= PRINT_WIDTH) return a;
+    if (a.length <= width) return a;
     const lines = [];
-    for (let i = 0; i < a.length; i += PRINT_WIDTH) lines.push(a.slice(i, i + PRINT_WIDTH));
+    let line = '';
+    for (const word of a.split(' ')) {
+      const candidate = line ? line + ' ' + word : word;
+      if (candidate.length > width) {
+        if (line) lines.push(line);
+        line = word;
+        while (line.length > width) { lines.push(line.slice(0, width)); line = line.slice(width); }
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) lines.push(line);
     return lines.join('\n');
   }
 
-  // Construit la trame ESC/POS complète (init, gras, centré, coupe papier) pour un ticket.
+  // ---------- Logo du ticket : image -> bitmap ESC/POS, converti une seule fois au chargement de la page ----------
+  // Le logo a un fond vert foncé et un texte blanc : à l'impression thermique (encre noire sur papier
+  // blanc), ce sont les pixels CLAIRS du logo qui doivent devenir de l'encre noire (le texte « SUbiTO »),
+  // et les pixels sombres (le fond vert/rouge) qui doivent rester en blanc — l'inverse d'un seuillage classique.
+  const LOGO_PRINT_WIDTH_PX = 160; // ~20mm à 8 points/mm : petit, pour un en-tête dans un coin, pas une bannière.
+  let logoRasterBytes = null;
+
+  function buildRasterCommand(pixels, widthPx, heightPx) {
+    const widthBytes = Math.ceil(widthPx / 8);
+    const bytes = [0x1D, 0x76, 0x30, 0x00, widthBytes & 0xFF, (widthBytes >> 8) & 0xFF, heightPx & 0xFF, (heightPx >> 8) & 0xFF];
+    for (let y = 0; y < heightPx; y++) {
+      for (let xByte = 0; xByte < widthBytes; xByte++) {
+        let b = 0;
+        for (let bit = 0; bit < 8; bit++) {
+          const x = xByte * 8 + bit;
+          if (x < widthPx) {
+            const i = (y * widthPx + x) * 4;
+            const luma = pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114;
+            if (luma > 150) b |= (1 << (7 - bit)); // clair sur le logo -> encre noire sur le ticket
+          }
+        }
+        bytes.push(b);
+      }
+    }
+    return bytes;
+  }
+
+  function prepareLogoRaster() {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const w = LOGO_PRINT_WIDTH_PX;
+          const h = Math.max(1, Math.round(img.height * (w / img.width)));
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          logoRasterBytes = buildRasterCommand(ctx.getImageData(0, 0, w, h).data, w, h);
+        } catch (e) { logoRasterBytes = null; } // conversion impossible (ex. canvas bloqué) : ticket sans logo plutôt que planté
+      };
+      img.onerror = () => { logoRasterBytes = null; };
+      img.src = '../assets/img/logo.jpg';
+    } catch (e) { logoRasterBytes = null; }
+  }
+  prepareLogoRaster();
+
+  // Construit la trame ESC/POS complète d'un ticket : en-tête petit (logo + nom), client/tél/heure
+  // compacts, PUIS les articles en très gros et gras (l'inverse de l'ancien ticket, demande du 20/11),
+  // livraison bien visible avec l'adresse, total toujours en dernier, et un ticket nettement plus long
+  // (espacements généreux) pour une lecture en un coup d'œil en cuisine plutôt qu'un ticket surchargé.
   function buildTicketBytes(o) {
     const bytes = [];
     const push = (...vals) => vals.forEach(v => bytes.push(v & 0xFF));
+    const raw = arr => arr.forEach(v => bytes.push(v & 0xFF));
     const text = s => { for (const ch of escAscii(s)) bytes.push(ch.charCodeAt(0)); };
-    const align = n => push(0x1B, 0x61, n);
+    const align = n => push(0x1B, 0x61, n); // 0 gauche, 1 centré, 2 droite
     const bold = on => push(0x1B, 0x45, on ? 1 : 0);
-    const doubleSize = on => push(0x1D, 0x21, on ? 0x11 : 0x00);
+    const charSize = (w, h) => push(0x1D, 0x21, (((w - 1) & 7) << 4) | ((h - 1) & 7)); // GS ! n : x1 à x8
     const feed = n => push(0x1B, 0x64, n);
-    const cut = () => { feed(3); push(0x1D, 0x56, 0x00); };
-    const sep = () => text('='.repeat(PRINT_WIDTH) + '\n');
+    const cut = () => { feed(4); push(0x1D, 0x56, 0x00); };
+    const sep = () => text('-'.repeat(PRINT_WIDTH) + '\n');
+    const blank = (n = 1) => text('\n'.repeat(n));
 
     push(0x1B, 0x40); // initialisation
 
-    align(1);
-    doubleSize(true); bold(true);
-    text((o.shop || 'SUBITO PIZZA') + '\n');
-    doubleSize(false); bold(false);
-    sep();
-
+    // En-tête : petit, dans un coin, logo juste au-dessus du nom.
+    if (logoRasterBytes) { align(1); raw(logoRasterBytes); blank(1); }
     align(0);
-    bold(true);
-    text(escCenter(o.mode || '') + '\n');
-    bold(false);
-    if (o.address) text(escWrap(o.address) + '\n');
-    sep();
+    text((o.shop || 'Subito Pizza') + '\n');
+    blank(1);
 
+    // Client / téléphone / heure reçue : compact, lisible, ne prend pas de place.
     if (o.customer) text(escRow('Client', o.customer));
     if (o.phone) text(escRow('Tel', o.phone));
     if (o.receivedAt) text(escRow('Recue a', o.receivedAt));
+    blank(1);
     sep();
+    blank(1);
 
+    // Livraison : bien visible, avec l'adresse (rien de plus ici pour un retrait au commerce).
+    if (o.mode === 'LIVRAISON') {
+      align(1); bold(true); charSize(2, 2);
+      text('LIVRAISON\n');
+      charSize(1, 1); bold(false);
+      if (o.address) { align(0); text(escWrapWordsAt(o.address, PRINT_WIDTH) + '\n'); }
+      blank(1); sep(); blank(1);
+    }
+
+    // Articles : le cœur du ticket — très gros, gras, bien espacés pour se voir de loin.
+    align(0);
     (o.items || []).forEach(it => {
-      text(escTwoCol(`${it.qty}x ${it.title}`, it.lineTotal));
+      bold(true); charSize(2, 3);
+      text(escWrapWordsAt(`${it.qty}x ${it.title}`, PRINT_WIDTH_X2) + '\n');
+      charSize(1, 1); bold(false);
       (it.mods || []).forEach(m => text('  ' + escAscii(m) + '\n'));
+      blank(1);
     });
     sep();
+    blank(1);
 
+    // Total : toujours la dernière information du ticket, avant la coupe.
     if (o.deliveryFee) text(escTwoCol('Frais de livraison', o.deliveryFee));
-    bold(true);
-    text(escTwoCol('TOTAL', o.total));
-    bold(false);
-
+    bold(true); charSize(2, 2);
+    text(escTwoColAt('TOTAL', o.total, PRINT_WIDTH_X2));
+    charSize(1, 1); bold(false);
+    blank(1);
     if (o.delay) text(escRow('Delai annonce', o.delay));
-    sep();
+    blank(3); // espace généreux avant la coupe : un ticket nettement plus long, pas tassé.
     cut();
 
     return bytes;

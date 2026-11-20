@@ -369,13 +369,13 @@ button { font: inherit; }
 .dlg-body p { margin-bottom: 12px; font-size: 17px; }
 
 .ticket {
-  width: 100%; max-width: 302px; margin: 0 auto 16px; padding: 16px;
+  width: 100%; max-width: 320px; margin: 0 auto 16px; padding: 18px 16px;
   background: var(--paper); border: 2px dashed #B8B2A8;
   font-family: "Courier New", Courier, monospace; font-size: 15px; color: #111;
 }
-.ticket .t-line { display: flex; justify-content: space-between; gap: 8px; }
+.ticket .t-line { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; margin-top: 4px; }
 .ticket .t-sub { padding-left: 16px; font-size: 13px; }
-.ticket .t-rule { border-top: 1px dashed #111; margin: 8px 0; }
+.ticket .t-rule { border-top: 1px dashed #111; margin: 10px 0; }
 .ticket .t-note { font-size: 12px; text-align: center; color: #555; margin-top: 10px; }
 
 .dlg-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
@@ -763,14 +763,24 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 /* ---------- Ticket de commande (aperçu) : à emporter ou livraison ---------- */
 
 .ticket .t-center { text-align: center; }
-.ticket .t-brand { font-size: 17px; font-weight: 700; letter-spacing: 0.06em; margin: 0 0 3mm; }
-.ticket .t-mode-box { border: 2px solid #1C1B19; padding: 3mm 2mm; margin-bottom: 3mm; text-align: center; }
-.ticket .t-mode-box .t-mode { margin: 0; padding: 0; border: 0; font-size: 26px; font-weight: 800; letter-spacing: 0.04em; }
-.ticket .t-mode-box .t-address { margin: 2mm 0 0; font-size: 17px; font-weight: 700; }
-.ticket .t-big { font-size: 15px; font-weight: 700; }
-.ticket .t-item { margin-top: 2mm; font-weight: 700; }
-.ticket .t-mod { padding-left: 14px; font-size: 14px; }
+.ticket .t-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.ticket .t-logo { border-radius: 50%; flex: 0 0 auto; }
+.ticket .t-brand { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: #6E6862; text-transform: uppercase; }
+.ticket .t-top {
+  display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #6E6862;
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed #B8B2A8;
+}
+.ticket .t-mode-box { border: 2px solid #1C1B19; padding: 3mm 2mm; margin-bottom: 10px; text-align: center; }
+.ticket .t-mode-box .t-mode { margin: 0; padding: 0; border: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.04em; }
+.ticket .t-mode-box .t-address { margin: 2mm 0 0; font-size: 15px; font-weight: 700; }
+.ticket .t-items { margin: 4px 0; }
+.ticket .t-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 16px; }
+.ticket .t-item:first-child { margin-top: 0; }
+.ticket .t-item-name { font-size: 24px; font-weight: 800; line-height: 1.2; }
+.ticket .t-item-price { font-size: 16px; font-weight: 700; white-space: nowrap; }
+.ticket .t-mod { padding-left: 16px; font-size: 14px; color: #444; margin-top: 2px; }
 .ticket .t-bottom { margin-top: 4mm; }
+.ticket .t-total { font-size: 20px; margin-top: 8px; padding-top: 8px; border-top: 2px solid #111; }
 .ticket-pair { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; align-items: flex-start; }
 .ticket-pair > div { flex: 0 1 300px; }
 .cm-dialog.is-wide { width: min(940px, calc(100vw - 32px)); }
