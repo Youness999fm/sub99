@@ -74,8 +74,11 @@
 
 <main id="main-content" tabindex="-1">
   <section class="account-section">
-    <h1 class="section-title">Mon compte</h1>
-    <p class="account-intro">Connectez-vous ou créez un compte pour commander en ligne et suivre vos commandes.</p>
+    <div class="account-page-head">
+      <h1 class="section-title">Mon compte</h1>
+      <button type="button" class="btn-outline account-header-logout" id="logoutBtn" hidden>Se déconnecter</button>
+    </div>
+    <p class="account-intro" id="accountIntro">Connectez-vous ou créez un compte pour commander en ligne et suivre vos commandes.</p>
 
     <div id="accountGuest" class="account-card">
       <div class="account-tabs" role="tablist">
@@ -125,6 +128,7 @@
         <label class="review-form__field">Type de logement
           <select id="signupHousingType" name="housing_type"></select>
         </label>
+        <p class="account-hint" id="signupAptHint" hidden>Pensez à préciser le numéro d’appartement dans le champ « Numéro et rue » ci-dessus (ex. « 12 rue de la Paix, Appt 4 »).</p>
 
         <p class="account-error" id="signupError" role="alert" hidden></p>
         <button type="submit" class="btn-solid" id="signupSubmit">Créer mon compte</button>
@@ -141,53 +145,57 @@
     <div id="accountLoggedIn" class="account-card" hidden>
       <p class="account-welcome">Bonjour <strong id="accountName"></strong> <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" /><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" /><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /></svg></p>
       <p class="account-email" id="accountEmail"></p>
-      <button type="button" class="btn-outline" id="logoutBtn">Se déconnecter</button>
 
-      <details class="faq-item account-summary">
-        <summary>Mes informations</summary>
-        <p><span class="account-summary__label">Prénom</span><span id="summaryFirstName"></span></p>
-        <p><span class="account-summary__label">Nom</span><span id="summaryLastName"></span></p>
-        <p><span class="account-summary__label">Téléphone</span><span id="summaryPhone"></span></p>
-        <p id="summaryAddressRow" hidden><span class="account-summary__label">Adresse</span><span id="summaryAddress"></span></p>
+      <details class="faq-item account-summary" id="profileDetails">
+        <summary>Mes informations<button type="button" class="account-summary__edit" id="profileEditToggle">Modifier</button></summary>
+        <div id="profileView">
+          <p><span class="account-summary__label">Prénom</span><span id="summaryFirstName"></span></p>
+          <p><span class="account-summary__label">Nom</span><span id="summaryLastName"></span></p>
+          <p><span class="account-summary__label">Téléphone</span><span id="summaryPhone"></span></p>
+          <p id="summaryAddressRow" hidden><span class="account-summary__label">Adresse</span><span id="summaryAddress"></span></p>
+        </div>
+        <form id="profileForm" class="account-form" hidden novalidate>
+          <label class="review-form__field">Prénom
+            <input type="text" id="profileFirstName" name="first_name" autocomplete="given-name" required>
+          </label>
+          <label class="review-form__field">Nom
+            <input type="text" id="profileLastName" name="last_name" autocomplete="family-name" required>
+          </label>
+          <label class="review-form__field">Téléphone
+            <input type="tel" id="profilePhone" name="phone" autocomplete="tel" required>
+          </label>
+          <p class="account-error" id="profileError" role="alert" hidden></p>
+          <p class="account-success" id="profileSuccess" role="status" hidden></p>
+          <button type="submit" class="btn-solid" id="profileSubmit">Enregistrer mes informations</button>
+        </form>
       </details>
 
-      <h2 class="account-orders-title">Modifier mes informations</h2>
-      <form id="profileForm" class="account-form" novalidate>
-        <label class="review-form__field">Prénom
-          <input type="text" id="profileFirstName" name="first_name" autocomplete="given-name" required>
-        </label>
-        <label class="review-form__field">Nom
-          <input type="text" id="profileLastName" name="last_name" autocomplete="family-name" required>
-        </label>
-        <label class="review-form__field">Téléphone
-          <input type="tel" id="profilePhone" name="phone" autocomplete="tel" required>
-        </label>
-        <p class="account-error" id="profileError" role="alert" hidden></p>
-        <p class="account-success" id="profileSuccess" role="status" hidden></p>
-        <button type="submit" class="btn-solid" id="profileSubmit">Enregistrer mes informations</button>
-      </form>
+      <details class="faq-item" id="addressDetails">
+        <summary><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18.5" cy="17.5" r="3.5" /><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="15" cy="5" r="1" /><path d="M12 17.5V14l-3-3 4-3 2 3h2" /></svg> Adresse de livraison</summary>
+        <p class="account-hint">Nécessaire uniquement si vous commandez en livraison — le minimum de commande dépend de votre ville.</p>
+        <form id="addressForm" class="account-form" novalidate>
+          <label class="review-form__field">Numéro et rue
+            <input type="text" id="addressStreet" name="street" autocomplete="street-address" placeholder="Ex. 12 rue de la Paix">
+          </label>
+          <label class="review-form__field">Ville
+            <select id="addressCity" name="city"></select>
+          </label>
+          <label class="review-form__field">Type de logement
+            <select id="addressHousingType" name="housing_type"></select>
+          </label>
+          <p class="account-hint" id="addressAptHint" hidden>Pensez à préciser le numéro d’appartement dans le champ « Numéro et rue » ci-dessus (ex. « 12 rue de la Paix, Appt 4 »).</p>
+          <p class="account-error" id="addressError" role="alert" hidden></p>
+          <p class="account-success" id="addressSuccess" role="status" hidden></p>
+          <button type="submit" class="btn-outline" id="addressSubmit">Enregistrer mon adresse</button>
+        </form>
+      </details>
 
-      <h2 class="account-orders-title"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18.5" cy="17.5" r="3.5" /><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="15" cy="5" r="1" /><path d="M12 17.5V14l-3-3 4-3 2 3h2" /></svg> Adresse de livraison</h2>
-      <p class="account-hint">Nécessaire uniquement si vous commandez en livraison — le minimum de commande dépend de votre ville.</p>
-      <form id="addressForm" class="account-form" novalidate>
-        <label class="review-form__field">Numéro et rue
-          <input type="text" id="addressStreet" name="street" autocomplete="street-address" placeholder="Ex. 12 rue de la Paix">
-        </label>
-        <label class="review-form__field">Ville
-          <select id="addressCity" name="city"></select>
-        </label>
-        <label class="review-form__field">Type de logement
-          <select id="addressHousingType" name="housing_type"></select>
-        </label>
-        <p class="account-error" id="addressError" role="alert" hidden></p>
-        <p class="account-success" id="addressSuccess" role="status" hidden></p>
-        <button type="submit" class="btn-outline" id="addressSubmit">Enregistrer mon adresse</button>
-      </form>
-
-      <h2 class="account-orders-title">Mes commandes</h2>
-      <div id="accountOrders" class="account-orders">
-        <p class="account-hint">Chargement…</p>
-      </div>
+      <details class="faq-item">
+        <summary>Mes commandes</summary>
+        <div id="accountOrders" class="account-orders">
+          <p class="account-hint">Chargement…</p>
+        </div>
+      </details>
     </div>
   </section>
 </main>

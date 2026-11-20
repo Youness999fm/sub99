@@ -190,10 +190,11 @@ const SUBITO_CART_CONFIG = {
   window.SUBITO_DELIVERY_ZONES = DELIVERY_ZONES;
   // Type de logement : obligatoire avec l'adresse (le livreur doit savoir à qui/quoi s'attendre) —
   // mêmes 3 valeurs que serveur/customers.js HOUSING_TYPES, une seule liste pour tout le site.
+  // Seulement "maison"/"appartement" proposés à la saisie (demande du 20/11, pattern standard des
+  // sites de livraison) ; "immeuble" reste accepté côté serveur pour les comptes qui l'avaient déjà choisi.
   window.SUBITO_HOUSING_TYPES = [
     { value: "maison", label: "Maison" },
-    { value: "appartement", label: "Appartement" },
-    { value: "immeuble", label: "Immeuble" }
+    { value: "appartement", label: "Appartement" }
   ];
 
   function findDeliveryZone(city) {
@@ -1719,6 +1720,7 @@ const SUBITO_CART_CONFIG = {
         '<label class="review-form__field">Type de logement' +
           '<select id="cartAddressHousingType" name="housing_type"><option value="">— Sélectionner —</option>' + housingOptions + '</select>' +
         '</label>' +
+        '<p class="delivery-status delivery-status--info" id="cartAddressAptHint" hidden>Pensez à préciser le numéro d’appartement dans le champ « Numéro et rue » ci-dessus (ex. « 12 rue de la Paix, Appt 4 »).</p>' +
         '<p class="delivery-status delivery-status--error" id="cartAddressError" role="alert" hidden></p>' +
         '<button type="submit" class="btn-outline delivery-status__link" id="cartAddressSubmit">Enregistrer mon adresse</button>' +
       '</form>'
@@ -1728,6 +1730,14 @@ const SUBITO_CART_CONFIG = {
   function wireCartAddressForm(cart) {
     const form = document.getElementById("cartAddressForm");
     if (!form) return;
+    const housingSelect = document.getElementById("cartAddressHousingType");
+    const aptHint = document.getElementById("cartAddressAptHint");
+    if (housingSelect && aptHint) {
+      aptHint.hidden = housingSelect.value !== "appartement";
+      housingSelect.addEventListener("change", function () {
+        aptHint.hidden = housingSelect.value !== "appartement";
+      });
+    }
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       const errEl = document.getElementById("cartAddressError");
@@ -1741,7 +1751,7 @@ const SUBITO_CART_CONFIG = {
         return;
       }
       if (!housingType) {
-        errEl.textContent = "Précisez le type de logement (maison, appartement, immeuble).";
+        errEl.textContent = "Précisez le type de logement (maison ou appartement).";
         errEl.hidden = false;
         return;
       }
@@ -2467,6 +2477,18 @@ const SUBITO_CART_CONFIG = {
     });
   }
 
+  // Le bandeau « Nouveau : commandez en ligne » n'a de sens que pour un visiteur qui
+  // ne sait pas encore qu'on peut commander depuis le site. Un client déjà connecté
+  // le sait déjà (code 2026-11-20). Visible par défaut (cas du simple visiteur) : masqué
+  // seulement une fois la session confirmée, pas d'attente côté guest.
+  function hideCartAnnounceIfLoggedIn() {
+    const announce = document.getElementById("cartAnnounce");
+    if (!announce || !window.SubitoAccount) return;
+    window.SubitoAccount.me().then(function (session) {
+      if (session) announce.hidden = true;
+    }).catch(function () { /* panne du service de session : on laisse le bandeau visible */ });
+  }
+
   function init() {
     scanMenuItems();
     scanComposerBase();
@@ -2475,6 +2497,7 @@ const SUBITO_CART_CONFIG = {
     if (document.querySelector(".size-chart")) loadSupplementGroups(); // préchargement discret
     resumeOrderIfNeeded();
     resumeAddressIfNeeded();
+    hideCartAnnounceIfLoggedIn();
   }
 
   // Retour arrière depuis la page de connexion : le navigateur peut restaurer la page

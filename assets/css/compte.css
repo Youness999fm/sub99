@@ -12,11 +12,32 @@
   padding: 32px 20px 60px;
 }
 
+.account-page-head {
+  position: relative;
+}
+
+.account-header-logout {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  border: 1.5px solid var(--green);
+  color: var(--green);
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.74rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
 .account-intro {
   text-align: center;
   color: var(--gray);
   margin: 0 0 24px;
 }
+
+.account-intro[hidden] { display: none; }
 
 .account-card {
   background: #fff;
@@ -136,13 +157,24 @@
   font-size: 0.86rem;
 }
 
-.account-card #logoutBtn {
-  border: 2px solid var(--green);
-  color: var(--green);
+.account-summary summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.account-summary__edit {
+  border: none;
   background: none;
   cursor: pointer;
   font: inherit;
   font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--red);
+  text-decoration: underline;
+  padding: 2px;
+  flex-shrink: 0;
 }
 
 .account-orders-title {

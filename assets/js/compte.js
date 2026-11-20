@@ -197,6 +197,8 @@
   function showLoggedIn(session) {
     qs("accountCreated").hidden = true;
     qs("accountGuest").hidden = true;
+    qs("accountIntro").hidden = true;
+    qs("logoutBtn").hidden = false;
     const loggedIn = qs("accountLoggedIn");
     loggedIn.hidden = false;
     qs("accountName").textContent = (session.first_name || "") + (session.last_name ? " " + session.last_name : "");
@@ -207,12 +209,15 @@
     qs("addressStreet").value = session.street || "";
     qs("addressCity").value = session.city || "";
     qs("addressHousingType").value = session.housing_type || "";
+    qs("addressAptHint").hidden = session.housing_type !== "appartement";
 
     // Résumé replié (fermé par défaut, voir <details> dans compte.html) : juste de quoi se repérer
-    // d'un coup d'œil, l'adresse n'apparaît que si elle est enregistrée.
+    // d'un coup d'œil, l'adresse n'apparaît que si elle est enregistrée. Le formulaire d'édition
+    // reste fermé lui aussi (demande du 20/11 : "appuyer sur Modifier" pour le faire apparaître).
     qs("summaryFirstName").textContent = session.first_name || "";
     qs("summaryLastName").textContent = session.last_name || "";
     qs("summaryPhone").textContent = session.phone || "";
+    qs("profileForm").hidden = true;
     const addrRow = qs("summaryAddressRow");
     if (session.city) {
       qs("summaryAddress").textContent = addressSummary(session);
@@ -232,6 +237,8 @@
     qs("accountCreated").hidden = true;
     qs("accountGuest").hidden = false;
     qs("accountLoggedIn").hidden = true;
+    qs("accountIntro").hidden = false;
+    qs("logoutBtn").hidden = true;
   }
 
   // Écran dédié juste après la création du compte (demande du 20/11) : la page change complètement,
@@ -241,6 +248,8 @@
     createdSession = session;
     qs("accountGuest").hidden = true;
     qs("accountLoggedIn").hidden = true;
+    qs("accountIntro").hidden = true;
+    qs("logoutBtn").hidden = true;
     qs("accountCreated").hidden = false;
     qs("accountCreatedName").textContent = session.first_name || "";
   }
@@ -249,6 +258,24 @@
     if (!window.SubitoAccount) return;
 
     populateCitySelects();
+
+    // "Appartement" sélectionné : rappelle d'indiquer le numéro d'appartement dans le champ rue
+    // (pas de colonne dédiée — on reste au plus près du formulaire déjà existant).
+    [["signupHousingType", "signupAptHint"], ["addressHousingType", "addressAptHint"]].forEach(function (pair) {
+      const select = qs(pair[0]);
+      const hint = qs(pair[1]);
+      if (!select || !hint) return;
+      select.addEventListener("change", function () { hint.hidden = select.value !== "appartement"; });
+    });
+
+    qs("profileEditToggle").addEventListener("click", function () {
+      // Cliquer sur "Modifier" (élément interactif dans <summary>) ne fait PAS basculer le <details>
+      // parent dans les navigateurs testés : il faut l'ouvrir explicitement pour que le formulaire,
+      // démasqué juste après, soit réellement visible (un <details> fermé masque tout son contenu).
+      const form = qs("profileForm");
+      form.hidden = !form.hidden;
+      if (!form.hidden) qs("profileDetails").open = true;
+    });
 
     qs("tabLogin").addEventListener("click", function () { showTab("login"); });
     qs("tabSignup").addEventListener("click", function () { showTab("signup"); });
@@ -383,6 +410,12 @@
         qs("summaryPhone").textContent = session.phone || "";
         successEl.textContent = "Informations enregistrées";
         successEl.hidden = false;
+        // Demande du 20/11 : une fois enregistré, tout se referme (formulaire + section) — après
+        // un court délai, pour que le message de confirmation reste lisible une seconde.
+        setTimeout(function () {
+          qs("profileForm").hidden = true;
+          qs("profileDetails").open = false;
+        }, 1100);
       }).catch(function (err) {
         btn.disabled = false;
         if (err.code === "unauthorized") {
@@ -422,10 +455,11 @@
         }
         successEl.textContent = "Adresse enregistrée ✓";
         successEl.hidden = false;
+        setTimeout(function () { qs("addressDetails").open = false; }, 1100);
       }).catch(function (err) {
         btn.disabled = false;
         if (err.code === "validation" && err.fields && err.fields.city) showError(errorEl, "Nous ne livrons pas dans cette ville : choisissez une ville de la liste.");
-        else if (err.code === "validation" && err.fields && err.fields.housing_type) showError(errorEl, "Précisez le type de logement (maison, appartement, immeuble).");
+        else if (err.code === "validation" && err.fields && err.fields.housing_type) showError(errorEl, "Précisez le type de logement (maison ou appartement).");
         else if (err.code === "validation") showError(errorEl, validationMessage(err, "Adresse invalide : vérifiez la rue et la ville."));
         else if (err.code === "unauthorized") showError(errorEl, "Votre session a expiré : reconnectez-vous.");
         else if (err.code === "network") showError(errorEl, NETWORK_MESSAGE);

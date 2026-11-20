@@ -40,8 +40,19 @@
     lastFocused = null;
   }
 
+  function maybeOpenPopup(overlay) {
+    let alreadySeen = false;
+    try { alreadySeen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (e) { /* pas de stockage : on considère que non, tant pis si ça réapparaît */ }
+    if (alreadySeen) return;
+
+    setTimeout(function () {
+      openPopup(overlay);
+    }, 1600);
+  }
+
   function init() {
     const overlay = qs("orderPopupOverlay");
+    const launchSection = qs("orderLaunchSection");
     if (!overlay) return;
 
     qs("orderPopupClose").addEventListener("click", closePopup);
@@ -67,13 +78,24 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
 
-    let alreadySeen = false;
-    try { alreadySeen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (e) { /* pas de stockage : on considère que non, tant pis si ça réapparaît */ }
-    if (alreadySeen) return;
-
-    setTimeout(function () {
-      openPopup(overlay);
-    }, 1600);
+    // La section « ★ Nouveau ★ commandez en ligne » et la fenêtre qui invite à créer un
+    // compte n'ont de sens que pour un visiteur qui n'en a pas encore : un client déjà
+    // connecté le sait déjà (code 2026-11-20). Les deux restent visibles par défaut (cas
+    // du simple visiteur, majoritaire) et ne sont masquées qu'une fois la session confirmée.
+    if (window.SubitoAccount) {
+      window.SubitoAccount.me().then(function (session) {
+        if (session) {
+          if (launchSection) launchSection.hidden = true;
+        } else {
+          maybeOpenPopup(overlay);
+        }
+      }).catch(function () {
+        // Panne du service de session : on se comporte comme avant (visiteur), tant pis.
+        maybeOpenPopup(overlay);
+      });
+    } else {
+      maybeOpenPopup(overlay);
+    }
   }
 
   if (document.readyState === "loading") {

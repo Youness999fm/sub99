@@ -104,6 +104,8 @@
   })();
 
   const PAYMENT_LABEL = { card: 'Carte bancaire', cash: 'Espèces', ticket: 'Ticket restaurant', ticket_card: 'Carte ticket restaurant' };
+  // "immeuble" n'est plus proposé à la saisie côté client mais reste affiché si un compte l'avait déjà choisi.
+  const HOUSING_TYPE_LABELS = { maison: 'Maison', appartement: 'Appartement', immeuble: 'Immeuble' };
 
   const state = {
     authed: false,
@@ -1220,8 +1222,8 @@
         <nav class="sub-tabs" aria-label="Espace patron">
           ${tab('recap', 'Recette du jour')}${locked ? '' : tab('clients', 'Clients')}${locked ? '' : tab('devices', 'Appareils connectés')}
         </nav>
-        <button type="button" class="btn btn-soft btn-sm super-btn" data-action="${locked ? 'super-open' : 'super-lock'}">
-          ${locked ? 'Accès supérieur' : 'Verrouiller l’accès supérieur'}
+        <button type="button" class="btn btn-soft btn-sm super-btn ${locked ? '' : 'is-active'}" data-action="${locked ? 'super-open' : 'super-lock'}" aria-label="Paramètres" title="Paramètres">
+          <span aria-hidden="true">⚙️</span>
         </button>
       </div>`;
   }
@@ -1373,6 +1375,7 @@
         ${row('Téléphone', c.phone)}
         ${row('E-mail', c.email)}
         ${row('Adresse', [c.street, c.city].filter(Boolean).join(', '))}
+        ${row('Type de logement', HOUSING_TYPE_LABELS[c.housing_type] || '')}
         ${row('Inscription', toDate(c.created_at) ? dateFR(dayKeyOf(toDate(c.created_at))) : '')}
         ${row('Dernière commande', c.last_order_at ? dateTimeFR(c.last_order_at) : 'Aucune commande')}
       </dl>`
@@ -2033,8 +2036,7 @@
   // ---------- Accès supérieur (espace patron : clients, appareils, suppression de la recette) ----------
   function openSuperDialog() {
     openDialog(`
-      <h3>Accès supérieur</h3>
-      <p>Code requis pour voir les clients, copier leurs numéros et supprimer la recette.</p>
+      <h3>Paramètres</h3>
       <form id="super-form" novalidate>
         <div class="field">
           <label for="super-code">Code</label>
