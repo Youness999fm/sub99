@@ -1661,8 +1661,9 @@
           <img class="t-logo" src="../assets/img/logo.jpg" alt="" width="30" height="30">
           <span class="t-brand">Subito Pizza</span>
         </div>
+        <p class="t-customer-name">${esc(customerLabel(o))}</p>
         <div class="t-top">
-          <span>${esc(customerLabel(o))} · ${esc(o.customer_phone || '')}</span>
+          <span>${esc(o.customer_phone || '')}</span>
           <span>Reçue à ${received ? esc(hm(received)) : '—'}</span>
         </div>
         ${o.scheduled_for ? `
@@ -1862,8 +1863,14 @@
     text((o.shop || 'Subito Pizza') + '\n');
     blank(1);
 
-    // Client / téléphone / heure reçue : compact, lisible, ne prend pas de place.
-    if (o.customer) text(escRow('Client', o.customer));
+    // Nom du client : même taille et même gras que les articles, tout en haut du ticket, pour qu'on le
+    // voie du premier coup d'œil (plus de confusion possible entre deux commandes à la suite).
+    if (o.customer) {
+      bold(true); charSize(2, 3);
+      text(escWrapWordsAt(o.customer, PRINT_WIDTH_X2) + '\n');
+      charSize(1, 1); bold(false);
+    }
+    // Téléphone / heure reçue : compact, lisible, ne prend pas de place.
     if (o.phone) text(escRow('Tel', o.phone));
     if (o.receivedAt) text(escRow('Recue a', o.receivedAt));
     blank(1);
