@@ -3,6 +3,12 @@
 document.documentElement.classList.remove('no-js');
 document.documentElement.classList.add('js');
 
+if ('serviceWorker' in navigator) {
+  // Nécessaire pour que Chrome/Android propose l'installation (bouton « Installer », initInstallPrompt
+  // ci-dessous) ; sans effet si indisponible (ex. page ouverte en file:// pendant un test local).
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   markActiveNavLink();
   initLightbox();
@@ -20,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initFinaleEmbers();
   initMenuJumpActive();
   initPizzaBaseNav();
+  initInstallPrompt();
 });
 
 // Nombre de jours complets depuis l'ouverture (1er avril 1999), calculé
@@ -648,6 +655,69 @@ function initHeaderCompact() {
   }, { passive: true });
 
   update();
+}
+
+// Bouton « Installer » (ajout à l'écran d'accueil) dans la nav principale, visible seulement quand
+// l'installation est réellement possible : Android/Chrome déclenche le prompt natif en un tap ; iOS
+// Safari ne propose aucune API pour le faire automatiquement, donc affiche une courte marche à suivre
+// (Partager -> Sur l'écran d'accueil) à la place. Rien n'apparaît si le site est déjà installé
+// (display-mode: standalone) ni sur un navigateur qui ne gère ni l'un ni l'autre (ex. Firefox desktop).
+function initInstallPrompt() {
+  const nav = document.querySelector('.site-nav__list');
+  if (!nav) return;
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const icon = window.SubitoIcons ? window.SubitoIcons.svg('smartphone') : '';
+
+  const li = document.createElement('li');
+  li.hidden = true;
+  li.innerHTML =
+    '<button type="button" class="site-nav__link" id="pwaInstallBtn" title="Ajouter Subito Pizza sur votre écran d’accueil, comme une appli">' +
+      '<span class="icon" aria-hidden="true">' + icon + '</span>Installer' +
+    '</button>';
+  nav.appendChild(li);
+  const btn = li.querySelector('#pwaInstallBtn');
+
+  function showIOSHelp() {
+    if (document.querySelector('.pwa-ios-tip')) return;
+    const tip = document.createElement('div');
+    tip.className = 'pwa-ios-tip';
+    tip.setAttribute('role', 'status');
+    tip.innerHTML =
+      '<p>Pour installer Subito Pizza sur votre écran d’accueil : appuyez sur <strong>Partager</strong> ' +
+      (window.SubitoIcons ? window.SubitoIcons.svg('share-2') : '') +
+      ' en bas de l’écran, puis sur <strong>« Sur l’écran d’accueil »</strong>.</p>' +
+      '<button type="button" class="pwa-ios-tip__close" aria-label="Fermer">&times;</button>';
+    document.body.appendChild(tip);
+    const close = () => tip.remove();
+    tip.querySelector('.pwa-ios-tip__close').addEventListener('click', close);
+    setTimeout(close, 9000);
+  }
+
+  if (isIOS) {
+    li.hidden = false;
+    btn.addEventListener('click', showIOSHelp);
+    return;
+  }
+
+  // Android/Chrome (et navigateurs compatibles) : l'événement n'arrive que si le site est jugé
+  // installable (manifest + service worker déjà en place, voir sw.js) — rien à faire si ça ne vient jamais.
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    li.hidden = false;
+  });
+  btn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    const evt = deferredPrompt;
+    deferredPrompt = null;
+    li.hidden = true; // un seul choix possible par invite native
+    evt.prompt();
+    try { await evt.userChoice; } catch (e) { /* ignoré : l'utilisateur a simplement fermé l'invite */ }
+  });
+  window.addEventListener('appinstalled', () => { li.hidden = true; });
 }
 
 function markActiveNavLink() {

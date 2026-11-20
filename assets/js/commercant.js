@@ -2209,6 +2209,44 @@
     });
   }
 
+  // Bouton « Installer » (écran d'accueil), même logique que le site public (assets/js/main.js) : manifest
+  // + service worker déjà en place ici, il ne manquait que le déclencheur. Masqué si déjà installé, si le
+  // navigateur ne propose ni l'un ni l'autre, ou après usage (un seul choix possible par invite native).
+  function initPwaInstall() {
+    const btn = document.getElementById('pwa-install-btn');
+    if (!btn) return;
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return;
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    function showIOSHelp() {
+      toast('Pour installer : appuyez sur Partager, puis « Sur l’écran d’accueil ».');
+    }
+
+    if (isIOS) {
+      btn.hidden = false;
+      btn.addEventListener('click', showIOSHelp);
+      return;
+    }
+
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      btn.hidden = false;
+    });
+    btn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      const evt = deferredPrompt;
+      deferredPrompt = null;
+      btn.hidden = true;
+      evt.prompt();
+      try { await evt.userChoice; } catch (e) { /* ignoré */ }
+    });
+    window.addEventListener('appinstalled', () => { btn.hidden = true; });
+  }
+  initPwaInstall();
+
   renderClock();
   setInterval(renderClock, 1000);
   boot();
