@@ -28,6 +28,18 @@
   color: var(--green-dark);
 }
 
+.order-track-scheduled {
+  margin: -8px 0 16px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--gold-ink, #8A6B1E);
+  background: #fff8e8;
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
 .order-track-status {
   text-align: center;
   border-radius: 12px;

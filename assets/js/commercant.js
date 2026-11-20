@@ -220,6 +220,25 @@
   function dayLabel(dayKey) {
     return `Recette du ${Number(dayKey.split('-')[2])} de ${SERVICE_START} à ${SERVICE_END}`;
   }
+  // « aujourd'hui » / « demain » / « lun. 23 nov. » à l'heure de Paris.
+  function scheduledDayLabel(d) {
+    const key = dayKeyOf(d);
+    if (key === dayKeyOf(new Date())) return "aujourd'hui";
+    if (key === dayKeyOf(new Date(Date.now() + 86400000))) return 'demain';
+    return new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(d);
+  }
+  function scheduledLabel(o) {
+    const d = toDate(o.scheduled_for);
+    return d ? `${scheduledDayLabel(d)} à ${hm(d)}` : '';
+  }
+  // Une commande programmée n'entre dans la file active que lorsqu'il est temps de la préparer
+  // (créneau choisi moins le délai de préparation par défaut) ; avant ça, elle reste en « Programmées ».
+  function surfaced(o) {
+    if (o.status !== 'new') return false;
+    const sched = toDate(o.scheduled_for);
+    if (!sched) return true;
+    return sched.getTime() - Date.now() <= state.defaultDelay * 60000;
+  }
   function norm(s) {
     return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
@@ -249,7 +268,13 @@
     return state.orders.find(o => String(o.id) === String(id)) || null;
   }
   function openOrders() {
-    return state.orders.filter(o => o.status === 'new');
+    return state.orders.filter(o => surfaced(o));
+  }
+  // Programmées : acceptées nulle part encore, mais trop en avance pour entrer dans la file active.
+  function scheduledOrders() {
+    return state.orders
+      .filter(o => o.status === 'new' && o.scheduled_for && !surfaced(o))
+      .sort((a, b) => String(a.scheduled_for).localeCompare(String(b.scheduled_for)));
   }
   // Recette du jour : commandes acceptées, qu'elles soient encore en préparation ou déjà prêtes.
   function recapOrders() {
@@ -616,15 +641,23 @@
     const now = toDate(data.server_now);
     state.serviceDay = dayKeyOf(now || new Date());
     const prevIds = new Set(state.orders.map(o => String(o.id)));
-    const arrivals = state.ordersLoaded
+    const freshlyNew = state.ordersLoaded
       ? list.filter(o => o.status === 'new' && !prevIds.has(String(o.id)))
       : [];
+    // Une commande programmée loin dans le temps ne déclenche pas l'alerte sonore « à traiter maintenant ».
+    const arrivals = freshlyNew.filter(o => surfaced(o));
+    const scheduledArrivals = freshlyNew.filter(o => !surfaced(o));
     state.orders = list;
     state.ordersLoaded = true;
     ensureOpenSelection();
     syncAlarm();
     scheduleRender();
     alertNew(arrivals);
+    if (scheduledArrivals.length) {
+      toast(scheduledArrivals.length > 1
+        ? `${scheduledArrivals.length} nouvelles commandes programmées.`
+        : `Commande programmée pour ${scheduledLabel(scheduledArrivals[0])}.`);
+    }
   }
 
   document.addEventListener('visibilitychange', () => {
@@ -656,6 +689,7 @@
         replaceOrder(r.data.order);
         closeNotifications();
         const done = r.data.order || {};
+        if (action === 'accept' && done.status === 'accepted') autoPrintAccepted(done);
         toast(done.status === 'accepted'
           ? `Commande de ${name} acceptée · délai annoncé : ${delayLabel(done.delay_minutes)}`
           : `Commande de ${name} refusée`);
@@ -855,6 +889,21 @@
     }).join(''));
   }
 
+  // « Programmées » : commandes planifiées par le client, pas encore entrées dans la file active.
+  function renderScheduled() {
+    const strip = document.getElementById('scheduled-strip');
+    const box = document.getElementById('scheduled-queue');
+    if (!strip || !box) return;
+    const list = scheduledOrders();
+    strip.hidden = list.length === 0;
+    setHTML(box, list.map(o => `
+        <button type="button" class="qchip is-scheduled" data-action="select" data-id="${esc(o.id)}"
+          aria-label="Commande de ${esc(customerLabel(o))}, programmée pour ${esc(scheduledLabel(o))}, ${esc(eur(o.total_cents))}">
+          <span class="qchip-title">${esc(customerLabel(o))}</span>
+          <span class="qchip-sub">${esc(scheduledLabel(o))} · ${esc(eur(o.total_cents))}</span>
+        </button>`).join(''));
+  }
+
   function itemTitle(it) {
     return it.variant ? `${it.name} · ${it.variant}` : String(it.name || '');
   }
@@ -912,6 +961,7 @@
       <div class="od-head">
         <div>
           <p class="eyebrow">${rank ? 'Commande ' + rank + ' de la file' : ''}</p>
+          ${o.scheduled_for ? `<p class="eyebrow eyebrow-scheduled">Programmée pour ${esc(scheduledLabel(o))}</p>` : ''}
           <h3 class="od-num">${esc(customerLabel(o))}</h3>
           <p class="od-time">${esc(receivedLabel(o))}</p>
         </div>
@@ -1394,6 +1444,7 @@
     }
     renderNotifSlot();
     renderQueue();
+    renderScheduled();
     renderPrep();
     renderDetail();
     if (state.view === 'avail') renderAvail();
@@ -1466,6 +1517,39 @@
         ${ready ? `<div class="t-line"><span>Prête vers</span><span>${esc(hm(ready))}</span></div>` : ''}
         ${o.status === 'ready' ? `<div class="t-line"><span>État</span><span>Prête</span></div>` : ''}
       </div>`;
+  }
+
+  // Transforme une commande en texte structuré pour l'impression automatique (app Android + imprimante Bluetooth).
+  function printerPayload(o) {
+    const delivery = o.mode === 'delivery';
+    const received = toDate(o.created_at);
+    const items = (o.items || []).map(it => ({
+      qty: Number(it.qty) || 1,
+      title: itemTitle(it),
+      lineTotal: eur(it.line_total_cents),
+      mods: itemMods(it).map(m => m.text)
+    }));
+    return {
+      shop: 'SUBITO PIZZA',
+      mode: delivery ? 'LIVRAISON' : 'A EMPORTER',
+      address: delivery ? addressLine(o.delivery_address) : null,
+      customer: customerLabel(o),
+      phone: o.customer_phone || '',
+      receivedAt: received ? hm(received) : '',
+      items,
+      deliveryFee: Number(o.delivery_fee_cents) > 0 ? eur(o.delivery_fee_cents) : null,
+      total: eur(o.total_cents),
+      delay: o.delay_minutes ? delayLabel(o.delay_minutes) : null
+    };
+  }
+
+  // Imprime automatiquement le ticket sur l'imprimante Bluetooth (app Android uniquement ; ignoré ailleurs, ex. navigateur).
+  function autoPrintAccepted(o) {
+    try {
+      if (window.AndroidPrinter && typeof window.AndroidPrinter.printTicket === 'function') {
+        window.AndroidPrinter.printTicket(JSON.stringify(printerPayload(o)));
+      }
+    } catch (e) { /* l'impression automatique ne doit jamais bloquer le flux de commande */ }
   }
 
   function openOrderTicket(o) {

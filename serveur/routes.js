@@ -22,6 +22,7 @@ import owner_orders from './routes/owner_orders.js';
 import owner_sessions from './routes/owner_sessions.js';
 import owner_sessions_revoke from './routes/owner_sessions_revoke.js';
 import owner_settings from './routes/owner_settings.js';
+import schedule_slots from './routes/schedule_slots.js';
 
 export const ROUTES = {
   availability,
@@ -43,5 +44,6 @@ export const ROUTES = {
   owner_orders,
   owner_sessions,
   owner_sessions_revoke,
-  owner_settings
+  owner_settings,
+  schedule_slots
 };

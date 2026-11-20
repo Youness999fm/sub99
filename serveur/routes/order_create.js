@@ -4,8 +4,9 @@ import { allowMethods, readJsonBody, fail, ok } from '../core.js';
 import { one, transaction, estViolationUnique } from '../db.js';
 import { requireCustomer } from '../auth.js';
 import { throttleGuard, throttleHit } from '../throttle.js';
-import { DELIVERY_ZONES, nowUtc, serviceDay } from '../util.js';
+import { DELIVERY_ZONES, nowUtc, serviceDay, utcToEpoch } from '../util.js';
 import { creneauActif, commandesOuvertes, minutesParis, libelleHeure, fermetureManuelle } from '../horaires.js';
+import { creneauValide } from '../planification.js';
 import {
   validateOrderBody, orderPayloadHash, orderEnforceCatalogue, computeOrderTotals, orderViews, orderLoad, phpTrim
 } from '../orders.js';
@@ -46,13 +47,20 @@ export default async function orderCreate(c) {
     fail(422, 'closed', 'Le commerçant a fermé la prise de commandes pour le moment. Réessayez plus tard.');
   }
 
-  // Horaires : en dehors du créneau, aucune commande nouvelle (personne ne la verrait). Un rejeu reste accepté (étape 3).
-  const creneau = creneauActif();
-  if (!commandesOuvertes(creneau, minutesParis())) {
-    fail(422, 'closed', 'Les commandes en ligne sont fermées pour le moment.', {
-      opens_at: libelleHeure(creneau.debut),
-      closes_at: libelleHeure(creneau.fin)
-    });
+  if (o.scheduled_for === null) {
+    // Commande « dès que possible » : en dehors du créneau, aucune commande nouvelle (personne ne la verrait).
+    const creneau = creneauActif();
+    if (!commandesOuvertes(creneau, minutesParis())) {
+      fail(422, 'closed', 'Les commandes en ligne sont fermées pour le moment.', {
+        opens_at: libelleHeure(creneau.debut),
+        closes_at: libelleHeure(creneau.fin)
+      });
+    }
+  } else {
+    // Commande planifiée : le créneau choisi doit être un horaire réellement proposé (délai, alignement, fenêtre de retrait 18h20-22h30).
+    if (!creneauValide(utcToEpoch(o.scheduled_for))) {
+      fail(422, 'invalid_schedule', "L'horaire choisi n'est plus disponible. Choisissez-en un autre.");
+    }
   }
 
   // Limitation de débit : seules les commandes CRÉÉES sont comptées (dans la transaction ci-dessous). Un rejeu
@@ -113,15 +121,15 @@ export default async function orderCreate(c) {
             customer_first_name, customer_last_name, customer_phone, customer_email,
             delivery_street, delivery_city, payment_methods, cash_change_for,
             products_cents, promo_cents, delivery_fee_cents, total_cents, delay_minutes,
-            created_at, accepted_at, refused_at, service_day)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, ?)`,
+            created_at, accepted_at, refused_at, service_day, scheduled_for)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, ?, ?)`,
         [
           customerId, o.idempotency_key, payloadHash, 'new', o.mode,
           String(customer.first_name), String(customer.last_name),
           String(customer.phone), String(customer.email),
           street, city, JSON.stringify(o.payment_methods), o.cash_change_for,
           t.products_cents, t.promo_cents, t.delivery_fee_cents, t.total_cents,
-          now, serviceDay()
+          now, serviceDay(), o.scheduled_for
         ]
       );
       for (let pos = 0; pos < o.items.length; pos++) {

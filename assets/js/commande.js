@@ -27,6 +27,20 @@
   function formatPrice(n) { return n.toFixed(2).replace(".", ",") + " €"; }
   function formatCents(cents) { return formatPrice((Number(cents) || 0) / 100); }
 
+  // « aujourd'hui à 18h00 » / « demain à 12h30 » — même logique que commercant.js, en heure de Paris.
+  function scheduledLabel(iso) {
+    const d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d)) return "";
+    const TZ = "Europe/Paris";
+    const dayKey = (x) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(x);
+    const hm = new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(d);
+    let dayLabel;
+    if (dayKey(d) === dayKey(new Date())) dayLabel = "aujourd’hui";
+    else if (dayKey(d) === dayKey(new Date(Date.now() + 86400000))) dayLabel = "demain";
+    else dayLabel = new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" }).format(d);
+    return dayLabel + " à " + hm;
+  }
+
   // Échappement minimal : `note` (demande libre) et le nom du client sont du
   // texte saisi par quelqu'un, jamais à insérer tel quel dans le HTML.
   function esc(str) {
@@ -241,13 +255,16 @@
     const body = qs("orderTrackBody");
     if (!body) return;
     const modeLabel = order.mode === "delivery" ? SubitoIcons.svg('bike') + " Livraison" : SubitoIcons.svg('shopping-bag') + " À emporter";
+    const scheduledNote = order.scheduled_for
+      ? '<p class="order-track-scheduled">' + SubitoIcons.svg('clock') + ' Commande programmée pour ' + esc(scheduledLabel(order.scheduled_for)) + '</p>'
+      : "";
     let statusHtml = "";
 
     if (order.status === "new") {
       statusHtml =
         '<div class="order-track-status order-track-status--pending" role="status">' +
           '<span class="order-track-status__spinner" aria-hidden="true"></span>' +
-          '<p>' + SubitoIcons.svg('hourglass') + ' En attente de confirmation du restaurant…</p>' +
+          '<p>' + SubitoIcons.svg('hourglass') + (order.scheduled_for ? ' Commande programmée bien reçue — le restaurant la prépare au bon moment.' : ' En attente de confirmation du restaurant…') + '</p>' +
           '<p class="order-track-hint">Cette page se met à jour toute seule, inutile de recharger.</p>' +
         '</div>';
     } else if (order.status === "accepted") {
@@ -275,6 +292,7 @@
 
     body.innerHTML =
       '<p class="order-track-number">Commande de ' + esc(order.customer_name) + ' — ' + modeLabel + '</p>' +
+      scheduledNote +
       statusHtml +
       '<div class="order-track-items">' + renderItems(order.items) + '</div>' +
       (order.promo_cents > 0 ? '<div class="order-track-fee"><span>Promotion</span><span>− ' + formatCents(order.promo_cents) + '</span></div>' : "") +

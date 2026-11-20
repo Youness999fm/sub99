@@ -200,6 +200,68 @@ const SUBITO_CART_CONFIG = {
   // d'adresse), où il est restauré via sessionStorage (voir plus bas).
   let orderMode = "pickup";
 
+  // Commande planifiée (type Uber Eats) : "now" (dès que possible, par défaut) ou "later" (le client choisit
+  // un jour + un créneau de 30 min parmi ceux renvoyés par schedule_slots.php). Remis à zéro à chaque
+  // chargement de page, comme orderMode.
+  const SCHEDULE_TZ = "Europe/Paris";
+  let scheduleChoice = "now";
+  let scheduledFor = null; // ISO UTC du créneau choisi, ou null tant que rien n'est sélectionné
+  let scheduleData = null; // réponse mise en cache de schedule_slots.php ({ manually_closed, days: [...] })
+  let scheduleLoading = false;
+  let scheduleError = false;
+  let scheduleActiveDate = null; // date (AAAA-MM-JJ) affichée dans les onglets jours
+
+  function scheduleDayKey(d) {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: SCHEDULE_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  }
+  function scheduleDayLabel(dateStr) {
+    if (dateStr === scheduleDayKey(new Date())) return "Aujourd’hui";
+    if (dateStr === scheduleDayKey(new Date(Date.now() + 86400000))) return "Demain";
+    // Midi UTC : la conversion vers l'heure de Paris ne peut jamais faire basculer sur un autre jour calendaire.
+    return new Intl.DateTimeFormat("fr-FR", { timeZone: SCHEDULE_TZ, weekday: "short", day: "numeric", month: "short" }).format(new Date(dateStr + "T12:00:00Z"));
+  }
+
+  function loadScheduleSlots() {
+    if (scheduleData || scheduleLoading) return;
+    scheduleLoading = true;
+    scheduleError = false;
+    fetch(SUBITO_CART_CONFIG.apiBase + "schedule_slots.php", { credentials: "include", cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        scheduleLoading = false;
+        scheduleData = data && Array.isArray(data.days) ? data : { manually_closed: true, days: [] };
+        scheduleActiveDate = scheduleData.days.length ? scheduleData.days[0].date : null;
+        renderDrawerExtra(sortedCart());
+      })
+      .catch(function () {
+        scheduleLoading = false;
+        scheduleError = true;
+        renderDrawerExtra(sortedCart());
+      });
+  }
+
+  function scheduleLaterHtml() {
+    if (scheduleLoading) return '<p class="schedule-status schedule-status--pending">Chargement des horaires…</p>';
+    if (scheduleError) return '<p class="schedule-status schedule-status--error">Impossible de charger les horaires — réessayez dans un instant.</p>';
+    if (!scheduleData || scheduleData.manually_closed || !scheduleData.days.length) {
+      return '<p class="schedule-status schedule-status--warn">Aucun horaire disponible pour une commande programmée pour le moment.</p>';
+    }
+    const days = scheduleData.days;
+    const activeDay = days.find(function (d) { return d.date === scheduleActiveDate; }) || days[0];
+    const dayTabs = days.map(function (d) {
+      return '<button type="button" class="schedule-day' + (d.date === activeDay.date ? " is-active" : "") + '" data-date="' + d.date + '">' + escapeHtml(scheduleDayLabel(d.date)) + '</button>';
+    }).join("");
+    const slotButtons = activeDay.slots.map(function (s) {
+      return '<button type="button" class="schedule-slot' + (scheduledFor === s.iso ? " is-active" : "") + '" data-iso="' + s.iso + '">' + escapeHtml(s.time) + '</button>';
+    }).join("");
+    return (
+      '<div class="schedule-picker">' +
+        '<div class="schedule-days" role="tablist" aria-label="Jour">' + dayTabs + '</div>' +
+        '<div class="schedule-slots" role="group" aria-label="Heure">' + slotButtons + '</div>' +
+      '</div>'
+    );
+  }
+
   function activePromo(cart) {
     return orderMode === "delivery" ? pizzaPromoDelivery(cart) : pizzaPromo(cart);
   }
@@ -1468,6 +1530,11 @@ const SUBITO_CART_CONFIG = {
         '<button type="button" class="order-mode-toggle__btn' + (isDelivery ? "" : " is-active") + '" data-mode="pickup">' + SubitoIcons.svg("shopping-bag") + ' À emporter</button>' +
         '<button type="button" class="order-mode-toggle__btn' + (isDelivery ? " is-active" : "") + '" data-mode="delivery">' + SubitoIcons.svg("bike") + ' Livraison</button>' +
       '</div>' +
+      '<div class="schedule-toggle" role="group" aria-label="Horaire de la commande">' +
+        '<button type="button" class="schedule-toggle__btn' + (scheduleChoice === "now" ? " is-active" : "") + '" data-when="now">' + SubitoIcons.svg("clock") + ' Dès que possible</button>' +
+        '<button type="button" class="schedule-toggle__btn' + (scheduleChoice === "later" ? " is-active" : "") + '" data-when="later">' + SubitoIcons.svg("clock") + ' Plus tard</button>' +
+      '</div>' +
+      (scheduleChoice === "later" ? scheduleLaterHtml() : "") +
       '<div id="deliveryStatus" role="status"></div>' +
       (isDelivery ? paymentMethodHtml() : "") +
       promoHtml +
@@ -1489,6 +1556,38 @@ const SUBITO_CART_CONFIG = {
         renderDrawerExtra(sorted);
         renderStickyFooter(sorted);
         renderBarTotal(sorted);
+      });
+    });
+
+    extra.querySelectorAll(".schedule-toggle__btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const when = btn.getAttribute("data-when");
+        if (cartLocked()) { showToast("Commande en cours d’envoi : changez l’horaire après la réponse."); return; }
+        if (when === scheduleChoice) return;
+        scheduleChoice = when;
+        if (when === "now") {
+          scheduledFor = null;
+        } else {
+          loadScheduleSlots(); // sans effet si déjà chargé ou en cours : un seul appel réseau par visite
+        }
+        renderDrawerExtra(sortedCart());
+      });
+    });
+
+    extra.querySelectorAll(".schedule-day").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const date = btn.getAttribute("data-date");
+        if (date === scheduleActiveDate) return;
+        scheduleActiveDate = date;
+        renderDrawerExtra(sortedCart());
+      });
+    });
+
+    extra.querySelectorAll(".schedule-slot").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const iso = btn.getAttribute("data-iso");
+        scheduledFor = scheduledFor === iso ? null : iso; // re-touiller le même créneau le désélectionne
+        renderDrawerExtra(sortedCart());
       });
     });
 
@@ -1656,6 +1755,9 @@ const SUBITO_CART_CONFIG = {
   function orderProblem(session) {
     if (sortedCart().some(calzoneLineIncomplete)) {
       return SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Une de vos calzones n’a pas de garniture choisie : retirez-la du panier et ajoutez-la de nouveau avec sa garniture.";
+    }
+    if (scheduleChoice === "later" && !scheduledFor) {
+      return SubitoIcons.svg("clock") + " Choisissez un jour et une heure pour votre commande programmée.";
     }
     if (orderMode !== "delivery") return null;
     const zone = findDeliveryZone(session.city);
@@ -2000,7 +2102,8 @@ const SUBITO_CART_CONFIG = {
         };
       }),
       delivery_fee_cents: totals.delivery_fee_cents,
-      total_cents: totals.total_cents
+      total_cents: totals.total_cents,
+      scheduled_for: scheduleChoice === "later" ? scheduledFor : null
     };
     const key = idempotencyKeyFor(content);
     if (key === null) {

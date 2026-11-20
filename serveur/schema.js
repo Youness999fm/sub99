@@ -40,10 +40,15 @@ export const TABLES = {
       ['delay_minutes', 'int', true],
       ['created_at', TS, false], ['accepted_at', TS, true], ['refused_at', TS, true],
       ['prepared_at', TS, true],
-      ['service_day', 'char:10', false]
+      ['service_day', 'char:10', false],
+      // Commande planifiée (type Uber Eats) : heure voulue par le client, NULL = dès que possible.
+      ['scheduled_for', TS, true]
     ],
     unique: { uq_orders_idem: ['customer_id', 'idempotency_key'] },
-    index: { ix_orders_day: ['service_day'], ix_orders_status: ['status'], ix_orders_customer: ['customer_id', 'created_at'] },
+    index: {
+      ix_orders_day: ['service_day'], ix_orders_status: ['status'], ix_orders_customer: ['customer_id', 'created_at'],
+      ix_orders_scheduled: ['scheduled_for']
+    },
     fk: [['customer_id', 'customers', 'id']]
   },
   order_items: {

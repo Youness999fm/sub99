@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS "orders" (
   "refused_at" CHAR(20) NULL,
   "prepared_at" CHAR(20) NULL,
   "service_day" CHAR(10) NOT NULL,
+  "scheduled_for" CHAR(20) NULL,
   CONSTRAINT "uq_orders_idem" UNIQUE ("customer_id", "idempotency_key"),
   FOREIGN KEY ("customer_id") REFERENCES "customers" ("id") ON DELETE RESTRICT ON UPDATE RESTRICT
 );
@@ -77,6 +78,8 @@ CREATE INDEX IF NOT EXISTS "ix_orders_day" ON "orders" ("service_day");
 CREATE INDEX IF NOT EXISTS "ix_orders_status" ON "orders" ("status");
 
 CREATE INDEX IF NOT EXISTS "ix_orders_customer" ON "orders" ("customer_id", "created_at");
+
+CREATE INDEX IF NOT EXISTS "ix_orders_scheduled" ON "orders" ("scheduled_for");
 
 ALTER TABLE "orders" ENABLE ROW LEVEL SECURITY;
 

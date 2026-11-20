@@ -613,6 +613,113 @@
   color: #fff;
 }
 
+/* ---------- Commande programmée (type Uber Eats) ---------- */
+
+.schedule-toggle {
+  display: flex;
+  gap: 8px;
+  background: var(--green-tint);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 4px;
+}
+
+.schedule-toggle__btn {
+  flex: 1;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.86rem;
+  padding: 9px 10px;
+  border-radius: 999px;
+  color: var(--green-dark);
+}
+
+.schedule-toggle__btn.is-active {
+  background: var(--green);
+  color: #fff;
+}
+
+.schedule-picker {
+  background: #fff8e8;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.schedule-days {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.schedule-day {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--dark);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.schedule-day.is-active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--gold-ink, #4A3400);
+}
+
+.schedule-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 148px;
+  overflow-y: auto;
+}
+
+.schedule-slot {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--dark);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.schedule-slot.is-active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--gold-ink, #4A3400);
+}
+
+.schedule-status {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+.schedule-status--pending { color: var(--gray); }
+.schedule-status--warn { background: #FFF3DA; color: #7A5300; }
+.schedule-status--error { background: #FCECEC; color: var(--red-dark); }
+
 .delivery-status {
   margin: 0;
   font-size: 0.82rem;

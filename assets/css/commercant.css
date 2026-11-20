@@ -636,6 +636,8 @@ body.fs-lock { overflow: hidden; }
 .qchip.is-new { background: var(--red); color: var(--paper); animation: chipring 1.6s ease-in-out infinite; }
 .qchip.is-choosing { background: var(--amber-tint); color: var(--amber); border-color: var(--amber); }
 .qchip.is-prep { background: var(--amber-tint); color: var(--amber); border-color: var(--amber); }
+.qchip.is-scheduled { background: var(--gold-tint); color: #8A6B1E; border-color: var(--gold); }
+.eyebrow-scheduled { color: var(--gold); }
 .strip-hint { margin: 0; font-size: 14px; opacity: 0.8; }
 /* Un nom ou une adresse très long, sans espace, ne doit pas faire déborder la fiche de commande. */
 .od-block, .od-client, .od-num, .od-pay, .items .item-name { min-width: 0; overflow-wrap: anywhere; }

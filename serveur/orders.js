@@ -181,6 +181,17 @@ export function validateOrderBody(b) {
     if (!isIntBetween(b[k] ?? null, 0, 10000000)) err[k] = 'Montant invalide.';
   }
 
+  // Commande planifiée (type Uber Eats) : absent/null = dès que possible. Sinon, même format que les colonnes
+  // date (« 2026-11-20T18:00:00Z ») ; la validité du créneau (délai, horaires) est vérifiée par order_create.
+  let scheduledFor = null;
+  if (b.scheduled_for !== undefined && b.scheduled_for !== null) {
+    if (typeof b.scheduled_for !== 'string' || utcToEpoch(b.scheduled_for) === 0) {
+      err.scheduled_for = 'Horaire programmé invalide.';
+    } else {
+      scheduledFor = b.scheduled_for;
+    }
+  }
+
   if (Object.keys(err).length > 0) failValidation(err);
 
   return {
@@ -190,7 +201,8 @@ export function validateOrderBody(b) {
     cash_change_for: mode === 'delivery' ? cash : null,
     items,
     delivery_fee_cents: b.delivery_fee_cents,
-    total_cents: b.total_cents
+    total_cents: b.total_cents,
+    scheduled_for: scheduledFor
   };
 }
 
@@ -205,7 +217,7 @@ function jsonCanonique(v) {
  * quel que soit l'ordre des clés envoyé.
  */
 export function orderPayloadHash(o) {
-  const canon = [o.mode, o.payment_methods, o.cash_change_for, o.items, o.delivery_fee_cents, o.total_cents];
+  const canon = [o.mode, o.payment_methods, o.cash_change_for, o.items, o.delivery_fee_cents, o.total_cents, o.scheduled_for];
   return crypto.createHash('sha256').update(jsonCanonique(canon)).digest('hex');
 }
 
@@ -331,7 +343,9 @@ export function orderView(o, items, owner) {
     delay_minutes: delay,
     // Heure prévue (acceptation + délai annoncé) : une estimation, à ne pas confondre avec prepared_at.
     ready_at: readyAt,
-    service_day: String(o.service_day)
+    service_day: String(o.service_day),
+    // Commande planifiée par le client (type Uber Eats) ; null = commande « dès que possible ».
+    scheduled_for: o.scheduled_for === undefined ? null : o.scheduled_for
   };
   if (owner) {
     v.customer_id = Number(o.customer_id);
