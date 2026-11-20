@@ -1494,11 +1494,14 @@
     el.dlgBody.innerHTML = '';
   }
 
-  // Nom de ligne tel qu'imprimé sur le ticket : « Pizza Margherita Solo » pour un article à taille
-  // (pizza, calzone…), simple nom sinon (boisson, dessert…) — demande explicite du 20/11.
+  // Nom de ligne tel qu'imprimé sur le ticket : « Pizza Margherita S » pour un article à taille (pizza,
+  // calzone…), taille abrégée (S/D/Q, XXL inchangé) pour aller plus vite à lire — simple nom sinon.
+  const TICKET_SIZE_ABBR = { Solo: 'S', Duo: 'D', Quatro: 'Q', XXL: 'XXL' };
   function ticketItemTitle(it) {
     const name = String(it.name || '');
-    return it.variant ? `Pizza ${name} ${it.variant}` : name;
+    if (!it.variant) return name;
+    const taille = TICKET_SIZE_ABBR[it.variant] || it.variant;
+    return `Pizza ${name} ${taille}`;
   }
 
   // Ticket de commande : en-tête petit (logo + nom), client/tél/heure compacts en haut, PUIS les
