@@ -263,6 +263,17 @@
     if (!sched) return true;
     return sched.getTime() - Date.now() <= SCHEDULED_SURFACE_MINUTES * 60000;
   }
+  // Délai à envoyer à l'acceptation d'une commande programmée : l'heure est déjà fixée par le client,
+  // il n'y a rien à choisir. Calculé à partir de l'heure programmée (arrondi au choix valide le plus proche),
+  // jamais demandé au commerçant.
+  function scheduledDelayMinutes(o) {
+    const sched = toDate(o.scheduled_for);
+    if (!sched) return state.defaultDelay;
+    const minutes = Math.round((sched.getTime() - Date.now()) / 60000);
+    if (minutes <= 5) return DELAY_IMMEDIATE;
+    const rounded = Math.round(minutes / 10) * 10;
+    return Math.min(60, Math.max(10, rounded));
+  }
   function norm(s) {
     return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
@@ -556,7 +567,9 @@
     playBeep();
   }
   function syncAlarm() {
-    const pending = state.authed && state.orders.some(o => o.status === 'new');
+    // Une commande programmée pas encore sortie (surfaced) ne doit jamais faire sonner : le commerçant
+    // ne peut rien en faire tant qu'elle n'est pas dans la file active.
+    const pending = state.authed && state.orders.some(o => o.status === 'new' && surfaced(o));
     if (!pending) alarmExpired = false;
     const shouldRing = pending && state.soundOn && !alarmExpired;
     if (shouldRing && !alarmTimer) {
@@ -722,6 +735,7 @@
       if (r.ok) {
         replaceOrder(r.data.order);
         closeNotifications();
+        syncAlarm(); // arrête la sonnerie tout de suite si c'était la dernière commande à traiter (pas d'attente du prochain sondage)
         const done = r.data.order || {};
         if (action === 'accept' && done.status === 'accepted') printOrderOnPrinter(done);
         toast(done.status === 'accepted'
@@ -733,6 +747,7 @@
           cur.status = r.data.status || cur.status;
           cur.delay_minutes = r.data.delay_minutes != null ? r.data.delay_minutes : cur.delay_minutes;
         }
+        syncAlarm();
         toast(r.data.status === 'accepted'
           ? `La commande de ${name} était déjà acceptée (délai ${delayLabel(r.data.delay_minutes, cur && cur.mode === 'delivery')}).`
           : `La commande de ${name} était déjà refusée.`);
@@ -1036,6 +1051,16 @@
     const dis = busy ? 'disabled' : '';
     const choosing = state.editingId === o.id;
     if (!choosing) {
+      if (o.scheduled_for) {
+        return `
+          <p class="ask">Commande programmée</p>
+          <div class="dec-delay">
+            <span class="dd-num">${esc(scheduledLabel(o))}</span>
+            <span class="dd-sub">L'heure est déjà fixée par le client : pas de délai à choisir.</span>
+          </div>
+          <button type="button" class="btn btn-accept btn-xl dec-main" data-action="accept" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : 'Accepter'}</button>
+          <button type="button" class="btn btn-refuse btn-xl" data-action="refuse" data-id="${esc(o.id)}" ${dis}>Refuser</button>`;
+      }
       return `
         <p class="ask">Délai par défaut</p>
         <div class="dec-delay">
@@ -2260,6 +2285,8 @@
       case 'accept': {
         const o = findOrder(id);
         if (o && o.status === 'new' && !state.sending.has(String(o.id))) {
+          // Commande programmée : l'heure est déjà fixée par le client, pas de délai à choisir.
+          if (o.scheduled_for) { decide(o.id, 'accept', scheduledDelayMinutes(o)); break; }
           state.editingId = o.id;
           // Livraison : 1 heure présélectionnée par défaut (trajet du livreur), au lieu du délai par
           // défaut habituel pensé pour la préparation à emporter.
