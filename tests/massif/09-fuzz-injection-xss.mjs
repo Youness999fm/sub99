@@ -392,10 +392,10 @@ try {
       etatIntact('A2 · owner_settings / owner_availability', avant, compterTables());
 
       const dq = [null, true, 0, [], {}, ['a'], { a: 1 }, 'x'.repeat(81), 'x'.repeat(10000), '🍕'.repeat(81)];
-      await lot('A2 · owner_customers · q faux : 422', dq.map((v) => cas(`q = ${visible(typeof v === 'string' ? v.slice(0, 20) : v, 30)}`, () => apiBrut('owner_customers', serialiser({ q: v }), { cookie }))),
+      await lot('A2 · owner_customers · q faux : 422', dq.map((v) => cas(`q = ${visible(typeof v === 'string' ? v.slice(0, 20) : v, 30)}`, () => apiBrut('owner_customers', serialiser({ code: site.codeSuperieur, q: v }), { cookie }))),
         (r, k) => (/^q = null/.test(k.lib) ? (r.status === 200 ? null : 'attendu 200 (q:null = pas de recherche)') : attenduValidation('q')(r)));
-      await lot('A2 · owner_customers · q valides : 200', [cas('q absent', () => api('owner_customers', {}, { cookie })), cas('q = 80 caractères', () => api('owner_customers', { q: 'x'.repeat(80) }, { cookie })),
-        cas('q = 80 emoji', () => api('owner_customers', { q: '🍕'.repeat(80) }, { cookie })), cas('q = espaces', () => api('owner_customers', { q: '     ' }, { cookie }))], (r) => (r.status === 200 && Array.isArray(r.json.customers) ? null : 'attendu 200'));
+      await lot('A2 · owner_customers · q valides : 200', [cas('q absent', () => api('owner_customers', { code: site.codeSuperieur }, { cookie })), cas('q = 80 caractères', () => api('owner_customers', { code: site.codeSuperieur, q: 'x'.repeat(80) }, { cookie })),
+        cas('q = 80 emoji', () => api('owner_customers', { code: site.codeSuperieur, q: '🍕'.repeat(80) }, { cookie })), cas('q = espaces', () => api('owner_customers', { code: site.codeSuperieur, q: '     ' }, { cookie }))], (r) => (r.status === 200 && Array.isArray(r.json.customers) ? null : 'attendu 200'));
 
       // owner_order_decide : une commande « new » dédiée
       const cmd = await apiBrut('order_create', serialiser(commandeRetrait({ cle: cleOrdre() })), { cookie: clients[9].cookieHeader() });

@@ -1642,8 +1642,12 @@ const SUBITO_CART_CONFIG = {
         return;
       }
       const zone = findDeliveryZone(session.city);
-      if (!session.city || !zone) {
-        current.innerHTML = cartAddressFormHtml();
+      // Ville + zone valides mais pas de type de logement : arrive pour un compte créé avant
+      // l'ajout de ce champ (voir order_create.js, 'housing_type_required') — sans ce test, le
+      // panier afficherait "livraison disponible", puis bloquerait la commande sans aucun moyen
+      // de corriger autrement qu'en quittant le panier pour Mon compte.
+      if (!session.city || !zone || !session.housing_type) {
+        current.innerHTML = cartAddressFormHtml(session);
         wireCartAddressForm(cart);
         return;
       }
@@ -1688,18 +1692,26 @@ const SUBITO_CART_CONFIG = {
   // Formulaire d'adresse directement dans le tiroir (demande du 20/11) : plus besoin d'aller sur Mon
   // compte pour une première commande livraison — rempli ici, elle s'enregistre aussitôt sur le compte
   // (updateAddress), donc déjà là pour la commande en cours ET les suivantes.
-  function cartAddressFormHtml() {
+  function cartAddressFormHtml(session) {
+    session = session || {};
     const cityOptions = (window.SUBITO_DELIVERY_ZONES || []).map(function (z) {
-      return '<option value="' + escapeHtml(z.city) + '">' + escapeHtml(z.city) + '</option>';
+      return '<option value="' + escapeHtml(z.city) + '"' + (z.city === session.city ? " selected" : "") + '>' + escapeHtml(z.city) + '</option>';
     }).join("");
     const housingOptions = (window.SUBITO_HOUSING_TYPES || []).map(function (h) {
-      return '<option value="' + escapeHtml(h.value) + '">' + escapeHtml(h.label) + '</option>';
+      return '<option value="' + escapeHtml(h.value) + '"' + (h.value === session.housing_type ? " selected" : "") + '>' + escapeHtml(h.label) + '</option>';
     }).join("");
+    // Ville déjà enregistrée et valide : il ne manque que le type de logement (compte créé avant
+    // l'ajout de ce champ) — on préremplit le reste et on adapte le message, plutôt que de
+    // reproposer une adresse déjà bonne comme si elle n'existait pas.
+    const onlyHousingMissing = !!session.city && !!findDeliveryZone(session.city) && !session.housing_type;
+    const intro = onlyHousingMissing
+      ? 'Précisez le type de logement de votre adresse de livraison pour pouvoir commander.'
+      : 'Ajoutez votre adresse pour commander en livraison — elle sera enregistrée sur votre compte.';
     return (
-      '<p class="delivery-status delivery-status--warn">' + SubitoIcons.svg("map-pin") + ' Ajoutez votre adresse pour commander en livraison — elle sera enregistrée sur votre compte.</p>' +
+      '<p class="delivery-status delivery-status--warn">' + SubitoIcons.svg("map-pin") + ' ' + intro + '</p>' +
       '<form class="cart-address-form" id="cartAddressForm" novalidate>' +
         '<label class="review-form__field">Numéro et rue' +
-          '<input type="text" id="cartAddressStreet" name="street" autocomplete="street-address" placeholder="Ex. 12 rue de la Paix">' +
+          '<input type="text" id="cartAddressStreet" name="street" autocomplete="street-address" placeholder="Ex. 12 rue de la Paix" value="' + escapeHtml(session.street || "") + '">' +
         '</label>' +
         '<label class="review-form__field">Ville' +
           '<select id="cartAddressCity" name="city"><option value="">— Sélectionner —</option>' + cityOptions + '</select>' +

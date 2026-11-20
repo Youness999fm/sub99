@@ -378,6 +378,9 @@
         qs("profileFirstName").value = session.first_name || "";
         qs("profileLastName").value = session.last_name || "";
         qs("profilePhone").value = session.phone || "";
+        qs("summaryFirstName").textContent = session.first_name || "";
+        qs("summaryLastName").textContent = session.last_name || "";
+        qs("summaryPhone").textContent = session.phone || "";
         successEl.textContent = "Informations enregistrées";
         successEl.hidden = false;
       }).catch(function (err) {
