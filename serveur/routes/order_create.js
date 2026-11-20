@@ -5,7 +5,7 @@ import { one, transaction, estViolationUnique } from '../db.js';
 import { requireCustomer } from '../auth.js';
 import { throttleGuard, throttleHit } from '../throttle.js';
 import { DELIVERY_ZONES, nowUtc, serviceDay } from '../util.js';
-import { creneauActif, commandesOuvertes, minutesParis, libelleHeure } from '../horaires.js';
+import { creneauActif, commandesOuvertes, minutesParis, libelleHeure, fermetureManuelle } from '../horaires.js';
 import {
   validateOrderBody, orderPayloadHash, orderEnforceCatalogue, computeOrderTotals, orderViews, orderLoad, phpTrim
 } from '../orders.js';
@@ -40,6 +40,11 @@ export default async function orderCreate(c) {
   // 3. Clé d'idempotence déjà connue
   const existing = await one('SELECT * FROM orders WHERE customer_id = ? AND idempotency_key = ?', [customerId, o.idempotency_key]);
   if (existing !== null) return replayOrConflict(existing);
+
+  // Fermeture manuelle (bouton commerçant) : prioritaire sur l'horaire programmé.
+  if (await fermetureManuelle()) {
+    fail(422, 'closed', 'Le commerçant a fermé la prise de commandes pour le moment. Réessayez plus tard.');
+  }
 
   // Horaires : en dehors du créneau, aucune commande nouvelle (personne ne la verrait). Un rejeu reste accepté (étape 3).
   const creneau = creneauActif();

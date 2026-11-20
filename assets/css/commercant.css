@@ -835,6 +835,11 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
   background: transparent; color: var(--paper); border-color: rgba(255, 255, 255, 0.45);
 }
 .btn-top:hover { background: rgba(255, 255, 255, 0.12); }
+.store-open-btn { font-weight: 800; border-width: 2px; }
+.store-open-btn.is-open { background: var(--green); border-color: var(--green); color: var(--paper); }
+.store-open-btn.is-open:hover { background: var(--green); opacity: 0.9; }
+.store-open-btn.is-closed { background: var(--red); border-color: var(--red); color: var(--paper); }
+.store-open-btn.is-closed:hover { background: var(--red); opacity: 0.9; }
 
 /* ---------- Connexion perdue ---------- */
 

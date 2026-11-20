@@ -605,13 +605,24 @@ test('5. disponibilités', async (t) => {
 // ---------------------------------------------------------------- 6. réglages
 test('6. réglages', async () => {
   const g = await ownerA.get('owner_settings.php');
-  assert.deepEqual(g.json, { ok: true, default_delay_minutes: 30 });
+  assert.deepEqual(g.json, { ok: true, default_delay_minutes: 30, store_open: true });
   const p = await ownerA.post('owner_settings.php', { default_delay_minutes: 40 });
-  assert.deepEqual(p.json, { ok: true, default_delay_minutes: 40 });
+  assert.deepEqual(p.json, { ok: true, default_delay_minutes: 40, store_open: true });
   assert.equal((await ownerA.get('owner_settings.php')).json.default_delay_minutes, 40);
   expectError(await ownerA.post('owner_settings.php', { default_delay_minutes: 45 }), 422, 'validation');
   expectError(await ownerA.post('owner_settings.php', { default_delay_minutes: '40' }), 422, 'validation');
   assert.equal((await ownerA.get('owner_settings.php')).json.default_delay_minutes, 40);
+
+  // Bouton ouvert/fermé : fermeture manuelle, prioritaire sur l'horaire (créneau « off » dans ces tests).
+  expectError(await ownerA.post('owner_settings.php', { store_open: 'oui' }), 422, 'validation');
+  const closed = await ownerA.post('owner_settings.php', { store_open: false });
+  assert.deepEqual(closed.json, { ok: true, default_delay_minutes: 40, store_open: false });
+  assert.equal((await ownerA.get('owner_settings.php')).json.store_open, false);
+  expectError(await custA.post('order_create.php', orderBody({ items: [pizza('Régina', 'Duo', 1600)] })), 422, 'closed');
+  const reopened = await ownerA.post('owner_settings.php', { store_open: true });
+  assert.equal(reopened.json.store_open, true);
+  const r = await custA.post('order_create.php', orderBody({ items: [pizza('Régina', 'Duo', 1600)] }));
+  assert.equal(r.status, 201, r.text);
 });
 
 // ---------------------------------------------------------------- 7. format

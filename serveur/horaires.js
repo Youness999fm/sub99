@@ -5,8 +5,18 @@
 // En local et dans les tests (hors Vercel), aucun contrôle sauf si la variable est posée.
 import { maintenantEpoch } from './horloge.js';
 import { FUSEAU } from './util.js';
+import { one } from './db.js';
 
 export const HORAIRES_PAR_DEFAUT = '18:00-22:47';
+
+/**
+ * Fermeture manuelle fixée par le commerçant (table settings, clé « store_open »), prioritaire sur
+ * l'horaire programmé (HORAIRES_COMMANDES). Pas de réglage en base -> pas de fermeture manuelle.
+ */
+export async function fermetureManuelle() {
+  const row = await one('SELECT svalue FROM settings WHERE skey = ?', ['store_open']);
+  return row !== null && row.svalue === '0';
+}
 
 const FORMAT_HEURE = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 

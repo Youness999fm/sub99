@@ -115,6 +115,8 @@
     view: 'orders',
     defaultDelay: 30,
     savingDefault: false,
+    storeOpen: true,
+    savingStoreOpen: false,
     soundOn: true,
     out: [],
     availLoaded: false,
@@ -728,9 +730,38 @@
       const r = await api('owner_settings.php');
       if (r.ok && DELAYS.includes(Number(r.data.default_delay_minutes))) {
         state.defaultDelay = Number(r.data.default_delay_minutes);
-        scheduleRender();
       }
-    } catch (e) { /* le délai reste à sa dernière valeur connue */ }
+      if (r.ok && typeof r.data.store_open === 'boolean') {
+        state.storeOpen = r.data.store_open;
+      }
+      scheduleRender();
+    } catch (e) { /* les réglages restent à leur dernière valeur connue */ }
+  }
+
+  async function saveStoreOpen(open) {
+    if (state.savingStoreOpen) return;
+    const previous = state.storeOpen;
+    state.savingStoreOpen = true;
+    state.storeOpen = open; // optimiste : le commerçant doit voir l'effet tout de suite
+    scheduleRender();
+    try {
+      const r = await api('owner_settings.php', { method: 'POST', body: { store_open: open } });
+      if (r.unauth) return;
+      if (r.ok) {
+        state.storeOpen = r.data.store_open;
+        toast(state.storeOpen ? 'Prise de commandes ouverte.' : 'Prise de commandes fermée : les clients ne peuvent plus commander.');
+      } else {
+        state.storeOpen = previous;
+        toast(r.data.message || 'Le réglage n\'a pas pu être enregistré.');
+      }
+    } catch (e) {
+      if (e instanceof StaleError) return;
+      state.storeOpen = previous;
+      toast('Connexion impossible : le réglage n\'a pas été enregistré.');
+    } finally {
+      state.savingStoreOpen = false;
+      scheduleRender();
+    }
   }
 
   async function saveDefaultDelay(min) {
@@ -1353,6 +1384,14 @@
     if (dd) dd.textContent = 'Délai par défaut · ' + delayLabel(state.defaultDelay);
     const sb = document.getElementById('sound-btn');
     if (sb) sb.textContent = state.soundOn ? 'Couper le son' : 'Réactiver le son';
+    const ob = document.getElementById('store-open-btn');
+    if (ob) {
+      ob.textContent = state.storeOpen ? 'Ouvert' : 'Fermé';
+      ob.classList.toggle('is-open', state.storeOpen);
+      ob.classList.toggle('is-closed', !state.storeOpen);
+      ob.disabled = state.savingStoreOpen;
+      ob.setAttribute('aria-pressed', String(!state.storeOpen));
+    }
     renderNotifSlot();
     renderQueue();
     renderPrep();
@@ -1526,6 +1565,9 @@
     switch (action) {
       case 'sound-toggle':
         toggleSound();
+        break;
+      case 'store-open-toggle':
+        saveStoreOpen(!state.storeOpen);
         break;
       case 'logout':
         logout();
