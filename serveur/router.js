@@ -34,8 +34,11 @@ function envoyer(res, c, status, body, entetes = {}) {
 
 function nomDeRoute(req) {
   const chemin = new URL(req.url || '/', 'http://localhost').pathname;
-  const dernier = chemin.split('/').filter(Boolean).pop() || '';
-  return dernier.replace(/\.php$/, '');
+  const segments = chemin.split('/').filter(Boolean);
+  // Seul /api/<nom> ou /api/<nom>.php est une route : un chemin plus profond ou résolu ailleurs
+  // (ex. /api/x/y/z/<nom>, /api/../<nom>.php) ne doit pas atteindre silencieusement la même route.
+  if (segments.length !== 2 || segments[0] !== 'api') return '';
+  return segments[1].replace(/\.php$/, '');
 }
 
 /** Point d'entrée commun : (req, res) de Node / Vercel. */

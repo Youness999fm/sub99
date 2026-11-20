@@ -462,7 +462,8 @@
     showApp();
     renderAll();
     loadSettings();
-    state.ordersLoaded = true;
+    // ordersLoaded reste faux jusqu'au premier sondage réel (applyOrders) : sinon les commandes déjà
+    // présentes au chargement sont annoncées comme « nouvelles » (vues comme arrivées après un état vide).
     poll();
   }
 

@@ -511,7 +511,7 @@ try {
     const c = cmd([REG()]);
     await refus('I27 JSON brut : total NaN', any(), c, { statut: 400, code: 'bad_request' }, { brut: brutAvec(c, '"total_cents":1100', '"total_cents":NaN') });
     await refus('I28 JSON brut : frais Infinity', any(), c, { statut: 400, code: 'bad_request' }, { brut: brutAvec(c, '"delivery_fee_cents":0', '"delivery_fee_cents":Infinity') });
-    await accepte('I29 JSON brut : frais -0 = 0, total 1100.0 = 1100 : mêmes valeurs, acceptés', any(), c, { brut: brutAvec(brutAvec(c, '"delivery_fee_cents":0', '"delivery_fee_cents":-0'), '"total_cents":1100', '"total_cents":1100.0') });
+    await accepte('I29 JSON brut : frais -0 = 0, total 1100.0 = 1100 : mêmes valeurs, acceptés', any(), c, { brut: JSON.stringify(c).replace('"delivery_fee_cents":0', '"delivery_fee_cents":-0').replace('"total_cents":1100', '"total_cents":1100.0') });
   }
 
   titre('J. Frais de livraison retirés alors qu\'il n\'y a aucune pizza (8 zones)');
@@ -1004,7 +1004,7 @@ try {
     const n0 = banc.nbCommandes();
     const taches = [];
     for (const [k, v] of sources.entries()) {
-      const copie = structuredClone(v.t.g.corps);
+      const copie = structuredClone(v.g.corps);
       let desc;
       if (k % 2 === 0) desc = 'à l\'identique';
       else {
@@ -1023,7 +1023,7 @@ try {
       }
       taches.push({ k, v, corps: copie, desc, identique: k % 2 === 0 });
     }
-    const res = await enParallele(taches, 8, async (t) => ({ t, rep: await banc.commander(t.v.t.client, t.corps) }));
+    const res = await enParallele(taches, 8, async (t) => ({ t, rep: await banc.commander(t.v.client, t.corps) }));
     let ok = 0;
     for (const { t, rep } of res) {
       const e = [];

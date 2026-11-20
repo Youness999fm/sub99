@@ -132,5 +132,5 @@ export function construireCommande(r, opts = {}) {
 
 /** Fait correspondre le client à une adresse de livraison dans la zone (obligatoire pour une commande en livraison). */
 export async function definirAdresse(client, ville, rue = '12 rue des Tests') {
-  return client.post('customer_update_address.php', { street: rue, city: ville });
+  return client.post('customer_update_address.php', { street: rue, city: ville, housing_type: 'maison' });
 }

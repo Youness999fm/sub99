@@ -43,7 +43,8 @@ export function corpsInscription(i, { ville = null, rue = null, prefixe = 'massi
     phone: '06 ' + String(10000000 + (i % 89999999)).slice(0, 2) + ' ' + String(i % 100).padStart(2, '0') + ' 00 ' + String((i * 7) % 100).padStart(2, '0'),
     password: `Essai-${prefixe}-${i}-Aa1!`,
     street: ville ? (rue || `${i} rue des Tests`) : null,
-    city: ville
+    city: ville,
+    housing_type: ville ? 'maison' : null
   };
 }
 

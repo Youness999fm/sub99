@@ -51,7 +51,7 @@ async function creerClients(fixtures) {
     const p = fix.profil;
     const email = `ui03-${num}@example.test`;
     const motDePasse = `Essai-ui03-${num}-Aa1!`;
-    let rep = await api(c, 'POST', 'customer_signup.php', { first_name: p.prenom, last_name: p.nom, email, phone: p.tel, password: motDePasse, street: p.rue, city: p.ville });
+    let rep = await api(c, 'POST', 'customer_signup.php', { first_name: p.prenom, last_name: p.nom, email, phone: p.tel, password: motDePasse, street: p.rue, city: p.ville, housing_type: p.ville ? 'maison' : null });
     // Une première tentative aboutie malgré une coupure de réponse : le compte existe déjà, on s'y connecte.
     if (rep.status === 409) rep = await api(c, 'POST', 'customer_login.php', { email, password: motDePasse });
     if (rep.status !== 201 && rep.status !== 200) throw new Error(`Inscription du client ${fix.id} refusée : ${rep.status} ${rep.text.slice(0, 300)}`);
@@ -169,7 +169,7 @@ function comparerApi(o, rec) {
   e('mode', o.mode, f.mode);
   e('nom', o.customer_name, a.nom);
   e('téléphone', o.customer_phone, a.tel);
-  e('adresse', o.delivery_address, f.mode === 'delivery' ? { street: f.profil.rue, city: f.profil.ville } : null);
+  e('adresse', o.delivery_address, f.mode === 'delivery' ? { street: f.profil.rue, city: f.profil.ville, housing_type: 'maison' } : null);
   e('moyens de paiement', o.payment_methods, f.paiements);
   e('billet', o.cash_change_for, f.billet);
   e('produits', o.products_cents, a.brut);
@@ -382,7 +382,7 @@ async function modifierComptes() {
   }
   if (d01) {
     const r2 = await api(d01.fix.client, 'POST', 'customer_update_profile.php', { first_name: 'Autre', last_name: 'Identité', phone: '07 88 88 88 88' });
-    const r3 = await api(d01.fix.client, 'POST', 'customer_update_address.php', { street: '99 rue du Déménagement', city: 'Rouvroy' });
+    const r3 = await api(d01.fix.client, 'POST', 'customer_update_address.php', { street: '99 rue du Déménagement', city: 'Rouvroy', housing_type: 'maison' });
     sorties.push({ rec: d01, statuts: [r2.status, r3.status], interdits: ['Identité', '07 88 88 88 88', 'Déménagement'] });
   }
   return sorties;
@@ -500,9 +500,9 @@ async function phaseTablette(nav, groupes) {
   const B = attendus[3];
   await verifierCommande(page, A, vp, agg, { silencieux: true });
   await taper(page, '#decision [data-action="accept"]');
-  await attendre(page, "document.querySelectorAll('#decision [data-action=\"delay\"]').length === 5", 3000, 40);
+  await attendre(page, "document.querySelectorAll('#decision [data-action=\"delay\"]').length === 7", 3000, 40);
   const choix = await page.evaluate(lireTout(0));
-  R.controle('[768] « Accepter » ouvre le choix du délai (5 durées) pour la commande affichée', choix.decision.nbDelais === 5 && choix.decision.confirmerId === String(A.id), `${choix.decision.nbDelais} durées, confirmer → ${choix.decision.confirmerId} (attendu ${A.id})`);
+  R.controle('[768] « Accepter » ouvre le choix du délai (7 durées) pour la commande affichée', choix.decision.nbDelais === 7 && choix.decision.confirmerId === String(A.id), `${choix.decision.nbDelais} durées, confirmer → ${choix.decision.confirmerId} (attendu ${A.id})`);
   await taper(page, `#queue .qchip[data-id="${B.id}"]`);
   await attendre(page, `document.querySelector('#queue .qchip.is-on') && document.querySelector('#queue .qchip.is-on').dataset.id === '${B.id}'`, 3000, 40);
   const apres = await page.evaluate(lireTout(0));

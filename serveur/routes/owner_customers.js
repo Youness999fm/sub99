@@ -18,6 +18,10 @@ export default async function ownerCustomers(c) {
     failValidation({ q: 'Recherche invalide.' });
   }
   const q = cleanSpaces(typeof b.q === 'string' ? b.q : '');
+  // Postgres refuse le caractère NUL dans un texte : refus propre (422) plutôt qu'une erreur 500.
+  if (q.includes('\0')) {
+    failValidation({ q: 'Recherche invalide.' });
+  }
   if (strChars(q) > 80) {
     failValidation({ q: 'Recherche trop longue (80 caractères au plus).' });
   }

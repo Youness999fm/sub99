@@ -496,7 +496,7 @@ async function preparerDonnees() {
   const corps = {
     first_name: MOT(60), last_name: MOT(60).toUpperCase(),
     email: `${'a'.repeat(60)}.${'b'.repeat(60)}@${'c'.repeat(50)}.example.test`,
-    phone: '06 12 34 56 78', password: 'Essai-massif-13-Aa1!', street: MOT(150), city: 'Hénin-Beaumont'
+    phone: '06 12 34 56 78', password: 'Essai-massif-13-Aa1!', street: MOT(150), city: 'Hénin-Beaumont', housing_type: 'maison'
   };
   const s = await client.post('customer_signup.php', corps);
   if (s.status !== 201) throw new Error('Inscription du client aux saisies longues refusée : ' + s.status + ' ' + s.text.slice(0, 200));

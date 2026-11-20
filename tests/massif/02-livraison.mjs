@@ -132,7 +132,7 @@ async function nouveauxClients(n, debut, prefixe, { villes = true } = {}) {
   for (const c of cs) {
     c.tentatives = 0;
     c.nb = 0;
-    c.adresse = c.ville ? { street: `${c.num} rue des Tests`, city: c.ville } : null;
+    c.adresse = c.ville ? { street: `${c.num} rue des Tests`, city: c.ville, housing_type: 'maison' } : null;
   }
   return cs;
 }
@@ -140,10 +140,10 @@ async function nouveauxClients(n, debut, prefixe, { villes = true } = {}) {
 const nettoyerRue = (s) => String(s).replace(/\s+/gu, ' ').trim();
 
 /** customer_update_address ; met à jour l'adresse attendue du client si le serveur répond 200. */
-async function changerAdresse(client, street, city) {
-  const rep = await appel(client, 'POST', 'customer_update_address.php', { street, city });
+async function changerAdresse(client, street, city, housingType = (city === '' || city === null ? null : 'maison')) {
+  const rep = await appel(client, 'POST', 'customer_update_address.php', { street, city, housing_type: housingType });
   const rue = typeof street === 'string' ? nettoyerRue(street) : '';
-  const att = city === '' || city === null ? null : { street: rue === '' ? null : rue, city: String(city).trim() };
+  const att = city === '' || city === null ? null : { street: rue === '' ? null : rue, city: String(city).trim(), housing_type: housingType };
   if (rep.status === 200 && rep.json?.customer) {
     client.customer = rep.json.customer;
     client.adresse = att;
@@ -620,7 +620,7 @@ async function partie4() {
     if (!(r.rep.status === 200 && r.rep.json?.customer?.city === v)) ecV.push(`${v} : ${r.rep.status} ${court(r.rep.json?.customer)}`);
   }
   lot('les 8 villes de la zone sont acceptées à la modification d\'adresse', 8, ecV);
-  const esp = await appel(c3, 'POST', 'customer_update_address.php', { street: '1 rue du Test', city: '  Rouvroy  ' });
+  const esp = await appel(c3, 'POST', 'customer_update_address.php', { street: '1 rue du Test', city: '  Rouvroy  ', housing_type: 'maison' });
   controle('ville entourée d\'espaces : normalisée (Rouvroy) ou refusée en 422, jamais enregistrée avec les espaces',
     (esp.status === 200 && esp.json?.customer?.city === 'Rouvroy') || esp.status === 422, `${esp.status} ${esp.json?.customer?.city}`);
   const c3b = await appel(c3, 'GET', 'customer_me.php');
@@ -835,7 +835,7 @@ async function partie5() {
     const specs = sansPizza(Hen, r5, 1000).specs;
     const [o, ch] = await Promise.all([
       commander(cc, { specs, moyens: ['card'], enregistrer: false }),
-      appel(cc, 'POST', 'customer_update_address.php', { street: `${cc.num} rue Nouvelle`, city: 'Rouvroy' })
+      appel(cc, 'POST', 'customer_update_address.php', { street: `${cc.num} rue Nouvelle`, city: 'Rouvroy', housing_type: 'maison' })
     ]);
     return { cc, o, ch };
   });

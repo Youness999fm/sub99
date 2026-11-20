@@ -683,7 +683,7 @@ async function sectionI() {
 
 async function sectionJ() {
   R.titre('J. Limiteurs de débit sous rafale : le contrôle du verrou et le compteur ne sont pas atomiques');
-  const bornes = { patron: 5, client: 5, inscription: 10, commande: 20 };
+  const bornes = { patron: 5, client: 5, inscription: 100, commande: 20 };
   for (let rep = 0; rep < 2; rep++) {
     const n = rep + 1;
     const base = 60000 + rep * 100;
@@ -714,19 +714,19 @@ async function sectionJ() {
     R.controle(`J2.${n} connexion client : le bon mot de passe noyé au milieu de 40 essais simultanés est refusé (429)`, rC.resultats[pos].status === 429, `le bon mot de passe reçoit HTTP ${rC.resultats[pos].status}`);
     sessionsAttendues.set(v.customer.id, 1 + compter(rC.resultats, (x) => x.status === 200)); // une session par connexion réussie
 
-    // J3. inscriptions : 12 séquentielles (limite 10 par heure et par adresse), puis 30 simultanées depuis une autre adresse
+    // J3. inscriptions : 102 séquentielles (limite 100 par heure et par adresse), puis 110 simultanées depuis une autre adresse
     const seqS = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 102; i++) {
       const rs = await appeler(new ClientIP('s', ipFictive(base + 21)), 'customer_signup.php', { corps: corpsInscription(base * 10 + i, { prefixe: 'lim06s' }) });
       seqS.push(rs.status);
       if (rs.status === 201) registre.inscriptions201++;
     }
-    R.egal(`J3.${n} inscriptions séquentielles (limite 10 par heure) : 10×201 puis 2×429`, seqS, [201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 429, 429]);
-    const rI = await rafale(repeter(30, (i) => appeler(new ClientIP('si' + i, ipFictive(base + 22)), 'customer_signup.php', { corps: corpsInscription(base * 10 + 100 + i, { prefixe: 'lim06p' }) })));
-    mesure(`J3.${n} 30 inscriptions simultanées depuis une adresse`, rI.resultats, rI.ms);
+    R.egal(`J3.${n} inscriptions séquentielles (limite 100 par heure) : 100×201 puis 2×429`, seqS, [...Array(100).fill(201), 429, 429]);
+    const rI = await rafale(repeter(110, (i) => appeler(new ClientIP('si' + i, ipFictive(base + 22)), 'customer_signup.php', { corps: corpsInscription(base * 10 + 1000 + i, { prefixe: 'lim06p' }) })));
+    mesure(`J3.${n} 110 inscriptions simultanées depuis une adresse`, rI.resultats, rI.ms);
     const creesI = compter(rI.resultats, (x) => x.status === 201);
     registre.inscriptions201 += creesI;
-    R.controle(`J3.${n} inscriptions : au plus ${bornes.inscription} comptes créés sur 30 simultanés (limite par adresse), aucune 5xx`, creesI <= bornes.inscription && aucune5xx(rI.resultats), `${creesI} comptes créés, ${compter(rI.resultats, (x) => x.status === 429)}×429`);
+    R.controle(`J3.${n} inscriptions : au plus ${bornes.inscription} comptes créés sur 110 simultanés (limite par adresse), aucune 5xx`, creesI <= bornes.inscription && aucune5xx(rI.resultats), `${creesI} comptes créés, ${compter(rI.resultats, (x) => x.status === 429)}×429`);
 
     // J4. commandes : 22 séquentielles (limite 20 par 10 min), puis 60 distinctes simultanées d'un autre client
     const [c1, c2] = await creerClients(2, { debut: base + 30, villes: true, prefixe: 'lim06o' });

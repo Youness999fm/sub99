@@ -36,7 +36,7 @@ const ms = (x) => Math.round(x);
 setTimeout(() => { console.log('FAIL  délai global de 450 s dépassé'); process.exit(1); }, 450_000).unref();
 
 const CLES_VUE = ['id', 'status', 'mode', 'customer_name', 'delivery_address', 'payment_methods', 'cash_change_for', 'items', 'products_cents',
-  'promo_cents', 'delivery_fee_cents', 'total_cents', 'created_at', 'accepted_at', 'refused_at', 'prepared_at', 'delay_minutes', 'ready_at', 'service_day'];
+  'promo_cents', 'delivery_fee_cents', 'total_cents', 'created_at', 'accepted_at', 'refused_at', 'prepared_at', 'delay_minutes', 'ready_at', 'service_day', 'scheduled_for'];
 const CLES_PATRON = ['customer_id', 'customer_phone', 'customer_email'];
 const CLES_LIGNE = ['name', 'variant', 'qty', 'unit_price_cents', 'line_total_cents', 'removed', 'extras', 'half', 'note'];
 const triees = (t) => [...t].sort();

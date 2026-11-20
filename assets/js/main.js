@@ -1098,7 +1098,9 @@ function initIntroSplash() {
     }
     if (!vibrated) {
       try {
-        if ('vibrate' in navigator) {
+        // Sans geste utilisateur, Chrome bloque l'appel et journalise une intervention dans la console
+        // (sans rapport avec sessionStorage) : inutile de l'émettre avant que l'utilisateur ait interagi.
+        if ('vibrate' in navigator && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) {
           const accepted = navigator.vibrate(25);
           if (accepted) {
             vibrated = true;

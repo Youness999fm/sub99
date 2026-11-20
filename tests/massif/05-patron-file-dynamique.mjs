@@ -194,8 +194,10 @@ async function parcoursAccepter(ong, o, delai, opt = {}) {
   if (detail) await verifierDetail(ong, o, serv0, nouvellesServeur(e0).indexOf(o.id) + 1);
 
   await cliquer(ong.page, '#decision [data-action="accept"]', { nom: 'Accepter' });
-  const d1 = await attendre(async () => { const d = await lireDecision(ong); return d.tuiles.length === 5 ? d : null; }, 2500, 50);
-  B.controle(`${lib} : « Accepter » propose les 5 délais`, d1.ok && d1.valeur.tuiles.map((t) => t.min).join() === '20,30,40,50,60', d1.ok ? d1.valeur.tuiles.map((t) => t.min).join() : 'absent');
+  // « Tout de suite » s'ajoute aux 6 délais de base uniquement à emporter (n'a pas de sens en livraison).
+  const delaisAttendus = o.mode === 'delivery' ? [10, 20, 30, 40, 50, 60] : [10, 20, 30, 40, 50, 60, 0];
+  const d1 = await attendre(async () => { const d = await lireDecision(ong); return d.tuiles.length === delaisAttendus.length ? d : null; }, 2500, 50);
+  B.controle(`${lib} : « Accepter » propose les ${delaisAttendus.length} délais`, d1.ok && d1.valeur.tuiles.map((t) => t.min).join() === delaisAttendus.join(), d1.ok ? d1.valeur.tuiles.map((t) => t.min).join() : 'absent');
   if (d1.ok) {
     B.controle(`${lib} : délai par défaut (${delaiParDefaut}) présélectionné`, d1.valeur.tuiles.filter((t) => t.on).map((t) => t.min).join() === String(delaiParDefaut) && d1.valeur.confirmer === `Confirmer · ${libelleDelaiCourt(delaiParDefaut)}`, `${d1.valeur.tuiles.filter((t) => t.on).map((t) => t.min)} / ${d1.valeur.confirmer}`);
   }
@@ -707,7 +709,7 @@ async function principal() {
     await phase('5h. Délai par défaut : réglage, présélection', async () => {
       await cliquer(A.page, '[data-action="default-delay-open"]', { nom: 'Délai par défaut' });
       const dlg = await attendre(async () => { const d = await lireDialogue(A); return d.ouvert ? d : null; }, 2500, 50);
-      B.controle('« Délai par défaut » ouvre la fenêtre des 5 délais', dlg.ok && dlg.valeur.boutons.filter((b) => b.action === 'set-default').length === 5, dlg.ok ? dlg.valeur.titre : 'pas de fenêtre');
+      B.controle('« Délai par défaut » ouvre la fenêtre des 6 délais', dlg.ok && dlg.valeur.boutons.filter((b) => b.action === 'set-default').length === 6, dlg.ok ? dlg.valeur.titre : 'pas de fenêtre');
       const t0 = Date.now();
       await cliquer(A.page, '#dlg [data-action="set-default"][data-min="50"]', { nom: 'défaut 50' });
       const tt = await attendreToast(A, 'Délai par défaut : 50 min', t0, 3000);

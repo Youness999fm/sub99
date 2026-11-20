@@ -287,9 +287,9 @@ try {
     verifier429('IPv6, connexion client : 6e tentative depuis une 5e adresse du même /64 (bon mot de passe)', await connexionClient(`${baseC}:9::9`, v1.email, v1.password), 900);
     const baseS = '2001:db8:cccc:9';
     const dixS = [];
-    for (let i = 0; i < 10; i++) dixS.push(await appel('customer_signup.php', corpsNeuf(), `${baseS}::${(i % 5) + 1}`));
-    controle('IPv6, inscription : 10 inscriptions réparties sur 5 adresses du même /64 : 10 × 201', dixS.every((r) => r.status === 201), texteStatuts(compter(dixS)));
-    verifier429('IPv6, inscription : 11e depuis une 6e adresse du même /64', await appel('customer_signup.php', corpsNeuf(), `${baseS}:f::6`), 3600);
+    for (let i = 0; i < 100; i++) dixS.push(await appel('customer_signup.php', corpsNeuf(), `${baseS}::${(i % 5) + 1}`));
+    controle('IPv6, inscription : 100 inscriptions réparties sur 5 adresses du même /64 : 100 × 201', dixS.every((r) => r.status === 201), texteStatuts(compter(dixS)));
+    verifier429('IPv6, inscription : 101e depuis une 6e adresse du même /64', await appel('customer_signup.php', corpsNeuf(), `${baseS}:f::6`), 3600);
     const inscVoisin = await appel('customer_signup.php', corpsNeuf(), '2001:db8:cccc:a::1');
     controle('IPv6, inscription : le /64 voisin n\'est pas touché (201)', inscVoisin.status === 201, `statut ${inscVoisin.status}`);
 
@@ -432,18 +432,18 @@ try {
   });
 
   // ------------------------------------------------------------------------------------------------ 5. inscription
-  await section('5. Inscription : 10 par heure et par adresse (la 11e -> 429)', async () => {
+  await section('5. Inscription : 100 par heure et par adresse (la 101e -> 429)', async () => {
     const t1 = horloge;
     const s1 = ipNeuve();
     const dix = [];
-    for (let i = 1; i <= 10; i++) dix.push(await appel('customer_signup.php', corpsNeuf(), s1));
-    controle('10 inscriptions valides depuis une adresse : 10 × 201', dix.every((r) => r.status === 201), texteStatuts(compter(dix)));
+    for (let i = 1; i <= 100; i++) dix.push(await appel('customer_signup.php', corpsNeuf(), s1));
+    controle('100 inscriptions valides depuis une adresse : 100 × 201', dix.every((r) => r.status === 201), texteStatuts(compter(dix)));
     const onze = await appel('customer_signup.php', corpsNeuf(), s1);
-    verifier429('11e inscription depuis la même adresse', onze, 3600);
+    verifier429('101e inscription depuis la même adresse', onze, 3600);
     const invalide = await appel('customer_signup.php', { email: 'pas-un-email' }, s1);
     controle('adresse verrouillée : même une inscription invalide reçoit 429 (le verrou passe avant la validation)', invalide.status === 429, `statut ${invalide.status}`);
     const rang = ligne('customer_signup:ip:' + s1);
-    controle('compteur figé à 10, fin de verrou = début de fenêtre + 3600 s', rang && rang.attempts === 10 && rang.locked_until === t1 + 3600, JSON.stringify(rang));
+    controle('compteur figé à 100, fin de verrou = début de fenêtre + 3600 s', rang && rang.attempts === 100 && rang.locked_until === t1 + 3600, JSON.stringify(rang));
     const autre = await appel('customer_signup.php', corpsNeuf(), ipNeuve());
     controle('une autre adresse n\'est pas touchée (201)', autre.status === 201, `statut ${autre.status}`);
     const connex = await connexionClient(s1, v1.email, v1.password);
@@ -452,9 +452,9 @@ try {
     verifier429('à +3599 s', await appel('customer_signup.php', corpsNeuf(), s1), 1);
     fixerHorloge(t1 + 3600);
     const neuf = [];
-    for (let i = 1; i <= 10; i++) neuf.push(await appel('customer_signup.php', corpsNeuf(), s1));
-    controle('à +3600 s : fenêtre rouverte, 10 nouvelles inscriptions permises (10 × 201)', neuf.every((r) => r.status === 201), texteStatuts(compter(neuf)));
-    verifier429('fenêtre rouverte : 11e inscription', await appel('customer_signup.php', corpsNeuf(), s1), 3600);
+    for (let i = 1; i <= 100; i++) neuf.push(await appel('customer_signup.php', corpsNeuf(), s1));
+    controle('à +3600 s : fenêtre rouverte, 100 nouvelles inscriptions permises (100 × 201)', neuf.every((r) => r.status === 201), texteStatuts(compter(neuf)));
+    verifier429('fenêtre rouverte : 101e inscription', await appel('customer_signup.php', corpsNeuf(), s1), 3600);
 
     // Les requêtes invalides (422) ne consomment pas le quota ; une adresse e-mail déjà prise (409) le consomme.
     const s3 = ipNeuve();
@@ -463,27 +463,27 @@ try {
     controle('15 inscriptions invalides depuis une adresse : 15 × 422', invalides.every((r) => r.status === 422), texteStatuts(compter(invalides)));
     controle('les inscriptions invalides ne laissent aucun compteur (validation avant décompte)', ligne('customer_signup:ip:' + s3) === undefined, JSON.stringify(ligne('customer_signup:ip:' + s3)));
     const apresInvalides = [];
-    for (let i = 0; i < 10; i++) apresInvalides.push(await appel('customer_signup.php', corpsNeuf(), s3));
-    controle('puis 10 inscriptions valides : 10 × 201 (le quota était intact)', apresInvalides.every((r) => r.status === 201), texteStatuts(compter(apresInvalides)));
+    for (let i = 0; i < 100; i++) apresInvalides.push(await appel('customer_signup.php', corpsNeuf(), s3));
+    controle('puis 100 inscriptions valides : 100 × 201 (le quota était intact)', apresInvalides.every((r) => r.status === 201), texteStatuts(compter(apresInvalides)));
     const s4 = ipNeuve();
     const pris = [];
-    for (let i = 0; i < 10; i++) pris.push(await appel('customer_signup.php', corpsNeuf({ email: v1.email }), s4));
-    controle('10 inscriptions avec une adresse e-mail déjà prise : 10 × 409 « email_taken »', pris.every((r) => r.status === 409 && r.json.error === 'email_taken'), texteStatuts(compter(pris)));
-    verifier429('11e essai sur e-mail pris (les 409 consomment le quota)', await appel('customer_signup.php', corpsNeuf({ email: v1.email }), s4), 3600);
-    info('LIMITE DOCUMENTÉE : le 409 « email_taken » révèle qu\'un compte existe (énumération d\'e-mails), plafonnée à 10 essais par heure et par adresse.');
+    for (let i = 0; i < 100; i++) pris.push(await appel('customer_signup.php', corpsNeuf({ email: v1.email }), s4));
+    controle('100 inscriptions avec une adresse e-mail déjà prise : 100 × 409 « email_taken »', pris.every((r) => r.status === 409 && r.json.error === 'email_taken'), texteStatuts(compter(pris)));
+    verifier429('101e essai sur e-mail pris (les 409 consomment le quota)', await appel('customer_signup.php', corpsNeuf({ email: v1.email }), s4), 3600);
+    info('LIMITE DOCUMENTÉE : le 409 « email_taken » révèle qu\'un compte existe (énumération d\'e-mails), plafonnée à 100 essais par heure et par adresse.');
 
     // Rafales d'inscriptions simultanées depuis une adresse.
     for (let rep = 1; rep <= 2; rep++) {
       const ip = ipNeuve();
       espion.raz();
-      const { rs, duree, statuts } = await rafale(30, () => appel('customer_signup.php', corpsNeuf(), ip));
+      const { rs, duree, statuts } = await rafale(110, () => appel('customer_signup.php', corpsNeuf(), ip));
       const crees = rs.filter((r) => r.status === 201).length;
-      controle(`inscriptions, rafale n°${rep} : 30 inscriptions simultanées depuis une adresse -> au plus 10 comptes créés`, crees <= 10,
+      controle(`inscriptions, rafale n°${rep} : 110 inscriptions simultanées depuis une adresse -> au plus 100 comptes créés`, crees <= 100,
         `${crees} comptes créés (${texteStatuts(statuts)}) ; bcrypt.hash exécuté ${espion.hash} fois ; ${Math.round(duree)} ms`);
       controle(`inscriptions, rafale n°${rep} : aucune réponse 5xx`, nbCinqCent(rs) === 0, `${nbCinqCent(rs)} réponse(s) 5xx`);
       const suite = await appel('customer_signup.php', corpsNeuf(), ip);
-      controle(`inscriptions, rafale n°${rep} : le verrou est posé après la rafale (31e -> 429)`, suite.status === 429, `statut ${suite.status}`);
-      mesure(`rafale d'inscriptions n°${rep} : compteur final en base = ${ligne('customer_signup:ip:' + ip).attempts} (seuil 10)`);
+      controle(`inscriptions, rafale n°${rep} : le verrou est posé après la rafale (111e -> 429)`, suite.status === 429, `statut ${suite.status}`);
+      mesure(`rafale d'inscriptions n°${rep} : compteur final en base = ${ligne('customer_signup:ip:' + ip).attempts} (seuil 100)`);
     }
     // Même adresse e-mail depuis 30 adresses différentes en même temps : un seul compte, des 409, jamais de 5xx.
     const email = 'course-unique-08@example.test';

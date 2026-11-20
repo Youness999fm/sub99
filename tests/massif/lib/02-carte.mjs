@@ -339,6 +339,15 @@ export function comparerVue(vue, att, { proprietaire = false } = {}) {
       att.items.forEach((a, i) => {
         if (!isDeepStrictEqual(lv[i], a)) ecarts.push(`items[${i}] : ${abrege(lv[i])} / attendu ${abrege(a)}`);
       });
+    } else if (c === 'delivery_address' && att[c] !== null) {
+      // Comparaison par sous-ensemble : seuls les champs présents dans l'attendu sont vérifiés, pour
+      // ne pas casser à chaque champ ajouté à l'adresse plus tard (housing_type, par exemple).
+      if (vue[c] === null || typeof vue[c] !== 'object') ecarts.push(`${c} : ${abrege(vue[c])} / attendu ${abrege(att[c])}`);
+      else {
+        for (const k of Object.keys(att[c])) {
+          if (!isDeepStrictEqual(vue[c][k], att[c][k])) ecarts.push(`${c}.${k} : ${abrege(vue[c][k])} / attendu ${abrege(att[c][k])}`);
+        }
+      }
     } else if (!isDeepStrictEqual(vue[c], att[c])) {
       ecarts.push(`${c} : ${abrege(vue[c])} / attendu ${abrege(att[c])}`);
     }

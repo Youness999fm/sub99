@@ -592,11 +592,11 @@ async function phaseA() {
     section('6. Méthodes : chaque route avec GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS — jamais de 5xx, 405 avec Allow cohérent');
     const ROUTES = [
       ['availability', ['GET']], ['customer_me', ['GET']], ['customer_orders', ['GET']], ['order_status', ['GET']],
-      ['owner_me', ['GET']], ['owner_orders', ['GET']], ['owner_sessions', ['GET']],
+      ['owner_me', ['GET']], ['owner_orders', ['GET']], ['owner_sessions', ['GET']], ['schedule_slots', ['GET']],
       ['customer_signup', ['POST']], ['customer_login', ['POST']], ['customer_logout', ['POST']],
       ['customer_update_address', ['POST']], ['customer_update_profile', ['POST']],
       ['owner_login', ['POST']], ['owner_logout', ['POST']], ['owner_sessions_revoke', ['POST']],
-      ['owner_customers', ['POST']], ['owner_order_decide', ['POST']], ['order_create', ['POST']],
+      ['owner_customers', ['POST']], ['owner_order_decide', ['POST']], ['order_create', ['POST']], ['owner_recette_clear', ['POST']],
       ['owner_settings', ['GET', 'POST']], ['owner_availability', ['GET', 'POST']]
     ];
     const fichiersRoutes = readdirSync(new URL('../../serveur/routes/', import.meta.url)).filter((f) => f.endsWith('.js')).map((f) => f.slice(0, -3)).sort();
@@ -611,6 +611,7 @@ async function phaseA() {
       customer_logout: () => ({}), customer_update_address: () => ({ street: '1 rue Danger', city: 'Rouvroy' }), customer_update_profile: () => ({ first_name: 'Danger', last_name: 'Danger', phone: '06 66 66 66 66' }),
       owner_login: () => ({ code: OWNER_CODE }), owner_logout: () => ({}), owner_sessions_revoke: () => ({ scope: 'all' }), owner_customers: () => ({ q: '' }),
       owner_order_decide: () => ({ id: idNew4, action: 'refuse' }), order_create: () => bodyCmdX(`meth-${++nCle}-aa`), owner_settings: () => ({ default_delay_minutes: 60 }),
+      owner_recette_clear: () => ({ code: '' }),
       owner_availability: () => ({ kind: 'pizza', name: 'Pizza Danger', status: 'out_manual' })
     };
     const avantMeth = instantane();
@@ -633,9 +634,10 @@ async function phaseA() {
     // méthodes prévues : jamais de 405 ni de 5xx
     const ATTENDU_ANON = {
       'availability.php:GET': 200, 'customer_me.php:GET': 200, 'customer_orders.php:GET': 401, 'order_status.php:GET': 401, 'owner_me.php:GET': 401, 'owner_orders.php:GET': 401, 'owner_sessions.php:GET': 401,
+      'schedule_slots.php:GET': 200,
       'customer_signup.php:POST': 422, 'customer_login.php:POST': 401, 'customer_logout.php:POST': 200, 'customer_update_address.php:POST': 401, 'customer_update_profile.php:POST': 401,
       'owner_login.php:POST': 401, 'owner_logout.php:POST': 401, 'owner_sessions_revoke.php:POST': 401, 'owner_customers.php:POST': 401, 'owner_order_decide.php:POST': 401, 'order_create.php:POST': 401,
-      'owner_settings.php:GET': 401, 'owner_settings.php:POST': 401, 'owner_availability.php:GET': 401, 'owner_availability.php:POST': 401
+      'owner_settings.php:GET': 401, 'owner_settings.php:POST': 401, 'owner_availability.php:GET': 401, 'owner_availability.php:POST': 401, 'owner_recette_clear.php:POST': 401
     };
     const ecAnon = [];
     for (const [nom, permises] of ROUTES) for (const m of permises) {
@@ -812,7 +814,8 @@ async function phaseA() {
       const [a, b] = await Promise.all([appel('GET', 'customer_me.php', { cookie }), appel('GET', 'owner_me.php', { cookie })]);
       return { c, i, a, b };
     });
-    const ecMel = melange.filter(({ c, i, a, b }) => !(a.json.customer.id === c.customer.id && (i % 2 === 0 ? estErreur(b, 401, 'unauthorized') : b.status === 200)));
+    // Cookie client seul sur owner_me : 403 « forbidden » (une session existe, mauvais rôle), pas 401 — comme requireOwner() le fait partout ailleurs.
+    const ecMel = melange.filter(({ c, i, a, b }) => !(a.json.customer.id === c.customer.id && (i % 2 === 0 ? estErreur(b, 403, 'forbidden') : b.status === 200)));
     controle('9.2 300 paires simultanées client seul / client + patron : le client voit toujours son propre compte, le patron n\'est reconnu que s\'il présente son cookie', ecMel.length === 0, ecMel.slice(0, 2).map(({ c, i, a, b }) => `#${i} client ${c.num} ${a.status}/${b.status}`).join(' ; ') || '600 requêtes cohérentes');
     mesures.rafale = 900 + 600;
 
@@ -1110,11 +1113,11 @@ function balayageFinal() {
     const ct = r.headers.get('content-type') || '';
     if (!ct.startsWith('application/json')) { if (!(r.method === 'HEAD' && r.status === 405) && !(r.status >= 400 && r.status < 500 && r.json === null)) nonApp.push(`${r.method} ${court(r.route, 40)} → ${r.status} ${ct}`); continue; }
     if (ct !== 'application/json; charset=utf-8' || r.headers.get('cache-control') !== 'no-store' || r.headers.get('x-content-type-options') !== 'nosniff') sansEntetes.push(`${r.method} ${court(r.route, 40)} → ${r.status}`);
-    if (r.json && typeof r.json.ok !== 'boolean' && !/availability\.php/.test(r.route)) sansOk.push(`${r.method} ${court(r.route, 40)} → ${court(r.text, 40)}`);
+    if (r.json && typeof r.json.ok !== 'boolean' && !/availability\.php|schedule_slots\.php/.test(r.route)) sansOk.push(`${r.method} ${court(r.route, 40)} → ${court(r.text, 40)}`);
   }
   const sansJsonHead = reponses.filter((r) => r.method === 'HEAD' && r.status === 405).every((r) => r.headers.get('cache-control') === 'no-store' && r.headers.get('x-content-type-options') === 'nosniff');
   controle('13.2 chaque réponse de l\'API est du JSON UTF-8 avec Cache-Control: no-store et X-Content-Type-Options: nosniff (y compris erreurs 401, 403, 404, 405, 422, 429)', nonApp.length === 0 && sansEntetes.length === 0 && sansJsonHead, [...nonApp, ...sansEntetes].slice(0, 3).join(' ; ') || `${nCorps} réponses`);
-  controle('13.3 chaque réponse JSON porte un booléen « ok » (sauf availability, public par conception)', sansOk.length === 0, sansOk.slice(0, 3).join(' ; ') || 'conforme');
+  controle('13.3 chaque réponse JSON porte un booléen « ok » (sauf availability et schedule_slots, publics par conception)', sansOk.length === 0, sansOk.slice(0, 3).join(' ; ') || 'conforme');
   const cinq = reponses.filter((r) => r.status >= 500);
   controle('13.4 aucune réponse 5xx sur l\'ensemble de la batterie', cinq.length === 0, cinq.slice(0, 4).map((r) => `${r.method} ${court(r.route, 40)} → ${r.status}`).join(' ; ') || `0 sur ${nCorps}`);
   const parStatut = {};
