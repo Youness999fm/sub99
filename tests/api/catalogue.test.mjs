@@ -219,11 +219,11 @@ test('remise de substitution : prix calculé comme cart.js (applySwapDiscount)',
 // ---------------------------------------------------------------- négatifs
 test('prix faux d\'un centime : 422 price_mismatch_line avec l\'index, rien d\'enregistré', async () => {
   const before = countOrders();
-  const items = [line('Régina', 'Solo', 1100), line('Boisson 33cl', '', 151)];
+  const items = [line('Régina', 'Solo', 1100), line('Boisson Oasis Pomme Poire canette', '', 151)];
   const r = await order(items);
   expectError(r, 422, 'price_mismatch_line');
   assert.equal(r.json.index, 1);
-  assert.equal(r.json.name, 'Boisson 33cl');
+  assert.equal(r.json.name, 'Boisson Oasis Pomme Poire canette');
   assert.equal(r.json.expected_unit_cents, 150);
   assert.equal(r.json.sent_unit_cents, 151);
   const low = await order([line('Régina', 'Quatro', 2299)]);
@@ -260,7 +260,7 @@ test('article inconnu : 422 unknown_item', async () => {
   expectError(await order([line('Margherita', 'Duo', 1600)]), 422, 'unknown_item');
   // Une pizza sans taille, un produit avec une taille : inconnus sous cette forme.
   expectError(await order([line('Régina', '', 1100)]), 422, 'unknown_item');
-  expectError(await order([line('Boisson 33cl', 'Solo', 150)]), 422, 'unknown_item');
+  expectError(await order([line('Boisson Oasis Pomme Poire canette', 'Solo', 150)]), 422, 'unknown_item');
   // Calzone sans garniture, ou avec une garniture absente de la fiche.
   expectError(await order([line('Calzone (soufflée)', 'Duo', 1600)]), 422, 'unknown_item');
   expectError(await order([line('Calzone (soufflée) — Saumon', 'Duo', 1600)]), 422, 'unknown_item');
@@ -316,7 +316,7 @@ test('livraison : frais sans pizza, offerte avec pizza, minimum sur les produits
   // Client à Hénin-Beaumont : minimum 10,00 €, frais 5,50 € (DELIVERY_ZONES).
   const delivery = { mode: 'delivery', payment_methods: ['card'] };
   // Sans pizza : 8,50 + 1,50 = 10,00 € (minimum atteint, frais exclus) + 5,50 € de frais.
-  const noPizza = [line('Pâtes Bolognaise', '', 850), line('Boisson 33cl', '', 150)];
+  const noPizza = [line('Pâtes Bolognaise', '', 850), line('Boisson Oasis Pomme Poire canette', '', 150)];
   const r1 = await order(noPizza, { ...delivery, delivery_fee_cents: 550, total_cents: 1550 });
   assert.equal(r1.status, 201, r1.text);
   assert.deepEqual([r1.json.order.products_cents, r1.json.order.delivery_fee_cents, r1.json.order.total_cents], [1000, 550, 1550]);
@@ -361,7 +361,7 @@ test('pizza avec un ingrédient fixe en rupture : 422 unavailable_items', async 
 test('ingrédient en rupture : unavailable_ingredients nomme l\'ingrédient, unavailable la pizza', async () => {
   await setAvailability('ingredient', 'jambon', 'out_today');
   const before = countOrders();
-  const r = await order([line('3 Jambons', 'Duo', 1600), line('Boisson 33cl', '', 150)]);
+  const r = await order([line('3 Jambons', 'Duo', 1600), line('Boisson Oasis Pomme Poire canette', '', 150)]);
   expectError(r, 422, 'unavailable_items');
   assert.deepEqual(r.json.unavailable, ['3 Jambons']);
   assert.deepEqual(r.json.unavailable_ingredients, ['jambon']);
@@ -379,14 +379,14 @@ test('le ticket reçoit les noms du catalogue (ligne, garniture, moitiés)', asy
   const r = await order([
     line('calzone (SOUFFLÉE) — thon', 'Duo', 1600),
     line('régina', 'Duo', 1600, { half: { flavor1: 'REGINA', flavor2: '4 fromages' } }),
-    line('boisson 33CL', '', 150),
+    line('boisson OASIS pomme POIRE canette', '', 150),
   ]);
   assert.equal(r.status, 201, r.text);
   const items = r.json.order.items;
-  assert.deepEqual(items.map((x) => x.name), ['Calzone (soufflée) — Thon', 'Régina', 'Boisson 33cl']);
+  assert.deepEqual(items.map((x) => x.name), ['Calzone (soufflée) — Thon', 'Régina', 'Boisson Oasis Pomme Poire canette']);
   assert.deepEqual(items[1].half, { flavor1: 'Régina', flavor2: '4 Fromages' });
   const stored = db.prepare('SELECT name, half_json FROM order_items WHERE order_id = ? ORDER BY position').all(r.json.order.id);
-  assert.deepEqual(stored.map((x) => x.name), ['Calzone (soufflée) — Thon', 'Régina', 'Boisson 33cl']);
+  assert.deepEqual(stored.map((x) => x.name), ['Calzone (soufflée) — Thon', 'Régina', 'Boisson Oasis Pomme Poire canette']);
   assert.deepEqual(JSON.parse(stored[1].half_json), { flavor1: 'Régina', flavor2: '4 Fromages' });
   // Un nom inconnu reste refusé.
   expectError(await order([line('Calzone (soufflée) — Chorizo', 'Duo', 1600)]), 422, 'unknown_item');
@@ -408,7 +408,7 @@ test('suppléments : quantité 1 uniquement, pas de doublon (422 validation)', a
 
 test('retraits : ingrédient fixe de la fiche (ou garniture) uniquement, sinon 422 validation', async () => {
   const before = countOrders();
-  const r = await order([line('Boisson 33cl', '', 150), line('Régina', 'Solo', 1100, { removed: ['anchois'] })]);
+  const r = await order([line('Boisson Oasis Pomme Poire canette', '', 150), line('Régina', 'Solo', 1100, { removed: ['anchois'] })]);
   expectError(r, 422, 'validation');
   assert.ok(r.json.fields['items[1].removed']);
   expectError(await order([line('Pâtes Carbonara', '', 850, { removed: ['saumon'] })]), 422, 'validation');
@@ -527,7 +527,7 @@ test('article sans prix : 422 unpriced_item (catalogue d\'essai sans le prix Tex
     assert.equal(r.json.name, 'Tex-Mex Wings (5 pièces)');
     assert.equal(Number(fdb.prepare('SELECT COUNT(*) AS n FROM orders').get().n), n0);
     // Le reste du catalogue d'essai reste commandable.
-    assert.equal((await cust.post('order_create.php', body([line('Boisson 33cl', '', 150)]))).status, 201);
+    assert.equal((await cust.post('order_create.php', body([line('Boisson Oasis Pomme Poire canette', '', 150)]))).status, 201);
   } finally {
     fdb.close();
   }

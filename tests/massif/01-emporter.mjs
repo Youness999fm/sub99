@@ -512,7 +512,7 @@ async function refusAttendus(site, clients, compter, creees) {
   const produitsA = PRODUITS.map((p) => mk(p, ''));
   await refus('41 lignes (limite 40) → 422 validation, champ items', corpsDe([...produitsA, ...PIZZAS.slice(0, 15).map((p) => mk(p, 'Solo', { garniture: p.choice && p.choice.required ? 'thon' : null }))]), 422, 'validation', { champs: ['items'] });
   const l20 = (p, t) => mk(p, t, { qty: 20 });
-  await refus('61 articles (limite 60) → 422 validation, champ items', corpsDe([l20(regina, 'Duo'), l20(kebab, 'Duo'), l20(pizza('Napolitaine'), 'Duo'), mk(produit('Boisson 33cl'), '')]), 422, 'validation', { champs: ['items'] });
+  await refus('61 articles (limite 60) → 422 validation, champ items', corpsDe([l20(regina, 'Duo'), l20(kebab, 'Duo'), l20(pizza('Napolitaine'), 'Duo'), mk(produit('Boisson Oasis Pomme Poire canette'), '')]), 422, 'validation', { champs: ['items'] });
   const ligneBrute = (over) => ({ ...mk(regina, 'Duo').envoye, ...over });
   const corpsBrut = (itemsBruts, over = {}) => ({ ...corpsDe([mk(regina, 'Duo')]), items: itemsBruts, ...over });
   await refus('quantité 21 → 422 validation, champ items[0].qty', corpsBrut([ligneBrute({ qty: 21 })]), 422, 'validation', { champs: ['items[0].qty'] });
@@ -569,7 +569,7 @@ async function refusAttendus(site, clients, compter, creees) {
   await refus('supplément hors carte (« caviar ») → 422 unknown_item', corpsBrut([ligneBrute({ extras: [{ name: 'caviar', price_cents: 200, qty: 1 }], unit_price_cents: 1800 })]), 422, 'unknown_item');
   await refus('supplément sur un produit sans taille → 422 unknown_item', corpsBrut([{ ...mk(produit('Pâtes Bolognaise'), '').envoye, extras: [{ name: 'olives', price_cents: 150, qty: 1 }], unit_price_cents: 1000 }]), 422, 'unknown_item');
   await refus('pizza sans taille → 422 unknown_item', corpsBrut([ligneBrute({ variant: '' })]), 422, 'unknown_item');
-  await refus('produit avec une taille → 422 unknown_item', corpsBrut([{ ...mk(produit('Boisson 33cl'), '').envoye, variant: 'Solo' }]), 422, 'unknown_item');
+  await refus('produit avec une taille → 422 unknown_item', corpsBrut([{ ...mk(produit('Boisson Oasis Pomme Poire canette'), '').envoye, variant: 'Solo' }]), 422, 'unknown_item');
   await refus('supplément annoncé gratuit sans retrait → 422 price_mismatch_line', corpsBrut([ligneBrute({ extras: [{ name: 'olives', price_cents: 0, qty: 1 }], unit_price_cents: 1600 })]), 422, 'price_mismatch_line', { verifier: (rep) => rep.json.expected_unit_cents === 1750 || `attendu ${rep.json.expected_unit_cents}` });
   await refus('retrait d\'un autre groupe annoncé comme crédit (champignons → jambon gratuit) → 422 price_mismatch_line', corpsBrut([{ ...mk(regina, 'Solo', { retraits: ['champignons'], supplements: ['jambon'] }).envoye, unit_price_cents: 1100, extras: [{ name: 'jambon', price_cents: 0, qty: 1 }] }]), 422, 'price_mismatch_line', { verifier: (rep) => rep.json.expected_unit_cents === 1250 || `attendu ${rep.json.expected_unit_cents}` });
   await refus('même crédit réclamé deux fois avec un retrait écrit deux fois → 422 price_mismatch_line', corpsBrut([{ ...mk(pizza('Végétarienne'), 'Duo', { retraits: ['oignons'], supplements: ['olives', 'poivrons'] }).envoye, removed: ['oignons', 'oignons'], unit_price_cents: 1600, extras: [{ name: 'olives', price_cents: 0, qty: 1 }, { name: 'poivrons', price_cents: 0, qty: 1 }] }]), 422, 'price_mismatch_line', { verifier: (rep) => rep.json.expected_unit_cents === 1750 || `attendu ${rep.json.expected_unit_cents}` });

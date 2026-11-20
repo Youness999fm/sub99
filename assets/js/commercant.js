@@ -87,8 +87,16 @@
       { name: "Part de Tarte au Daim", ing: ["biscuit croustillant", "caramel", "éclats de noisettes", "chocolat au lait"] }
     ] },
     { key: 'boissons', label: 'Boissons', items: [
-      { name: "Boisson 33cl", ing: [] },
-      { name: "Grande bouteille", ing: [] }
+      { name: "Oasis Pomme Poire canette", ing: [] },
+      { name: "Fanta Orange canette", ing: [] },
+      { name: "Coca-Cola Goût Original canette", ing: [] },
+      { name: "Coca-Cola Zero canette", ing: [] },
+      { name: "Tropico Orange & Ananas canette", ing: [] },
+      { name: "Lipton Peach Ice Tea canette", ing: [] },
+      { name: "Oasis Pomme Cassis Framboise canette", ing: [] },
+      { name: "Coca-Cola Original Taste grande bouteille", ing: [] },
+      { name: "Fanta Orange grande bouteille", ing: [] },
+      { name: "Tropico Orange & Ananas grande bouteille", ing: [] }
     ] }
   ];
   const PRODUCTS = [];

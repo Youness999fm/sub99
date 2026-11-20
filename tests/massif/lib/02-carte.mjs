@@ -40,7 +40,10 @@ const PRODUITS = {
   'Salade Exotique': 750, 'Salade Niçoise': 750, 'Salade Printanière': 750, 'Salade Di Roma': 750,
   'Dessert Tiramisubito Spéculoos': 350, 'Dessert Tiramisubito Oreo': 350, "Dessert Tiramisubito M&M's": 350,
   'Dessert Calzone Nutella': 650, 'Dessert Part de Tarte au Daim': 300,
-  'Boisson 33cl': 150, 'Boisson Grande bouteille': 300
+  'Boisson Oasis Pomme Poire canette': 150, 'Boisson Fanta Orange canette': 150, 'Boisson Coca-Cola Goût Original canette': 150,
+  'Boisson Coca-Cola Zero canette': 150, 'Boisson Tropico Orange & Ananas canette': 150, 'Boisson Lipton Peach Ice Tea canette': 150,
+  'Boisson Oasis Pomme Cassis Framboise canette': 150,
+  'Boisson Coca-Cola Original Taste grande bouteille': 300, 'Boisson Fanta Orange grande bouteille': 300, 'Boisson Tropico Orange & Ananas grande bouteille': 300
 };
 
 const SUPPLEMENTS = [
@@ -97,8 +100,8 @@ export function carteImpaire(rng, catalogue = lireCatalogueFichier()) {
     c.produits[n] = PRODUITS[n] + ((i * 3 + 1) % 7) - 3;
   });
   // Quelques prix de repère pour atteindre n'importe quel centime : boisson à 149, grande bouteille à 301.
-  c.produits['Boisson 33cl'] = 149;
-  c.produits['Boisson Grande bouteille'] = 301;
+  c.produits['Boisson Oasis Pomme Poire canette'] = 149;
+  c.produits['Boisson Coca-Cola Original Taste grande bouteille'] = 301;
   return c;
 }
 
