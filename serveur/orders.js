@@ -6,7 +6,7 @@ import { catalogueCanonicalItems, catalogueSwapKey, checkAvailabilityLines, veri
 import { isIntBetween, strChars, utcAt, utcToEpoch } from './util.js';
 
 export const PAYMENT_METHODS = ['card', 'cash', 'ticket', 'ticket_card'];
-export const CASH_CHANGE_CHOICES = [0, 10, 20, 50, 100];
+export const CASH_CHANGE_CHOICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 export const VARIANTS = ['', 'Solo', 'Duo', 'Quatro', 'XXL'];
 export const PIZZA_SIZES = ['Solo', 'Duo', 'Quatro', 'XXL'];
 

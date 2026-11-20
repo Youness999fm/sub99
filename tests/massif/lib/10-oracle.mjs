@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 export const CHEMIN_CATALOGUE = new URL('../../../api/data/catalogue.json', import.meta.url);
 export const TAILLES = ['Solo', 'Duo', 'Quatro', 'XXL'];
 export const MOYENS = ['card', 'cash', 'ticket', 'ticket_card'];
-export const BILLETS = [0, 10, 20, 50, 100];
+export const BILLETS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
 /** Zones de livraison (index.html, cart.js) : minimum de commande sur les produits APRÈS promotion, et frais, en centimes. */
 export const ZONES = {

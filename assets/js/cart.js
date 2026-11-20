@@ -207,6 +207,10 @@ const SUBITO_CART_CONFIG = {
   // sauf aller-retour volontaire par compte.html (connexion ou ajout
   // d'adresse), où il est restauré via sessionStorage (voir plus bas).
   let orderMode = "pickup";
+  // Le client doit choisir explicitement "À emporter" ou "Livraison" avant de pouvoir commander
+  // (aucun des deux boutons n'est présélectionné) : évite qu'il envoie une commande dans le mauvais
+  // mode sans s'en rendre compte. Vrai dès qu'un choix a été fait une fois (y compris restauré).
+  let modeChosen = false;
 
   // Commande planifiée (type Uber Eats) : "now" (dès que possible, par défaut) ou "later" (le client choisit
   // un jour + un créneau de 30 min parmi ceux renvoyés par schedule_slots.php). Remis à zéro à chaque
@@ -316,10 +320,10 @@ const SUBITO_CART_CONFIG = {
     { id: "ticket", label: "Ticket Restaurant", icon: "ticket" },
     { id: "ticket_card", label: "Carte Ticket Restaurant", icon: "wallet" }
   ];
-  // Billets courants : pour que le livreur sache combien de monnaie
+  // Montants courants (ex. 3 billets de 20 = 60) : pour que le livreur sache combien de monnaie
   // préparer à l'avance — pour des raisons de sécurité, il ne part pas
   // avec des espèces sur lui et ne peut pas rendre la monnaie sur place.
-  const CASH_NOTES = [10, 20, 50, 100];
+  const CASH_NOTES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
   let paymentMethods = []; // ex. ["cash", "ticket_card"] : plusieurs moyens possibles, dans l'ordre de PAYMENT_METHODS
   let cashChangeFor = null; // montant du billet (ex. 20) ; 0 = appoint exact ; null = pas encore choisi (seulement si "cash" est coché)
@@ -327,7 +331,7 @@ const SUBITO_CART_CONFIG = {
   function paymentMethodHtml() {
     const cashBlock = paymentMethods.indexOf("cash") !== -1
       ? '<div class="payment-method__sub">' +
-          '<p class="payment-method__title">Vous réglez avec un billet de <span class="account-optional">(pour que le livreur prépare la monnaie — il ne garde pas d’espèces sur lui)</span></p>' +
+          '<p class="payment-method__title">Vous réglez avec <span class="account-optional">(pour que le livreur prépare la monnaie — il ne garde pas d’espèces sur lui)</span></p>' +
           '<div class="payment-method__options">' +
             CASH_NOTES.map(function (note) {
               return '<button type="button" class="payment-method__btn' + (cashChangeFor === note ? " is-active" : "") + '" data-change="' + note + '">' + note + ' €</button>';
@@ -1533,11 +1537,33 @@ const SUBITO_CART_CONFIG = {
       : "";
     const pickupDisclaimer = isDelivery ? "" : '<p class="checkout-disclaimer">' + SubitoIcons.svg("lightbulb") + ' Ce total correspond à une commande à emporter. Pour une livraison, choisissez "Livraison" ci-dessus.</p>';
 
-    extra.innerHTML =
+    const modeToggleHtml =
       '<div class="order-mode-toggle" role="group" aria-label="Mode de retrait">' +
-        '<button type="button" class="order-mode-toggle__btn' + (isDelivery ? "" : " is-active") + '" data-mode="pickup">' + SubitoIcons.svg("shopping-bag") + ' À emporter</button>' +
-        '<button type="button" class="order-mode-toggle__btn' + (isDelivery ? " is-active" : "") + '" data-mode="delivery">' + SubitoIcons.svg("bike") + ' Livraison</button>' +
-      '</div>' +
+        '<button type="button" class="order-mode-toggle__btn' + (modeChosen && !isDelivery ? " is-active" : "") + '" data-mode="pickup">' + SubitoIcons.svg("shopping-bag") + ' À emporter</button>' +
+        '<button type="button" class="order-mode-toggle__btn' + (modeChosen && isDelivery ? " is-active" : "") + '" data-mode="delivery">' + SubitoIcons.svg("bike") + ' Livraison</button>' +
+      '</div>';
+
+    if (!modeChosen) {
+      // Choix obligatoire avant de voir le reste (horaire, paiement, total) : impossible de se tromper
+      // de mode sans s'en rendre compte, et plus simple à comprendre pour le client.
+      extra.innerHTML =
+        '<p class="checkout-disclaimer checkout-disclaimer--prompt">' + SubitoIcons.svg("circle-alert", "1em") + ' Choisissez d’abord votre mode de commande.</p>' +
+        modeToggleHtml;
+      extra.querySelectorAll(".order-mode-toggle__btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          orderMode = btn.getAttribute("data-mode");
+          modeChosen = true;
+          const sorted = sortedCart();
+          renderDrawerExtra(sorted);
+          renderStickyFooter(sorted);
+          renderBarTotal(sorted);
+        });
+      });
+      return;
+    }
+
+    extra.innerHTML =
+      modeToggleHtml +
       '<div class="schedule-toggle" role="group" aria-label="Horaire de la commande">' +
         '<button type="button" class="schedule-toggle__btn' + (scheduleChoice === "now" ? " is-active" : "") + '" data-when="now">' + SubitoIcons.svg("clock") + ' Dès que possible</button>' +
         '<button type="button" class="schedule-toggle__btn' + (scheduleChoice === "later" ? " is-active" : "") + '" data-when="later">' + SubitoIcons.svg("clock") + ' Plus tard</button>' +
@@ -1780,8 +1806,10 @@ const SUBITO_CART_CONFIG = {
     if (!cart.length) { footer.innerHTML = ""; return; }
 
     footer.innerHTML =
-      '<div class="cart-drawer__total"><span>Total ' + (orderMode === "delivery" ? "livraison" : "à emporter") + '</span><strong>' + formatPrice(activeGrandTotal(cart)) + '</strong></div>' +
-      '<button type="button" class="btn-solid checkout-order" id="checkoutOrder">' + SubitoIcons.svg("shopping-cart") + ' Commander en ligne</button>' +
+      (modeChosen
+        ? '<div class="cart-drawer__total"><span>Total ' + (orderMode === "delivery" ? "livraison" : "à emporter") + '</span><strong>' + formatPrice(activeGrandTotal(cart)) + '</strong></div>'
+        : '<p class="checkout-disclaimer checkout-disclaimer--prompt">' + SubitoIcons.svg("circle-alert", "1em") + ' Choisissez « À emporter » ou « Livraison » ci-dessus pour voir le total.</p>') +
+      '<button type="button" class="btn-solid checkout-order" id="checkoutOrder"' + (modeChosen ? "" : " disabled") + '>' + SubitoIcons.svg("shopping-cart") + ' Commander en ligne</button>' +
       '<p class="checkout-order-status" id="checkoutOrderStatus" role="alert" hidden></p>' +
       '<a class="checkout-call-fallback" id="checkoutCall" href="tel:' + SUBITO_CART_CONFIG.phone + '">ou appelez-nous · ' + SubitoIcons.svg("phone") + ' ' + SUBITO_CART_CONFIG.phoneDisplay + '</a>';
 
@@ -1836,6 +1864,9 @@ const SUBITO_CART_CONFIG = {
 
   // Vérifications avant envoi : renvoie le message à afficher, ou null si la commande peut partir.
   function orderProblem(session) {
+    if (!modeChosen) {
+      return SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Choisissez « À emporter » ou « Livraison » avant de commander.";
+    }
     if (sortedCart().some(calzoneLineIncomplete)) {
       return SubitoIcons.svg("circle-alert", "1em", "subito-icon--error") + " Une de vos calzones n’a pas de garniture choisie : retirez-la du panier et ajoutez-la de nouveau avec sa garniture.";
     }
@@ -2292,7 +2323,7 @@ const SUBITO_CART_CONFIG = {
       return;
     }
     const savedMode = sessionStorage.getItem(PENDING_ORDER_MODE_KEY);
-    if (savedMode) { orderMode = savedMode; sessionStorage.removeItem(PENDING_ORDER_MODE_KEY); }
+    if (savedMode) { orderMode = savedMode; modeChosen = true; sessionStorage.removeItem(PENDING_ORDER_MODE_KEY); }
     const savedPayment = sessionStorage.getItem(PENDING_PAYMENT_KEY);
     if (savedPayment !== null) {
       // Liste JSON (voir startOnlineOrder) ; une valeur illisible est simplement ignorée.
@@ -2333,6 +2364,7 @@ const SUBITO_CART_CONFIG = {
     window.history.replaceState(null, "", clean);
     if (!readCart().length) return;
     orderMode = "delivery";
+    modeChosen = true;
     openDrawer();
   }
 

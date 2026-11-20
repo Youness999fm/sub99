@@ -23,7 +23,7 @@ export const ZONES = {
 };
 export const VILLES = Object.keys(ZONES);
 export const MOYENS = ['card', 'cash', 'ticket', 'ticket_card'];
-export const BILLETS = [0, 10, 20, 50, 100];
+export const BILLETS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 export const TAILLES = ['Solo', 'Duo', 'Quatro', 'XXL'];
 
 // ---------------------------------------------------------------------------------------------------------------------
