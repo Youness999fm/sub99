@@ -1,6 +1,6 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1",
+  "versionCode": 4,
+  "versionName": "1.3",
   "url": "https://subito-pizza.vercel.app/commercant-app/app-debug.apk",
-  "notes": "Correction : l'impression se bloquait apres le premier ticket (connexion Bluetooth gardee ouverte, avec recuperation automatique en cas de blocage)."
+  "notes": "Refonte : la mise en forme du ticket et les tentatives de renvoi vivent maintenant dans le site web (se mettent a jour seules). L'appli ne fait plus que transmettre des octets au Bluetooth."
 }

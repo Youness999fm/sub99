@@ -130,7 +130,8 @@
     selectedClientId: null,
     sessions: [],
     sessionsState: 'idle',
-    netLost: false
+    netLost: false,
+    printIssues: new Map() // id commande -> { label, error } : tickets qui n'ont pas pu s'imprimer malgré les tentatives automatiques
   };
 
   const $ = sel => document.querySelector(sel);
@@ -145,6 +146,8 @@
     top: $('#app-top'),
     main: $('#main'),
     net: $('#net-banner'),
+    printIssueBtn: $('#print-issue-btn'),
+    printIssueCount: $('#print-issue-count'),
     clock: $('#clock'),
     queue: $('#queue'),
     detail: $('#order-detail'),
@@ -689,7 +692,7 @@
         replaceOrder(r.data.order);
         closeNotifications();
         const done = r.data.order || {};
-        if (action === 'accept' && done.status === 'accepted') autoPrintAccepted(done);
+        if (action === 'accept' && done.status === 'accepted') printOrderOnPrinter(done);
         toast(done.status === 'accepted'
           ? `Commande de ${name} acceptée · délai annoncé : ${delayLabel(done.delay_minutes)}`
           : `Commande de ${name} refusée`);
@@ -1519,7 +1522,7 @@
       </div>`;
   }
 
-  // Transforme une commande en texte structuré pour l'impression automatique (app Android + imprimante Bluetooth).
+  // Transforme une commande en texte structuré pour l'impression (app Android + imprimante Bluetooth).
   function printerPayload(o) {
     const delivery = o.mode === 'delivery';
     const received = toDate(o.created_at);
@@ -1530,6 +1533,7 @@
       mods: itemMods(it).map(m => m.text)
     }));
     return {
+      orderId: String(o.id),
       shop: 'SUBITO PIZZA',
       mode: delivery ? 'LIVRAISON' : 'A EMPORTER',
       address: delivery ? addressLine(o.delivery_address) : null,
@@ -1543,13 +1547,187 @@
     };
   }
 
-  // Imprime automatiquement le ticket sur l'imprimante Bluetooth (app Android uniquement ; ignoré ailleurs, ex. navigateur).
-  function autoPrintAccepted(o) {
+  // ---------- Impression thermique (ESC/POS) ----------
+  // Tout est construit ici, côté site web : l'appli Android ne fait plus que transmettre des
+  // octets bruts déjà prêts sur la connexion Bluetooth (voir PrinterBridge.kt, sendBytes()).
+  // But : qu'une évolution de la mise en forme du ticket ou des tentatives de renvoi se déploie
+  // avec le site, sans jamais devoir réinstaller l'appli sur la tablette.
+  const PRINT_WIDTH = 42; // colonnes : 42 ~ rouleau 80mm police standard. 32 = 58mm, 48 = 80mm police fine.
+  const PRINT_RETRY_DELAYS_MS = [0, 2500, 6000]; // 1re tentative immédiate, puis +2,5s, +6s avant d'abandonner.
+
+  function escAscii(s) {
+    // Les imprimantes thermiques n'ont pas d'UTF-8 fiable sans régler la bonne page de code :
+    // on retire les accents pour garantir un rendu correct sur tous les modèles.
+    const norm = String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '');
+    return norm.replace(/œ/g, 'oe').replace(/Œ/g, 'OE').replace(/€/g, 'EUR')
+      .split('').filter(ch => { const c = ch.charCodeAt(0); return (c >= 32 && c <= 126) || ch === '\n'; }).join('');
+  }
+  function escTwoCol(left, right) {
+    const l = escAscii(left), r = escAscii(right);
+    const maxLeft = Math.max(1, PRINT_WIDTH - r.length - 1);
+    const lTrim = l.length > maxLeft ? l.slice(0, maxLeft) : l;
+    const spaces = Math.max(1, PRINT_WIDTH - lTrim.length - r.length);
+    return lTrim + ' '.repeat(spaces) + r + '\n';
+  }
+  function escRow(label, value) {
+    return escAscii(label.padEnd(12) + ': ' + value) + '\n';
+  }
+  function escCenter(s) {
+    const a = escAscii(s);
+    const pad = Math.max(0, Math.floor((PRINT_WIDTH - a.length) / 2));
+    return ' '.repeat(pad) + a;
+  }
+  function escWrap(s) {
+    const a = escAscii(s);
+    if (a.length <= PRINT_WIDTH) return a;
+    const lines = [];
+    for (let i = 0; i < a.length; i += PRINT_WIDTH) lines.push(a.slice(i, i + PRINT_WIDTH));
+    return lines.join('\n');
+  }
+
+  // Construit la trame ESC/POS complète (init, gras, centré, coupe papier) pour un ticket.
+  function buildTicketBytes(o) {
+    const bytes = [];
+    const push = (...vals) => vals.forEach(v => bytes.push(v & 0xFF));
+    const text = s => { for (const ch of escAscii(s)) bytes.push(ch.charCodeAt(0)); };
+    const align = n => push(0x1B, 0x61, n);
+    const bold = on => push(0x1B, 0x45, on ? 1 : 0);
+    const doubleSize = on => push(0x1D, 0x21, on ? 0x11 : 0x00);
+    const feed = n => push(0x1B, 0x64, n);
+    const cut = () => { feed(3); push(0x1D, 0x56, 0x00); };
+    const sep = () => text('='.repeat(PRINT_WIDTH) + '\n');
+
+    push(0x1B, 0x40); // initialisation
+
+    align(1);
+    doubleSize(true); bold(true);
+    text((o.shop || 'SUBITO PIZZA') + '\n');
+    doubleSize(false); bold(false);
+    sep();
+
+    align(0);
+    bold(true);
+    text(escCenter(o.mode || '') + '\n');
+    bold(false);
+    if (o.address) text(escWrap(o.address) + '\n');
+    sep();
+
+    if (o.customer) text(escRow('Client', o.customer));
+    if (o.phone) text(escRow('Tel', o.phone));
+    if (o.receivedAt) text(escRow('Recue a', o.receivedAt));
+    sep();
+
+    (o.items || []).forEach(it => {
+      text(escTwoCol(`${it.qty}x ${it.title}`, it.lineTotal));
+      (it.mods || []).forEach(m => text('  ' + escAscii(m) + '\n'));
+    });
+    sep();
+
+    if (o.deliveryFee) text(escTwoCol('Frais de livraison', o.deliveryFee));
+    bold(true);
+    text(escTwoCol('TOTAL', o.total));
+    bold(false);
+
+    if (o.delay) text(escRow('Delai annonce', o.delay));
+    sep();
+    cut();
+
+    return bytes;
+  }
+
+  function bytesToBase64(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+
+  // true si l'appli Android (pont Bluetooth brut) est disponible ; false dans un navigateur normal.
+  function hasAndroidPrinter() {
+    return !!(window.AndroidPrinter && typeof window.AndroidPrinter.sendBytes === 'function');
+  }
+
+  let printRequestSeq = 0;
+  const pendingPrints = new Map(); // requestId -> { orderId, label, base64, attempt }
+
+  // Lance l'impression d'une commande (depuis l'acceptation, ou depuis "Réessayer"/"Réimprimer").
+  function printOrderOnPrinter(o) {
+    if (!o || !hasAndroidPrinter()) return;
     try {
-      if (window.AndroidPrinter && typeof window.AndroidPrinter.printTicket === 'function') {
-        window.AndroidPrinter.printTicket(JSON.stringify(printerPayload(o)));
-      }
-    } catch (e) { /* l'impression automatique ne doit jamais bloquer le flux de commande */ }
+      const payload = printerPayload(o);
+      const base64 = bytesToBase64(buildTicketBytes(payload));
+      const requestId = 'p' + (++printRequestSeq) + '-' + payload.orderId;
+      pendingPrints.set(requestId, { orderId: payload.orderId, label: customerLabel(o), base64, attempt: 0 });
+      sendAttempt(requestId);
+    } catch (e) { /* l'impression ne doit jamais bloquer le flux de commande */ }
+  }
+
+  function sendAttempt(requestId) {
+    const job = pendingPrints.get(requestId);
+    if (!job) return;
+    try { window.AndroidPrinter.sendBytes(job.base64, requestId); }
+    catch (e) { finalizePrint(requestId, false, e.message || 'erreur appli'); }
+  }
+
+  // Rappelé depuis l'appli Android (PrinterBridge.kt) après chaque tentative d'envoi brut.
+  // Les nouvelles tentatives sont gérées ici, côté web : elles se mettent à jour avec le site.
+  window.onPrinterSendResult = function (requestId, ok, error) {
+    const job = pendingPrints.get(requestId);
+    if (!job) return;
+    if (ok) { finalizePrint(requestId, true, null); return; }
+    const nextAttempt = job.attempt + 1;
+    if (nextAttempt < PRINT_RETRY_DELAYS_MS.length) {
+      job.attempt = nextAttempt;
+      setTimeout(() => sendAttempt(requestId), PRINT_RETRY_DELAYS_MS[nextAttempt]);
+    } else {
+      finalizePrint(requestId, false, error);
+    }
+  };
+
+  function finalizePrint(requestId, ok, error) {
+    const job = pendingPrints.get(requestId);
+    if (!job) return;
+    pendingPrints.delete(requestId);
+    if (ok) {
+      state.printIssues.delete(job.orderId);
+      renderPrintIssues();
+      toast(`Ticket imprimé · ${job.label}`);
+      return;
+    }
+    state.printIssues.set(job.orderId, { label: job.label, error: error || 'erreur inconnue' });
+    renderPrintIssues();
+    // N'ouvre la fenêtre que si aucune autre n'est déjà affichée, pour ne jamais interrompre une autre action.
+    if (!el.dlg.open) openPrintIssuesDialog();
+  }
+
+  function renderPrintIssues() {
+    const n = state.printIssues.size;
+    el.printIssueBtn.hidden = n === 0;
+    el.printIssueCount.textContent = String(n);
+    if (el.dlg.open && el.dlgBody.querySelector('[data-print-issues]')) {
+      if (n === 0) closeDialog(); else el.dlgBody.innerHTML = printIssuesHtml();
+    }
+  }
+
+  function printIssuesHtml() {
+    const rows = [...state.printIssues.entries()].map(([id, issue]) => `
+      <div class="print-issue-row">
+        <div class="pi-text">
+          <p class="pi-label">${esc(issue.label)}</p>
+          <p class="pi-error">${esc(issue.error)}</p>
+        </div>
+        <button type="button" class="btn btn-accept btn-sm" data-action="print-retry" data-id="${esc(id)}">Réessayer</button>
+      </div>`).join('');
+    return `
+      <div data-print-issues="1">
+        <h3>Ticket(s) non imprimé(s)</h3>
+        <p>L'imprimante n'a pas pu recevoir ces tickets malgré plusieurs tentatives automatiques. Vérifiez qu'elle est allumée, à portée, et toujours associée en Bluetooth, puis réessayez.</p>
+        ${rows}
+        <div class="dlg-actions"><button type="button" class="btn btn-ghost" data-action="dlg-close">Fermer</button></div>
+      </div>`;
+  }
+
+  function openPrintIssuesDialog() {
+    openDialog(printIssuesHtml());
   }
 
   function openOrderTicket(o) {
@@ -1559,7 +1737,7 @@
       ${ticketHtml(o)}
       <div class="dlg-actions">
         ${o.status === 'accepted' ? `<button type="button" class="btn btn-accept" data-action="mark-ready" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>${busy ? 'Envoi…' : 'Commande prête · prévenir le client'}</button>` : ''}
-        <button type="button" class="btn btn-accept" data-action="print-ticket" data-id="${esc(o.id)}">Imprimer le ticket</button>
+        <button type="button" class="btn btn-accept" data-action="print-ticket" data-id="${esc(o.id)}">${hasAndroidPrinter() ? 'Réimprimer le ticket' : 'Imprimer le ticket'}</button>
         <button type="button" class="btn btn-ghost" data-action="dlg-close">Fermer</button>
       </div>
     `);
@@ -1779,7 +1957,17 @@
         return;
       case 'print-ticket': {
         const o = findOrder(id);
-        if (o) printInto(ticketHtml(o));
+        if (!o) return;
+        if (hasAndroidPrinter()) printOrderOnPrinter(o);
+        else printInto(ticketHtml(o));
+        return;
+      }
+      case 'print-issues-open':
+        openPrintIssuesDialog();
+        return;
+      case 'print-retry': {
+        const o = findOrder(id);
+        if (o) printOrderOnPrinter(o);
         return;
       }
       case 'dlg-close':
