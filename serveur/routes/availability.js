@@ -7,11 +7,12 @@ export default async function availability(c) {
   allowMethods(c, ['GET']);
   const pizzas = [];
   const ingredients = [];
+  const produits = [];
   for (const e of await availabilityEffective()) {
     if (e.kind === 'pizza') pizzas.push(e.name);
     else if (e.kind === 'ingredient') ingredients.push(e.name);
-    // kind = product : jamais dans la réponse publique.
+    else produits.push(e.name);
   }
   // Exactement les clés de assets/data/disponibilite.json (pas de clé « ok » : disponibilite.js signale toute clé inconnue).
-  return { status: 200, body: { misAJourLe: serviceDay(), pizzasIndisponibles: pizzas, ingredientsIndisponibles: ingredients } };
+  return { status: 200, body: { misAJourLe: serviceDay(), pizzasIndisponibles: pizzas, ingredientsIndisponibles: ingredients, produitsIndisponibles: produits } };
 }

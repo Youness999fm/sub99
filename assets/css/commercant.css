@@ -792,7 +792,6 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .ticket .t-item-name { font-size: 24px; font-weight: 800; line-height: 1.2; }
 .ticket .t-item-price { font-size: 16px; font-weight: 700; white-space: nowrap; }
 .ticket .t-mod { padding-left: 16px; font-size: 14px; color: #444; margin-top: 2px; }
-.ticket .t-mod-half { font-weight: 700; color: #111; }
 .ticket .t-mod-plus { font-weight: 800; }
 .ticket .t-mod-note { font-weight: 800; }
 .ticket .t-mod-removed {

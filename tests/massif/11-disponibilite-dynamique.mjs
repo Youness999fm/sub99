@@ -224,7 +224,7 @@ async function apiBases() {
   let r = await lirePublic(pub);
   ctl('GET availability : 200 et JSON', r.status === 200 && r.json !== null, r.status);
   ctl('GET availability : clés exactes (comme assets/data/disponibilite.json, sans « ok » ni clé inconnue)',
-    JSON.stringify(Object.keys(r.json).sort()) === JSON.stringify(['ingredientsIndisponibles', 'misAJourLe', 'pizzasIndisponibles']), Object.keys(r.json));
+    JSON.stringify(Object.keys(r.json).sort()) === JSON.stringify(['ingredientsIndisponibles', 'misAJourLe', 'pizzasIndisponibles', 'produitsIndisponibles']), Object.keys(r.json));
   ctl('GET availability : Cache-Control no-store (jamais de lecture périmée)', /no-store/.test(r.headers.get('cache-control') || ''), r.headers.get('cache-control'));
   ctl('GET availability : misAJourLe = jour parisien du serveur', r.json.misAJourLe === S.jour, `${r.json.misAJourLe} / ${S.jour}`);
   ctl('GET availability : tout disponible au départ (deux listes vides)', r.json.pizzasIndisponibles.length === 0 && r.json.ingredientsIndisponibles.length === 0, r.json);
@@ -664,7 +664,10 @@ async function apiTout() {
   mesure('déclarer tout hors service', `${reps.length} requêtes en ${Math.round(dt)} ms (${Math.round(dt / reps.length)} ms chacune)`);
   const pub = await lirePublic();
   const nbPizzas = prods.filter((p) => p.kind === 'pizza').length;
-  ctl(`liste publique : ${nbPizzas} pizzas et ${ingredients.length} ingrédients, aucun produit`, pub.json.pizzasIndisponibles.length === nbPizzas && pub.json.ingredientsIndisponibles.length === ingredients.length, `${pub.json.pizzasIndisponibles.length} pizzas, ${pub.json.ingredientsIndisponibles.length} ingrédients, ${pub.text.length} octets`);
+  const nbProduits = prods.filter((p) => p.kind === 'product').length;
+  ctl(`liste publique : ${nbPizzas} pizzas, ${nbProduits} produits et ${ingredients.length} ingrédients`,
+    pub.json.pizzasIndisponibles.length === nbPizzas && pub.json.produitsIndisponibles.length === nbProduits && pub.json.ingredientsIndisponibles.length === ingredients.length,
+    `${pub.json.pizzasIndisponibles.length} pizzas, ${pub.json.produitsIndisponibles.length} produits, ${pub.json.ingredientsIndisponibles.length} ingrédients, ${pub.text.length} octets`);
   S.site.db.exec('DELETE FROM throttle');
   const n0 = nbCommandes();
   const res = await enParallele(lignes, 10, async (l, i) => ({ l, r: await envoyer(S.clients[i % S.clients.length], [l.fabrique()]) }));
@@ -681,7 +684,7 @@ async function apiTout() {
   mesure('tout remettre disponible', `${rem.length} requêtes en ${Math.round(maintenant() - t1)} ms`);
   ctl('tout remis : 200 partout', rem.every((r) => r.status === 200), rem.filter((r) => r.status !== 200).slice(0, 3).map((r) => r.status));
   const pub2 = await lirePublic();
-  ctl('liste publique vide de nouveau', pub2.json.pizzasIndisponibles.length === 0 && pub2.json.ingredientsIndisponibles.length === 0, pub2.json);
+  ctl('liste publique vide de nouveau', pub2.json.pizzasIndisponibles.length === 0 && pub2.json.produitsIndisponibles.length === 0 && pub2.json.ingredientsIndisponibles.length === 0, pub2.json);
   S.site.db.exec('DELETE FROM throttle');
   const res2 = await enParallele(lignes, 10, async (l, i) => ({ l, r: await envoyer(S.clients[i % S.clients.length], [l.fabrique()]) }));
   const mauvais2 = res2.filter(({ r }) => r.status !== 201);

@@ -1,6 +1,7 @@
 {
-  "commentaire": "Pizzas et ingrédients indisponibles, lus par le site client (menu.html). Fichier de secours : le site lit d'abord le serveur ; ce fichier ne sert que si le serveur ne répond pas. Tout vide = tout est disponible. Noms comme sur la carte : casse, accents, apostrophes et « œ » ne comptent pas ; « Calzone » vaut pour « Calzone (soufflée) ». Ingrédients : le mot exact tel qu'écrit sur la carte (« saumon » ne couvre pas « saumon fumé »). Un nom introuvable, ou une clé mal orthographiée, fait un avertissement dans la console du navigateur. Une pizza listée, ou dont un ingrédient fixe est listé, devient « Victime de son succès ». Une garniture au choix (Calzone) listée disparaît seulement du choix.",
+  "commentaire": "Pizzas, produits et ingrédients indisponibles, lus par le site client (menu.html). Fichier de secours : le site lit d'abord le serveur ; ce fichier ne sert que si le serveur ne répond pas. Tout vide = tout est disponible. Noms comme sur la carte : casse, accents, apostrophes et « œ » ne comptent pas ; « Calzone » vaut pour « Calzone (soufflée) ». Ingrédients : le mot exact tel qu'écrit sur la carte (« saumon » ne couvre pas « saumon fumé »). Un nom introuvable, ou une clé mal orthographiée, fait un avertissement dans la console du navigateur. Une pizza ou un produit listé, ou dont un ingrédient fixe est listé, devient « Victime de son succès ». Une garniture au choix (Calzone) listée disparaît seulement du choix.",
   "misAJourLe": "2026-11-19",
   "pizzasIndisponibles": [],
-  "ingredientsIndisponibles": []
+  "ingredientsIndisponibles": [],
+  "produitsIndisponibles": []
 }

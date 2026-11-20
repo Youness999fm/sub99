@@ -586,9 +586,10 @@ test('5. disponibilités', async (t) => {
     const c = await ownerA.post('owner_availability.php', { kind: 'product', name: 'Tiramisu', status: 'out_manual' });
     assert.equal(c.json.out.length, 3);
     let p = await pub();
-    assert.deepEqual(Object.keys(p).sort(), ['ingredientsIndisponibles', 'misAJourLe', 'pizzasIndisponibles']);
+    assert.deepEqual(Object.keys(p).sort(), ['ingredientsIndisponibles', 'misAJourLe', 'pizzasIndisponibles', 'produitsIndisponibles']);
     assert.deepEqual(p.pizzasIndisponibles, ['Margherita']);
     assert.deepEqual(p.ingredientsIndisponibles, ['saumon']);
+    assert.deepEqual(p.produitsIndisponibles, ['Tiramisu']);
     assert.equal(p.misAJourLe, parisDay());
     // Bascule out_today → out_manual sur la même entrée.
     const d = await ownerA.post('owner_availability.php', { kind: 'pizza', name: 'Margherita', status: 'out_manual' });

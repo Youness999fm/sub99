@@ -558,6 +558,12 @@
     const shouldRing = pending && state.soundOn && !alarmExpired;
     if (shouldRing && !alarmTimer) {
       alarmStartedAt = Date.now();
+      // Si l'appli Android (tablette) est disponible, force le volume au maximum au début de la
+      // sonnerie : sur une tablette laissée en caisse, le volume média a pu être baissé entre deux
+      // commandes, la page web seule ne peut pas le remonter (seul le natif a accès au volume).
+      if (window.AndroidPrinter && typeof window.AndroidPrinter.maximizeVolume === 'function') {
+        try { window.AndroidPrinter.maximizeVolume(); } catch (e) { /* appli non à jour : tant pis */ }
+      }
       playBeep();
       alarmTimer = setInterval(alarmTick, 1800);
     } else if (!shouldRing && alarmTimer) {
@@ -1547,6 +1553,11 @@
   //  - Dessert : préfixe inchangé, mais traité à part (voir splitTicketItems, isTicketDessert ci-dessous).
   const TICKET_PREFIX_RENAME = { Subitowich: 'Panini' };
   function ticketItemTitle(it) {
+    // Moitié-moitié : une seule ligne directe « saveur1 / saveur2 Taille » (ex. « Regina / Subito
+    // Duo »), jamais la pizza principale seule suivie d'une ligne de saveurs en dessous.
+    if (it.half && (it.half.flavor1 || it.half.flavor2)) {
+      return `${it.half.flavor1 || '?'} / ${it.half.flavor2 || '?'}${it.variant ? ` ${it.variant}` : ''}`;
+    }
     const name = String(it.name || '');
     if (it.variant) {
       return `${name} ${it.variant}`;
@@ -1582,14 +1593,11 @@
     return qty >= 2 ? `${qty}${sep || '×'} ` : '';
   }
 
-  // Modifications d'un article pour le ticket : moitié-moitié « saveur1 / saveur2 » (jamais le mot
-  // « moitié »), ingrédients retirés en gras encadrés de noir (bien visible), suppléments et remarque
-  // (préfixée #) en gras.
+  // Modifications d'un article pour le ticket : moitié-moitié déjà sur la ligne de titre (voir
+  // ticketItemTitle), ingrédients retirés en gras encadrés de noir (bien visible), suppléments et
+  // remarque (préfixée #) en gras.
   function ticketItemModsHtml(it) {
     const parts = [];
-    if (it.half && (it.half.flavor1 || it.half.flavor2)) {
-      parts.push(`<div class="t-mod t-mod-half">${esc(it.half.flavor1 || '?')} / ${esc(it.half.flavor2 || '?')}</div>`);
-    }
     if (it.removed && it.removed.length) {
       parts.push(`<div class="t-mod-removed">${it.removed.map(r => `<div>− ${esc(r)}</div>`).join('')}</div>`);
     }
@@ -1659,7 +1667,6 @@
       qtyPrefix: ticketQtyPrefix(it, 'x'),
       title: ticketItemTitle(it),
       lineTotal: eur(it.line_total_cents),
-      half: (it.half && (it.half.flavor1 || it.half.flavor2)) ? `${it.half.flavor1 || '?'} / ${it.half.flavor2 || '?'}` : null,
       removed: (it.removed || []).slice(),
       extrasText: (it.extras || []).map(x => {
         const qty = Number(x.qty) || 1;
@@ -1800,10 +1807,10 @@
     const thinSep = () => text('.'.repeat(PRINT_WIDTH) + '\n'); // trait fin : sépare les tailles entre elles, sans peser comme sep()
     const reverse = on => push(0x1D, 0x42, on ? 1 : 0); // GS B : vidéo inversée (blanc sur noir) = le « cadre noir » des ingrédients retirés
     const blank = (n = 1) => text('\n'.repeat(n));
-    // Moitié-moitié (saveur1 / saveur2, jamais « moitié »), ingrédients retirés en gras sur fond noir,
-    // suppléments et remarque (préfixée #) en gras — mêmes règles que ticketItemModsHtml (aperçu HTML).
+    // Moitié-moitié déjà sur la ligne de titre (voir ticketItemTitle), ingrédients retirés en gras
+    // sur fond noir, suppléments et remarque (préfixée #) en gras — mêmes règles que
+    // ticketItemModsHtml (aperçu HTML).
     const printMods = it => {
-      if (it.half) text('  ' + escAscii(it.half) + '\n');
       if (it.removed && it.removed.length) {
         bold(true); reverse(true);
         it.removed.forEach(r => text('  - ' + escAscii(r) + ' \n'));

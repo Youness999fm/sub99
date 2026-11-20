@@ -19,7 +19,7 @@ after(() => stopServer(proc));
 test('la route publique availability répond avec les clés attendues', async () => {
   const r = await new Client('x').get('availability.php');
   assert.equal(r.status, 200);
-  assert.deepEqual(Object.keys(r.json), ['misAJourLe', 'pizzasIndisponibles', 'ingredientsIndisponibles']);
+  assert.deepEqual(Object.keys(r.json), ['misAJourLe', 'pizzasIndisponibles', 'ingredientsIndisponibles', 'produitsIndisponibles']);
   assert.equal(r.headers.get('cache-control'), 'no-store');
   assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
   assert.equal((await new Client('x').get('availability')).status, 200, 'sans extension aussi');

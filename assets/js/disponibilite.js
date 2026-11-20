@@ -1,22 +1,27 @@
-/* Disponibilité des pizzas, côté client (menu.html).
+/* Disponibilité des pizzas ET des produits (pâtes, Subitowichs, Tex-Mex, salades, desserts,
+ * boissons), côté client (menu.html).
  *
  * Source : l'API (api/availability.php), alimentée par le commerçant. Secours : le fichier
  * assets/data/disponibilite.json, si le serveur ne répond pas (valeurs saisies à la main, non à jour).
- * Le serveur refuse de toute façon une pizza en rupture à la commande.
- * Règles (cadrage du 19/11/2026, sub99/reports/2026-11-19-reprise-site-cadrage.md) :
+ * Le serveur refuse de toute façon un article en rupture à la commande.
+ * Règles (cadrage du 19/11/2026, sub99/reports/2026-11-19-reprise-site-cadrage.md, étendues
+ * aux produits le 20/11/2026) :
  *  - une pizza est indisponible si elle figure dans « pizzasIndisponibles », ou si un de
- *    ses ingrédients fixes figure dans « ingredientsIndisponibles » ;
- *  - elle reste visible, grisée, avec un bandeau rouge « Victime de son succès » ;
- *    elle n'est plus commandable, ni directement, ni comme deuxième moitié ;
+ *    ses ingrédients fixes figure dans « ingredientsIndisponibles » ; un produit (pâtes,
+ *    Subitowich, Tex-Mex, salade, dessert, boisson) l'est de la même façon via
+ *    « produitsIndisponibles » (son nom) ou « ingredientsIndisponibles » (ses ingrédients fixes) ;
+ *  - l'article reste visible, grisé, avec un bandeau rouge « Victime de son succès » ;
+ *    il n'est plus commandable, ni directement (pizza ou produit), ni comme deuxième moitié (pizza) ;
  *  - garniture au choix (Calzone) : seule la garniture indisponible disparaît du choix ;
  *    la pizza ne disparaît entièrement que si toutes ses garnitures le sont ;
  *  - le mot « rupture » n'est jamais affiché côté client ;
  *  - noms tolérants : casse, accents, apostrophes typographiques et « œ » ne comptent pas,
  *    et « Calzone » vaut pour « Calzone (soufflée) ».
  *
- * Ordre de chargement : ce script vient APRÈS cart.js, qui construit les boutons de
- * commande et le catalogue de moitié-moitié. Il retire ou ajuste ce que cart.js a construit.
- * Tant que la disponibilité n'est pas lue, les boutons pizza restent cachés (disponibilite.css).
+ * Ordre de chargement : ce script vient APRÈS cart.js, qui construit les boutons de commande
+ * pizza (.pizza-widget) et produit (.add-to-cart), et le catalogue de moitié-moitié. Il retire
+ * ou ajuste ce que cart.js a construit. Tant que la disponibilité n'est pas lue, les boutons
+ * pizza restent cachés (disponibilite.css).
  */
 (function () {
   'use strict';
@@ -70,10 +75,10 @@
     return list.slice(0, -1).join(', ') + ' ou ' + list[list.length - 1];
   }
 
-  // Seules les pizzas ont un bouton de commande « pizza-widget » (cart.js).
-  function pizzaCards() {
+  // Les pizzas ont un bouton de commande « pizza-widget », les autres produits un « add-to-cart » (cart.js).
+  function orderableCards() {
     return Array.prototype.filter.call(document.querySelectorAll('.menu-item'), function (card) {
-      return card.querySelector('.pizza-widget');
+      return card.querySelector('.pizza-widget') || card.querySelector('.add-to-cart');
     });
   }
 
@@ -104,9 +109,9 @@
     return { name: nameEl ? nameEl.textContent.trim() : '', fixed: fixed, choice: choice };
   }
 
-  // Pizza indisponible : on retire son bouton de commande, on la grise, on pose le bandeau.
+  // Article indisponible (pizza ou produit) : on retire son bouton de commande, on le grise, on pose le bandeau.
   function markOff(card) {
-    const widget = card.querySelector('.pizza-widget');
+    const widget = card.querySelector('.pizza-widget') || card.querySelector('.add-to-cart');
     if (widget) widget.remove();
     card.classList.add('is-off');
     card.setAttribute('data-indisponible', '');
@@ -140,7 +145,7 @@
   }
 
   // Clés attendues dans le fichier : une autre clé est signalée (faute de frappe probable).
-  const KEYS = ['commentaire', 'misAJourLe', 'pizzasIndisponibles', 'ingredientsIndisponibles'];
+  const KEYS = ['commentaire', 'misAJourLe', 'pizzasIndisponibles', 'ingredientsIndisponibles', 'produitsIndisponibles'];
 
   function apply(data) {
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -152,26 +157,31 @@
     });
     const listedPizzas = asList(data.pizzasIndisponibles, 'pizzasIndisponibles');
     const listedIngredients = asList(data.ingredientsIndisponibles, 'ingredientsIndisponibles');
+    const listedProduits = asList(data.produitsIndisponibles, 'produitsIndisponibles');
     const outPizzas = listedPizzas.map(norm);
     const outIngredients = listedIngredients.map(norm);
+    const outProduits = listedProduits.map(norm);
     const knownPizzas = [];      // noms reconnus sur la carte (forme complète et forme courte)
-    const knownIngredients = []; // ingrédients fixes ou au choix des pizzas de la carte
+    const knownProduits = [];    // noms de produits (hors pizzas) reconnus sur la carte
+    const knownIngredients = []; // ingrédients fixes ou au choix des pizzas et produits de la carte
 
     // 1. On lit toutes les cartes avant de modifier quoi que ce soit.
-    const plan = pizzaCards().map(function (card) {
+    const plan = orderableCards().map(function (card) {
       const info = readCard(card);
+      const isPizza = !!card.querySelector('.pizza-widget');
       const keys = nameKeys(info.name);
-      keys.forEach(function (k) { knownPizzas.push(k); });
+      if (isPizza) keys.forEach(function (k) { knownPizzas.push(k); }); else knownProduits.push(norm(info.name));
       info.fixed.forEach(function (t) { knownIngredients.push(norm(t)); });
       const options = info.choice ? info.choice.options : [];
       options.forEach(function (t) { knownIngredients.push(norm(t)); });
 
       const left = options.filter(function (o) { return outIngredients.indexOf(norm(o)) === -1; });
       const blocked =
-        keys.some(function (k) { return outPizzas.indexOf(k) !== -1; }) ||
+        (isPizza && keys.some(function (k) { return outPizzas.indexOf(k) !== -1; })) ||
+        (!isPizza && outProduits.indexOf(norm(info.name)) !== -1) ||
         info.fixed.some(function (t) { return outIngredients.indexOf(norm(t)) !== -1; }) ||
         (options.length > 0 && left.length === 0);
-      return { card: card, info: info, options: options, left: left, blocked: blocked };
+      return { card: card, info: info, isPizza: isPizza, options: options, left: left, blocked: blocked };
     });
 
     // 2. Puis on modifie les cartes.
@@ -179,7 +189,7 @@
     plan.forEach(function (p) {
       if (p.blocked) {
         markOff(p.card);
-        off.push(norm(p.info.name));
+        if (p.isPizza) off.push(norm(p.info.name));
       } else if (p.left.length < p.options.length) {
         trimChoice(p.card, p.info, p.left);
       }
@@ -191,9 +201,11 @@
     });
 
     const unknownPizzas = listedPizzas.filter(function (p) { return knownPizzas.indexOf(norm(p)) === -1; });
+    const unknownProduits = listedProduits.filter(function (p) { return knownProduits.indexOf(norm(p)) === -1; });
     const unknownIngredients = listedIngredients.filter(function (i) { return knownIngredients.indexOf(norm(i)) === -1; });
     if (unknownPizzas.length) console.warn('Disponibilité : pizza introuvable sur cette page ->', unknownPizzas.join(', '));
-    if (unknownIngredients.length) console.warn('Disponibilité : ingrédient absent des pizzas ->', unknownIngredients.join(', '));
+    if (unknownProduits.length) console.warn('Disponibilité : produit introuvable sur cette page ->', unknownProduits.join(', '));
+    if (unknownIngredients.length) console.warn('Disponibilité : ingrédient absent des pizzas/produits ->', unknownIngredients.join(', '));
   }
 
   // Une réponse n'est acceptée que si elle contient les deux listes : sinon, repli sur le fichier.
