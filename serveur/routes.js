@@ -17,8 +17,11 @@ import owner_customers from './routes/owner_customers.js';
 import owner_login from './routes/owner_login.js';
 import owner_logout from './routes/owner_logout.js';
 import owner_me from './routes/owner_me.js';
+import owner_open_mode from './routes/owner_open_mode.js';
 import owner_order_decide from './routes/owner_order_decide.js';
 import owner_orders from './routes/owner_orders.js';
+import owner_print_ack from './routes/owner_print_ack.js';
+import owner_print_claim from './routes/owner_print_claim.js';
 import owner_recette_clear from './routes/owner_recette_clear.js';
 import owner_sessions from './routes/owner_sessions.js';
 import owner_sessions_revoke from './routes/owner_sessions_revoke.js';
@@ -41,8 +44,11 @@ export const ROUTES = {
   owner_login,
   owner_logout,
   owner_me,
+  owner_open_mode,
   owner_order_decide,
   owner_orders,
+  owner_print_ack,
+  owner_print_claim,
   owner_recette_clear,
   owner_sessions,
   owner_sessions_revoke,

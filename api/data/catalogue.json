@@ -1762,8 +1762,8 @@
       "source": "menu.html"
     },
     {
-      "name": "Fanta Orange canette",
-      "line_name": "Boisson Fanta Orange canette",
+      "name": "Canette Fanta orange",
+      "line_name": "Canette Fanta",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1781,8 +1781,8 @@
       "source": "menu.html"
     },
     {
-      "name": "Coca-Cola Goût Original canette",
-      "line_name": "Boisson Coca-Cola Goût Original canette",
+      "name": "Canette Coca-Cola",
+      "line_name": "Canette Coca",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1800,8 +1800,8 @@
       "source": "menu.html"
     },
     {
-      "name": "Coca-Cola Zero canette",
-      "line_name": "Boisson Coca-Cola Zero canette",
+      "name": "Canette Coca-Cola zéro",
+      "line_name": "Canette Coca zéro",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1819,8 +1819,8 @@
       "source": "menu.html"
     },
     {
-      "name": "Tropico Orange & Ananas canette",
-      "line_name": "Boisson Tropico Orange & Ananas canette",
+      "name": "Canette Tropico",
+      "line_name": "Canette Tropico",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1838,8 +1838,8 @@
       "source": "menu.html"
     },
     {
-      "name": "Lipton Peach Ice Tea canette",
-      "line_name": "Boisson Lipton Peach Ice Tea canette",
+      "name": "Canette Lipton iced tea",
+      "line_name": "Canette Lipton",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1857,8 +1857,8 @@
       "source": "menu.html"
     },
     {
-      "name": "Oasis Pomme Cassis Framboise canette",
-      "line_name": "Boisson Oasis Pomme Cassis Framboise canette",
+      "name": "Canette Oasis pomme cassis framboise",
+      "line_name": "Canette Oasis PCF",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1876,8 +1876,8 @@
       "source": "menu.html"
     },
     {
-      "name": "Coca-Cola Original Taste grande bouteille",
-      "line_name": "Boisson Coca-Cola Original Taste grande bouteille",
+      "name": "Maxi Coca",
+      "line_name": "Maxi Coca",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1895,8 +1895,8 @@
       "source": "menu.html"
     },
     {
-      "name": "Fanta Orange grande bouteille",
-      "line_name": "Boisson Fanta Orange grande bouteille",
+      "name": "Maxi Fanta",
+      "line_name": "Maxi Fanta",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1914,8 +1914,8 @@
       "source": "menu.html"
     },
     {
-      "name": "Tropico Orange & Ananas grande bouteille",
-      "line_name": "Boisson Tropico Orange & Ananas grande bouteille",
+      "name": "Maxi Tropico",
+      "line_name": "Maxi Tropico",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],

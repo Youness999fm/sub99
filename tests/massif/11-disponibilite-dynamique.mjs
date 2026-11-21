@@ -487,8 +487,8 @@ async function apiMatrice() {
   reinit();
   await pose(patron, 'product', 'Boisson Oasis Pomme Poire canette', 'out_manual');
   await verifier('produit « Boisson Oasis Pomme Poire canette » : refusé (quantité 2)', [ligne('Boisson Oasis Pomme Poire canette', '', { qty: 2 })], { noms: ['Boisson Oasis Pomme Poire canette'], ingredients: [] });
-  await verifier('… la grande bouteille passe', [ligne('Boisson Coca-Cola Original Taste grande bouteille', '')], { accepte: true });
-  await verifier('… « Boisson » seul n\'est pas un nom de la carte : pas de correspondance approximative (33cl reste le seul refusé)', [ligne('Boisson Coca-Cola Original Taste grande bouteille', ''), ligne('Boisson Oasis Pomme Poire canette', '')], { noms: ['Boisson Oasis Pomme Poire canette'], ingredients: [] });
+  await verifier('… une autre boisson passe', [ligne('Maxi Coca', '')], { accepte: true });
+  await verifier('… un nom de produit différent n\'est pas une correspondance approximative (seul « Oasis Pomme Poire » reste refusé)', [ligne('Maxi Coca', ''), ligne('Boisson Oasis Pomme Poire canette', '')], { noms: ['Boisson Oasis Pomme Poire canette'], ingredients: [] });
   reinit();
   await pose(patron, 'ingredient', 'poulet', 'out_manual');
   await verifier('ingrédient « poulet » : Tex-Mex Wings refusé (fixe de la tablette)', [ligne('Tex-Mex Wings (5 pièces)', '')], { noms: ['Tex-Mex Wings (5 pièces)'], ingredients: ['poulet'] });
@@ -783,7 +783,7 @@ async function apiRafaleStable() {
   await pose(patron, 'product', 'Boisson Oasis Pomme Poire canette', 'out_today');
   // Chaque « modèle » : lignes, verdict attendu, noms attendus.
   const M = [
-    { id: 'ok-1', lignes: () => [ligne('Kebab', 'Duo'), ligne('Pâtes Carbonara', ''), ligne('Boisson Coca-Cola Original Taste grande bouteille', '')], att: null },
+    { id: 'ok-1', lignes: () => [ligne('Kebab', 'Duo'), ligne('Pâtes Carbonara', ''), ligne('Maxi Coca', '')], att: null },
     { id: 'ok-2', lignes: () => [ligne('Calzone (soufflée) — Jambon', 'Duo'), ligne('3 Jambons', 'Quatro', { half: ['3 Jambons', 'Carnivora'] })], att: null },
     { id: 'ok-3', lignes: () => [ligne('Carolina', 'Solo', { extras: ['olives', 'miel'] }), ligne('Subitowich Milano', '', { qty: 2 })], att: null },
     { id: 'ko-pizza', lignes: () => [ligne('Régina', 'Solo')], att: { noms: ['Régina'], ing: ['champignons'] } },
@@ -855,7 +855,7 @@ const MODELES = [
   { id: 'libre-calz-jambon', f: () => ligne('Calzone (soufflée) — Jambon', 'Solo'), b: {} },
   { id: 'libre-bolo', f: () => ligne('Pâtes Bolognaise', ''), b: {} },
   { id: 'libre-milano', f: () => ligne('Subitowich Milano', '', { qty: 2 }), b: {} },
-  { id: 'libre-gb', f: () => ligne('Boisson Coca-Cola Original Taste grande bouteille', ''), b: {} },
+  { id: 'libre-gb', f: () => ligne('Maxi Coca', ''), b: {} },
   { id: 'libre-sp', f: () => ligne('Dessert Tiramisubito Spéculoos', ''), b: {} },
   { id: 'libre-nug', f: () => ligne('Tex-Mex Nuggets (4 pièces)', ''), b: {} },
   { id: 'libre-4f', f: () => ligne('4 Fromages', 'Quatro', { extras: ['olives'] }), b: {} },

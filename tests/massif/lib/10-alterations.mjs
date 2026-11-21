@@ -476,7 +476,7 @@ export const ALTERATIONS = [
         const t = O.totaux(O.calculerCommande(idx, { mode: 'delivery', items }, b.ville).lignes, 'delivery', b.ville);
         if (t.apres >= zone.min) continue;
         const corps = {
-          idempotency_key: b.corps.idempotency_key, mode: 'delivery', payment_methods: ['card'], cash_change_for: null, items,
+          idempotency_key: b.corps.idempotency_key, mode: 'delivery', payment_methods: ['card'], cash_change_for: null, hot_sauce: true, items,
           delivery_fee_cents: t.frais, total_cents: t.total
         };
         return {

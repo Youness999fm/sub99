@@ -40,10 +40,10 @@ const PRODUITS = {
   'Salade Exotique': 750, 'Salade Niçoise': 750, 'Salade Printanière': 750, 'Salade Di Roma': 750,
   'Dessert Tiramisubito Spéculoos': 350, 'Dessert Tiramisubito Oreo': 350, "Dessert Tiramisubito M&M's": 350,
   'Dessert Calzone Nutella': 650, 'Dessert Part de Tarte au Daim': 300,
-  'Boisson Oasis Pomme Poire canette': 150, 'Boisson Fanta Orange canette': 150, 'Boisson Coca-Cola Goût Original canette': 150,
-  'Boisson Coca-Cola Zero canette': 150, 'Boisson Tropico Orange & Ananas canette': 150, 'Boisson Lipton Peach Ice Tea canette': 150,
-  'Boisson Oasis Pomme Cassis Framboise canette': 150,
-  'Boisson Coca-Cola Original Taste grande bouteille': 300, 'Boisson Fanta Orange grande bouteille': 300, 'Boisson Tropico Orange & Ananas grande bouteille': 300
+  'Boisson Oasis Pomme Poire canette': 150, 'Canette Fanta': 150, 'Canette Coca': 150,
+  'Canette Coca zéro': 150, 'Canette Tropico': 150, 'Canette Lipton': 150,
+  'Canette Oasis PCF': 150,
+  'Maxi Coca': 300, 'Maxi Fanta': 300, 'Maxi Tropico': 300
 };
 
 const SUPPLEMENTS = [
@@ -101,7 +101,7 @@ export function carteImpaire(rng, catalogue = lireCatalogueFichier()) {
   });
   // Quelques prix de repère pour atteindre n'importe quel centime : boisson à 149, grande bouteille à 301.
   c.produits['Boisson Oasis Pomme Poire canette'] = 149;
-  c.produits['Boisson Coca-Cola Original Taste grande bouteille'] = 301;
+  c.produits['Maxi Coca'] = 301;
   return c;
 }
 
@@ -276,13 +276,15 @@ export function dedoublonner(tab) {
 }
 
 /** Corps envoyé à order_create. `frais` et `total` : valeurs forcées (tests d'écart) ; sinon le calcul indépendant. */
-export function corpsCommande({ cle, mode = 'delivery', moyens = [], billet = null, lignes: ls, calc, frais, total }) {
+export function corpsCommande({ cle, mode = 'delivery', moyens = [], billet = null, hotSauce, lignes: ls, calc, frais, total }) {
   const livraison = mode === 'delivery';
   return {
     idempotency_key: cle,
     mode,
     payment_methods: livraison ? moyens : [],
     cash_change_for: livraison && moyens.includes('cash') ? billet : null,
+    // Sauce piquante (livraison uniquement, SBT-009) : choix obligatoire côté serveur.
+    hot_sauce: livraison ? (hotSauce ?? true) : null,
     items: ls.map((l) => l.envoi),
     delivery_fee_cents: frais ?? calc.frais,
     total_cents: total ?? calc.total
@@ -339,8 +341,11 @@ export function comparerVue(vue, att, { proprietaire = false } = {}) {
     if (c === 'items') {
       const lv = Array.isArray(vue.items) ? vue.items : [];
       if (lv.length !== att.items.length) { ecarts.push(`items : ${lv.length} ligne(s) / attendu ${att.items.length}`); continue; }
+      // category (SBT-006, catégorie du catalogue au moment de la commande) : hors du périmètre de cette
+      // batterie (prix/promotions en livraison), jamais fournie par `attendu` -> retirée avant comparaison.
       att.items.forEach((a, i) => {
-        if (!isDeepStrictEqual(lv[i], a)) ecarts.push(`items[${i}] : ${abrege(lv[i])} / attendu ${abrege(a)}`);
+        const { category, ...sansCategorie } = lv[i] || {};
+        if (!isDeepStrictEqual(sansCategorie, a)) ecarts.push(`items[${i}] : ${abrege(lv[i])} / attendu ${abrege(a)}`);
       });
     } else if (c === 'delivery_address' && att[c] !== null) {
       // Comparaison par sous-ensemble : seuls les champs présents dans l'attendu sont vérifiés, pour

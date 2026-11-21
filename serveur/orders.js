@@ -72,6 +72,16 @@ export function validateOrderBody(b) {
     }
   }
 
+  // Sauce piquante (livraison uniquement, SBT-009) : choix obligatoire, jamais pour un retrait.
+  let hotSauce = null;
+  if (mode === 'delivery') {
+    if (typeof b.hot_sauce !== 'boolean') {
+      err.hot_sauce = 'Précisez si vous voulez de la sauce piquante.';
+    } else {
+      hotSauce = b.hot_sauce;
+    }
+  }
+
   const itemsIn = liste(b.items ?? null);
   const items = [];
   if (itemsIn === null) {
@@ -199,6 +209,7 @@ export function validateOrderBody(b) {
     mode,
     payment_methods: mode === 'delivery' ? methods : [],
     cash_change_for: mode === 'delivery' ? cash : null,
+    hot_sauce: hotSauce,
     items,
     delivery_fee_cents: b.delivery_fee_cents,
     total_cents: b.total_cents,
@@ -217,7 +228,7 @@ function jsonCanonique(v) {
  * quel que soit l'ordre des clés envoyé.
  */
 export function orderPayloadHash(o) {
-  const canon = [o.mode, o.payment_methods, o.cash_change_for, o.items, o.delivery_fee_cents, o.total_cents, o.scheduled_for];
+  const canon = [o.mode, o.payment_methods, o.cash_change_for, o.hot_sauce, o.items, o.delivery_fee_cents, o.total_cents, o.scheduled_for];
   return crypto.createHash('sha256').update(jsonCanonique(canon)).digest('hex');
 }
 
@@ -308,7 +319,8 @@ export async function orderItemsByOrder(orderIds) {
       removed: jsonOuVide(r.removed_json, []),
       extras: jsonOuVide(r.extras_json, []),
       half: r.half_json === null ? null : jsonOuVide(r.half_json, null),
-      note: String(r.note)
+      note: String(r.note),
+      category: r.category === null || r.category === undefined ? null : String(r.category)
     });
   }
   return map;
@@ -330,6 +342,7 @@ export function orderView(o, items, owner) {
     delivery_address: o.mode === 'delivery' ? { street: o.delivery_street, city: o.delivery_city, housing_type: o.delivery_housing_type } : null,
     payment_methods: Array.isArray(methods) ? methods : [],
     cash_change_for: o.cash_change_for === null ? null : Number(o.cash_change_for),
+    hot_sauce: o.hot_sauce === null || o.hot_sauce === undefined ? null : Boolean(Number(o.hot_sauce)),
     items,
     products_cents: Number(o.products_cents),
     promo_cents: Number(o.promo_cents),

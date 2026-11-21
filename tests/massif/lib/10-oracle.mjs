@@ -30,7 +30,7 @@ export const BAREME = {
   legumes: { Solo: 100, Duo: 150, Quatro: 250, XXL: 350 },
   viandes: { Solo: 150, Duo: 200, Quatro: 300, XXL: 400 },
   categories: { pates: 850, subitowichs: 600, 'tex-mex': 500, salades: 750 },
-  fiches: { 'Oasis Pomme Poire canette': 150, 'Coca-Cola Original Taste grande bouteille': 300, 'Tiramisubito Oreo': 350, 'Tiramisubito Spéculoos': 350, "Tiramisubito M&M's": 350, 'Calzone Nutella': 650, 'Part de Tarte au Daim': 300 }
+  fiches: { 'Oasis Pomme Poire canette': 150, 'Maxi Coca': 300, 'Tiramisubito Oreo': 350, 'Tiramisubito Spéculoos': 350, "Tiramisubito M&M's": 350, 'Calzone Nutella': 650, 'Part de Tarte au Daim': 300 }
 };
 
 // ------------------------------------------------------------------ graine
@@ -387,6 +387,8 @@ export function genererCommande(r, idx, o = {}) {
     mode,
     payment_methods: pay.payment_methods,
     cash_change_for: pay.cash_change_for,
+    // Sauce piquante (livraison uniquement, SBT-009) : choix obligatoire côté serveur.
+    hot_sauce: mode === 'delivery' ? (o.hotSauce ?? r.vrai(0.5)) : null,
     items,
     delivery_fee_cents: calcul.t.frais,
     total_cents: calcul.t.total

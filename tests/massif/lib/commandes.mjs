@@ -123,6 +123,8 @@ export function construireCommande(r, opts = {}) {
     mode,
     payment_methods: paiements,
     cash_change_for: paiements.includes('cash') ? (opts.billet ?? r.choix(CASH_CHANGE_CHOICES)) : null,
+    // Sauce piquante (livraison uniquement, SBT-009) : choix obligatoire côté serveur, jamais de défaut silencieux.
+    hot_sauce: mode === 'delivery' ? (opts.hotSauce ?? r.vrai(0.5)) : null,
     items,
     delivery_fee_cents: totals.delivery_fee_cents,
     total_cents: totals.total_cents

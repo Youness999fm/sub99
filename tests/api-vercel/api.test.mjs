@@ -292,6 +292,7 @@ test('2. comptes clients', async (t) => {
 // ---------------------------------------------------------------- 3. commandes
 const orderBody = (over = {}) => ({
   idempotency_key: newKey(), mode: 'pickup', payment_methods: [], cash_change_for: null,
+  hot_sauce: over.mode === 'delivery' ? true : null,
   items: [pizza('Régina', 'Duo', 1600)], delivery_fee_cents: 0, total_cents: 1600, ...over,
 });
 const countOrders = () => db.prepare('SELECT COUNT(*) AS n FROM orders').get().n;
@@ -379,6 +380,25 @@ test('3. création de commande', async (t) => {
     const none = await custC.post('order_create.php', orderBody({ mode: 'delivery', payment_methods: [], items: [pizza('Régina', 'XXL', 3300)], total_cents: 3300 }));
     expectError(none, 422, 'validation');
     assert.ok(none.json.fields.payment_methods);
+  });
+
+  await t.test('sauce piquante (SBT-009) : obligatoire en livraison, ignorée à l\'emporter, oui/non conservés', async () => {
+    const sansChoix = await custC.post('order_create.php', orderBody({ mode: 'delivery', payment_methods: ['card'], hot_sauce: undefined, items: [pizza('Régina', 'XXL', 3300)], total_cents: 3300 }));
+    expectError(sansChoix, 422, 'validation');
+    assert.ok(sansChoix.json.fields.hot_sauce);
+    const invalide = await custC.post('order_create.php', orderBody({ mode: 'delivery', payment_methods: ['card'], hot_sauce: 'oui', items: [pizza('Régina', 'XXL', 3300)], total_cents: 3300 }));
+    expectError(invalide, 422, 'validation');
+    assert.ok(invalide.json.fields.hot_sauce);
+    const oui = await custC.post('order_create.php', orderBody({ mode: 'delivery', payment_methods: ['card'], hot_sauce: true, items: [pizza('Régina', 'XXL', 3300)], total_cents: 3300 }));
+    assert.equal(oui.status, 201, oui.text);
+    assert.equal(oui.json.order.hot_sauce, true);
+    const non = await custC.post('order_create.php', orderBody({ mode: 'delivery', payment_methods: ['card'], hot_sauce: false, items: [pizza('Régina', 'XXL', 3300)], total_cents: 3300 }));
+    assert.equal(non.status, 201, non.text);
+    assert.equal(non.json.order.hot_sauce, false);
+    // À l'emporter : jamais demandée, toujours null même si envoyée (SBT-009 : "Do not display for takeaway").
+    const emporter = await custC.post('order_create.php', orderBody({ mode: 'pickup', hot_sauce: true, items: [pizza('Régina', 'XXL', 3300)], total_cents: 3300 }));
+    assert.equal(emporter.status, 201, emporter.text);
+    assert.equal(emporter.json.order.hot_sauce, null);
   });
 
   await t.test('panier vide, lignes invalides', async () => {
@@ -618,9 +638,9 @@ test('5. disponibilités', async (t) => {
 // ---------------------------------------------------------------- 6. réglages
 test('6. réglages', async () => {
   const g = await ownerA.get('owner_settings.php');
-  assert.deepEqual(g.json, { ok: true, default_delay_minutes: 30, store_open: true });
+  assert.deepEqual(g.json, { ok: true, default_delay_minutes: 30 });
   const p = await ownerA.post('owner_settings.php', { default_delay_minutes: 40 });
-  assert.deepEqual(p.json, { ok: true, default_delay_minutes: 40, store_open: true });
+  assert.deepEqual(p.json, { ok: true, default_delay_minutes: 40 });
   assert.equal((await ownerA.get('owner_settings.php')).json.default_delay_minutes, 40);
   expectError(await ownerA.post('owner_settings.php', { default_delay_minutes: 45 }), 422, 'validation');
   expectError(await ownerA.post('owner_settings.php', { default_delay_minutes: '40' }), 422, 'validation');
@@ -631,14 +651,16 @@ test('6. réglages', async () => {
   await ownerA.post('owner_settings.php', { default_delay_minutes: 40 });
   assert.equal((await ownerA.get('owner_settings.php')).json.default_delay_minutes, 40);
 
-  // Bouton ouvert/fermé : fermeture manuelle, prioritaire sur l'horaire (créneau « off » dans ces tests).
-  expectError(await ownerA.post('owner_settings.php', { store_open: 'oui' }), 422, 'validation');
-  const closed = await ownerA.post('owner_settings.php', { store_open: false });
-  assert.deepEqual(closed.json, { ok: true, default_delay_minutes: 40, store_open: false });
-  assert.equal((await ownerA.get('owner_settings.php')).json.store_open, false);
+  // Ouverture/fermeture manuelle (owner_open_mode.php, accès supérieur) : fermeture forcée, prioritaire sur
+  // l'horaire (créneau « off » dans ces tests) pour une commande « dès que possible » seulement.
+  expectError(await ownerA.post('owner_open_mode.php', { mode: 'bascule', code: SUPER_CODE }), 422, 'validation');
+  expectError(await ownerA.post('owner_open_mode.php', { mode: 'closed', code: 'faux' }), 403, 'invalid_super_code');
+  const closed = await ownerA.post('owner_open_mode.php', { mode: 'closed', code: SUPER_CODE });
+  assert.deepEqual(closed.json, { ok: true, mode: 'closed', ouvert: false, auto_ouvert: true, expires_at: null, prochaine_transition: null, horaire_auto: null });
+  assert.equal((await ownerA.get('owner_open_mode.php')).json.mode, 'closed');
   expectError(await custA.post('order_create.php', orderBody({ items: [pizza('Régina', 'Duo', 1600)] })), 422, 'closed');
-  const reopened = await ownerA.post('owner_settings.php', { store_open: true });
-  assert.equal(reopened.json.store_open, true);
+  const reopened = await ownerA.post('owner_open_mode.php', { mode: 'auto', code: SUPER_CODE });
+  assert.equal(reopened.json.mode, 'auto');
   const r = await custA.post('order_create.php', orderBody({ items: [pizza('Régina', 'Duo', 1600)] }));
   assert.equal(r.status, 201, r.text);
 });

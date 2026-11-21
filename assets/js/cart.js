@@ -212,13 +212,18 @@ const SUBITO_CART_CONFIG = {
   // mode sans s'en rendre compte. Vrai dès qu'un choix a été fait une fois (y compris restauré).
   let modeChosen = false;
 
+  // Sauce piquante (livraison uniquement, SBT-009) : choix obligatoire avant de commander, comme modeChosen —
+  // jamais de défaut silencieux. null = pas encore choisi ; true/false sinon. Sans effet et jamais affiché
+  // à l'emporter (remis à null à chaque chargement de page, comme orderMode).
+  let hotSauceChoice = null;
+
   // Commande planifiée (type Uber Eats) : "now" (dès que possible, par défaut) ou "later" (le client choisit
   // un jour + un créneau de 30 min parmi ceux renvoyés par schedule_slots.php). Remis à zéro à chaque
   // chargement de page, comme orderMode.
   const SCHEDULE_TZ = "Europe/Paris";
   let scheduleChoice = "now";
   let scheduledFor = null; // ISO UTC du créneau choisi, ou null tant que rien n'est sélectionné
-  let scheduleData = null; // réponse mise en cache de schedule_slots.php ({ manually_closed, days: [...] })
+  let scheduleData = null; // réponse mise en cache de schedule_slots.php ({ immediate_open, days: [...] })
   let scheduleLoading = false;
   let scheduleError = false;
   let scheduleActiveDate = null; // date (AAAA-MM-JJ) affichée dans les onglets jours
@@ -241,7 +246,7 @@ const SUBITO_CART_CONFIG = {
       .then(function (r) { return r.json(); })
       .then(function (data) {
         scheduleLoading = false;
-        scheduleData = data && Array.isArray(data.days) ? data : { manually_closed: true, days: [] };
+        scheduleData = data && Array.isArray(data.days) ? data : { immediate_open: false, days: [] };
         scheduleActiveDate = scheduleData.days.length ? scheduleData.days[0].date : null;
         renderDrawerExtra(sortedCart());
       })
@@ -255,7 +260,7 @@ const SUBITO_CART_CONFIG = {
   function scheduleLaterHtml() {
     if (scheduleLoading) return '<p class="schedule-status schedule-status--pending">Chargement des horaires…</p>';
     if (scheduleError) return '<p class="schedule-status schedule-status--error">Impossible de charger les horaires — réessayez dans un instant.</p>';
-    if (!scheduleData || scheduleData.manually_closed || !scheduleData.days.length) {
+    if (!scheduleData || !scheduleData.days.length) {
       return '<p class="schedule-status schedule-status--warn">Aucun horaire disponible pour une commande programmée pour le moment.</p>';
     }
     const days = scheduleData.days;
@@ -559,7 +564,11 @@ const SUBITO_CART_CONFIG = {
     boissons: "Boisson"
   };
 
-  function qualifiedName(name, category) {
+  // data-ticket-name (sur le <h3 class="menu-item__name">) : libellé de ticket propre à l'article, prioritaire
+  // sur la règle générique de préfixe de catégorie (ex. boissons : "Canette Coca-Cola" -> ticket "Canette Coca").
+  // Doit rester synchronisé avec tools/build-catalogue.mjs (qualifiedName), seule source du line_name du catalogue.
+  function qualifiedName(name, category, ticketOverride) {
+    if (ticketOverride) return ticketOverride;
     if (!category) return name;
     const label = CATEGORY_LABELS[category.id];
     if (!label) return name;
@@ -1302,7 +1311,7 @@ const SUBITO_CART_CONFIG = {
 
       const ownPriceEl = item.querySelector(".menu-item__price");
       const category = item.closest(".menu-category");
-      const displayName = qualifiedName(name, category);
+      const displayName = qualifiedName(name, category, nameEl.getAttribute("data-ticket-name"));
 
       if (ownPriceEl) {
         const price = parsePrice(ownPriceEl.textContent);
@@ -1514,6 +1523,18 @@ const SUBITO_CART_CONFIG = {
     renderStickyFooter(cart);
   }
 
+  // Sauce piquante déjà choisie (SBT-009) : petit bandeau compact, modifiable à tout moment comme le mode
+  // de retrait — jamais de nouveau prompt bloquant une fois le choix fait.
+  function hotSauceToggleHtml() {
+    return (
+      '<div class="hot-sauce-toggle hot-sauce-toggle--compact" role="group" aria-label="Sauce piquante">' +
+        '<span class="hot-sauce-toggle__label">' + SubitoIcons.svg("flame", "1em") + " Sauce piquante</span>" +
+        '<button type="button" class="hot-sauce-toggle__btn' + (hotSauceChoice === true ? " is-active" : "") + '" data-hot-sauce="oui">Oui</button>' +
+        '<button type="button" class="hot-sauce-toggle__btn' + (hotSauceChoice === false ? " is-active" : "") + '" data-hot-sauce="non">Non</button>' +
+      "</div>"
+    );
+  }
+
   // Bloc secondaire (sous-total, promo, nudge, envoyer, mentions,
   // vider le panier) : affiché À LA SUITE de la liste des pizzas, à
   // l'intérieur de la zone qui défile. Avant, tout ça vivait dans un pied
@@ -1564,8 +1585,37 @@ const SUBITO_CART_CONFIG = {
       return;
     }
 
+    if (isDelivery && hotSauceChoice === null) {
+      // Choix obligatoire avant de voir le reste (horaire, paiement, total), comme modeChosen ci-dessus —
+      // jamais de défaut silencieux sur la sauce piquante.
+      extra.innerHTML =
+        modeToggleHtml +
+        '<p class="checkout-disclaimer checkout-disclaimer--prompt">' + SubitoIcons.svg("flame", "1em") + ' Voulez-vous de la sauce piquante avec votre livraison ?</p>' +
+        '<div class="hot-sauce-toggle" role="group" aria-label="Sauce piquante">' +
+          '<button type="button" class="hot-sauce-toggle__btn" data-hot-sauce="oui">Oui</button>' +
+          '<button type="button" class="hot-sauce-toggle__btn" data-hot-sauce="non">Non</button>' +
+        '</div>';
+      extra.querySelectorAll(".order-mode-toggle__btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          orderMode = btn.getAttribute("data-mode");
+          const sorted = sortedCart();
+          renderDrawerExtra(sorted);
+          renderStickyFooter(sorted);
+          renderBarTotal(sorted);
+        });
+      });
+      extra.querySelectorAll(".hot-sauce-toggle__btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          hotSauceChoice = btn.getAttribute("data-hot-sauce") === "oui";
+          renderDrawerExtra(sortedCart());
+        });
+      });
+      return;
+    }
+
     extra.innerHTML =
       modeToggleHtml +
+      (isDelivery ? hotSauceToggleHtml() : "") +
       '<div class="schedule-toggle" role="group" aria-label="Horaire de la commande">' +
         '<button type="button" class="schedule-toggle__btn' + (scheduleChoice === "now" ? " is-active" : "") + '" data-when="now">' + SubitoIcons.svg("clock") + ' Dès que possible</button>' +
         '<button type="button" class="schedule-toggle__btn' + (scheduleChoice === "later" ? " is-active" : "") + '" data-when="later">' + SubitoIcons.svg("clock") + ' Plus tard</button>' +
@@ -1592,6 +1642,16 @@ const SUBITO_CART_CONFIG = {
         renderDrawerExtra(sorted);
         renderStickyFooter(sorted);
         renderBarTotal(sorted);
+      });
+    });
+
+    extra.querySelectorAll(".hot-sauce-toggle__btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (cartLocked()) { showToast("Commande en cours d’envoi : changez la sauce piquante après la réponse."); return; }
+        const choice = btn.getAttribute("data-hot-sauce") === "oui";
+        if (choice === hotSauceChoice) return;
+        hotSauceChoice = choice;
+        renderDrawerExtra(sortedCart());
       });
     });
 
@@ -1838,6 +1898,7 @@ const SUBITO_CART_CONFIG = {
   const PENDING_ORDER_MODE_KEY = "subito_pending_order_mode";
   const PENDING_PAYMENT_KEY = "subito_pending_payment_methods";
   const PENDING_CASH_KEY = "subito_pending_cash_change";
+  const PENDING_HOT_SAUCE_KEY = "subito_pending_hot_sauce";
   const RESUME_PARAM = "subito_resume";
   // Posé par compte.js uniquement au retour légitime d'une connexion : sans lui, un lien ?subito_resume=1 n'envoie rien.
   const RESUME_OK_KEY = "subito_resume_ok";
@@ -1862,6 +1923,7 @@ const SUBITO_CART_CONFIG = {
   function clearPendingPaymentState() {
     sessionStorage.removeItem(PENDING_PAYMENT_KEY);
     sessionStorage.removeItem(PENDING_CASH_KEY);
+    sessionStorage.removeItem(PENDING_HOT_SAUCE_KEY);
   }
 
   // Vérifications avant envoi : renvoie le message à afficher, ou null si la commande peut partir.
@@ -1876,6 +1938,9 @@ const SUBITO_CART_CONFIG = {
       return SubitoIcons.svg("clock") + " Choisissez un jour et une heure pour votre commande programmée.";
     }
     if (orderMode !== "delivery") return null;
+    if (hotSauceChoice === null) {
+      return SubitoIcons.svg("flame", "1em") + " Précisez si vous voulez de la sauce piquante.";
+    }
     const zone = findDeliveryZone(session.city);
     if (!session.city || !zone) {
       return SubitoIcons.svg("map-pin") + " Ajoutez votre adresse dans Mon compte pour commander en livraison.";
@@ -1907,6 +1972,7 @@ const SUBITO_CART_CONFIG = {
     sessionStorage.setItem(PENDING_CART_KEY, localStorage.getItem(SUBITO_CART_CONFIG.storageKey) || "");
     if (orderMode === "delivery" && paymentMethods.length) sessionStorage.setItem(PENDING_PAYMENT_KEY, JSON.stringify(paymentMethods));
     if (orderMode === "delivery" && paymentMethods.indexOf("cash") !== -1 && cashChangeFor !== null) sessionStorage.setItem(PENDING_CASH_KEY, String(cashChangeFor));
+    if (orderMode === "delivery" && hotSauceChoice !== null) sessionStorage.setItem(PENDING_HOT_SAUCE_KEY, hotSauceChoice ? "1" : "0");
     const here = window.location.pathname + window.location.hash;
     window.location.href = "compte.html?retour=" + encodeURIComponent(here);
   }
@@ -2210,6 +2276,7 @@ const SUBITO_CART_CONFIG = {
       mode: orderMode,
       payment_methods: orderMode === "delivery" ? paymentMethods.slice() : [],
       cash_change_for: (orderMode === "delivery" && paymentMethods.indexOf("cash") !== -1) ? cashChangeFor : null,
+      hot_sauce: orderMode === "delivery" ? hotSauceChoice : null,
       items: cart.map(function (line) {
         return {
           name: line.name,
@@ -2341,6 +2408,9 @@ const SUBITO_CART_CONFIG = {
       const note = parseInt(savedCash, 10);
       if (!isNaN(note)) cashChangeFor = note;
     }
+    // La sauce piquante ne se restaure qu'en livraison (sans effet et jamais affichée à l'emporter).
+    const savedHotSauce = sessionStorage.getItem(PENDING_HOT_SAUCE_KEY);
+    hotSauceChoice = (savedHotSauce !== null && orderMode === "delivery") ? savedHotSauce === "1" : null;
     clearPendingPaymentState();
     if (!readCart().length) return;
     openDrawer();

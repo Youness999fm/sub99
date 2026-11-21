@@ -1,4 +1,5 @@
-// GET/POST owner_settings — délai par défaut, ouverture/fermeture manuelle des commandes.
+// GET/POST owner_settings — délai par défaut. L'ouverture/fermeture manuelle du restaurant est réservée à
+// l'accès supérieur : voir owner_open_mode.php.
 import { allowMethods, readJsonBody, failValidation, ok } from '../core.js';
 import { requireOwner } from '../auth.js';
 import { one, exec, estViolationUnique } from '../db.js';
@@ -29,17 +30,10 @@ export default async function ownerSettings(c) {
       }
       await ecrireReglage('default_delay_minutes', String(d));
     }
-    if (b.store_open !== undefined) {
-      if (typeof b.store_open !== 'boolean') failValidation({ store_open: 'Valeur attendue : vrai ou faux.' });
-      await ecrireReglage('store_open', b.store_open ? '1' : '0');
-    }
   }
 
   const delayRow = await one('SELECT svalue FROM settings WHERE skey = ?', ['default_delay_minutes']);
   const default_delay_minutes = delayRow !== null && /^[0-9]+$/.test(String(delayRow.svalue)) ? Number(delayRow.svalue) : 30;
 
-  const openRow = await one('SELECT svalue FROM settings WHERE skey = ?', ['store_open']);
-  const store_open = openRow === null || openRow.svalue !== '0';
-
-  return ok({ default_delay_minutes, store_open });
+  return ok({ default_delay_minutes });
 }

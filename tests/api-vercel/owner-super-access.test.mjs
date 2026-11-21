@@ -38,6 +38,7 @@ const pizza = (name, variant, cents) => ({ name, variant, qty: 1, unit_price_cen
 let keySeq = 0;
 const orderBody = (over = {}) => ({
   idempotency_key: `super-test-${Date.now()}-${++keySeq}`, mode: 'pickup', payment_methods: [], cash_change_for: null,
+  hot_sauce: over.mode === 'delivery' ? true : null,
   items: [pizza('Régina', 'Duo', 1600)], delivery_fee_cents: 0, total_cents: 1600, ...over,
 });
 

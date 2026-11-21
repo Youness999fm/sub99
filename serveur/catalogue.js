@@ -165,7 +165,7 @@ export function catalogueResolveLine(it) {
 export function catalogueCanonicalItems(items) {
   return items.map((it) => {
     const r = catalogueResolveLine(it);
-    return r.error ? { ...it } : { ...it, name: r.name, half: r.half_names };
+    return r.error ? { ...it } : { ...it, name: r.name, half: r.half_names, category: String(r.product.category) };
   });
 }
 

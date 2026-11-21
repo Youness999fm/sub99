@@ -8,6 +8,7 @@ import { exec } from '../db.js';
 import { requireOwner } from '../auth.js';
 import { DELAY_CHOICES, DELAY_IMMEDIATE, nowUtc } from '../util.js';
 import { orderLoad, orderViews } from '../orders.js';
+import { creerTacheImpression } from '../impression.js';
 
 export default async function ownerOrderDecide(c) {
   allowMethods(c, ['POST']);
@@ -55,6 +56,12 @@ export default async function ownerOrderDecide(c) {
         { status: current, delay_minutes: currentDelay });
     }
     replayed = true;
+  }
+
+  // Commande planifiée tout juste acceptée (SBT-005) : tâche d'impression de préparation à H-45. Idempotent
+  // (contrainte unique sur order_id) : sans effet sur un rejeu d'acceptation.
+  if (action === 'accept' && order.scheduled_for !== null) {
+    await creerTacheImpression(id, String(order.scheduled_for));
   }
 
   return ok({ order: (await orderViews([order], true))[0], replayed });

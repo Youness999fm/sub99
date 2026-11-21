@@ -55,6 +55,7 @@ function cmd(items, o = {}) {
     mode,
     payment_methods: a('paiements', mode === 'delivery' ? ['card'] : []),
     cash_change_for: a('billet', null),
+    hot_sauce: a('hotSauce', mode === 'delivery' ? true : null),
     items,
     delivery_fee_cents: a('frais', entier(decl && decl.frais, 0)),
     total_cents: a('total', entier(decl && decl.total, 0))

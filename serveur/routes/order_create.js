@@ -5,7 +5,7 @@ import { one, transaction, estViolationUnique } from '../db.js';
 import { requireCustomer } from '../auth.js';
 import { throttleGuard, throttleHit } from '../throttle.js';
 import { DELIVERY_ZONES, nowUtc, serviceDay, utcToEpoch } from '../util.js';
-import { creneauActif, commandesOuvertes, minutesParis, libelleHeure, fermetureManuelle } from '../horaires.js';
+import { libelleHeure, etatOuverture } from '../horaires.js';
 import { creneauValide } from '../planification.js';
 import {
   validateOrderBody, orderPayloadHash, orderEnforceCatalogue, computeOrderTotals, orderViews, orderLoad, phpTrim
@@ -42,19 +42,19 @@ export default async function orderCreate(c) {
   const existing = await one('SELECT * FROM orders WHERE customer_id = ? AND idempotency_key = ?', [customerId, o.idempotency_key]);
   if (existing !== null) return replayOrConflict(existing);
 
-  // Fermeture manuelle (bouton commerçant) : prioritaire sur l'horaire programmé.
-  if (await fermetureManuelle()) {
-    fail(422, 'closed', 'Le commerçant a fermé la prise de commandes pour le moment. Réessayez plus tard.');
-  }
-
   if (o.scheduled_for === null) {
-    // Commande « dès que possible » : en dehors du créneau, aucune commande nouvelle (personne ne la verrait).
-    const creneau = creneauActif();
-    if (!commandesOuvertes(creneau, minutesParis())) {
-      fail(422, 'closed', 'Les commandes en ligne sont fermées pour le moment.', {
-        opens_at: libelleHeure(creneau.debut),
-        closes_at: libelleHeure(creneau.fin)
-      });
+    // Commande « dès que possible » : fermeture manuelle (FORCE_CLOSED) OU hors créneau automatique (AUTO) ->
+    // aucune commande nouvelle (personne ne la verrait). Jamais appliqué aux commandes planifiées (SBT-003) :
+    // le client doit pouvoir programmer une commande même restaurant fermé.
+    const etat = await etatOuverture();
+    if (!etat.ouvert) {
+      // Fermeture manuelle : pas d'heure annoncée (le commerçant peut rouvrir à tout moment, avant l'expiration
+      // automatique de la bascule). Fermé par l'horaire automatique : on annonce l'heure d'ouverture habituelle.
+      fail(422, 'closed',
+        etat.mode === 'closed'
+          ? 'Le commerçant a fermé la prise de commandes pour le moment. Réessayez plus tard.'
+          : 'Les commandes en ligne sont fermées pour le moment.',
+        etat.mode === 'auto' && etat.creneau ? { opens_at: libelleHeure(etat.creneau.debut), closes_at: libelleHeure(etat.creneau.fin) } : {});
     }
   } else {
     // Commande planifiée : le créneau choisi doit être un horaire réellement proposé (délai, alignement, fenêtre de retrait 18h20-22h30).
@@ -125,15 +125,16 @@ export default async function orderCreate(c) {
       const id = await tx.insert(
         `INSERT INTO orders (customer_id, idempotency_key, payload_hash, status, mode,
             customer_first_name, customer_last_name, customer_phone, customer_email,
-            delivery_street, delivery_city, delivery_housing_type, payment_methods, cash_change_for,
+            delivery_street, delivery_city, delivery_housing_type, payment_methods, cash_change_for, hot_sauce,
             products_cents, promo_cents, delivery_fee_cents, total_cents, delay_minutes,
             created_at, accepted_at, refused_at, service_day, scheduled_for)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, ?, ?)`,
         [
           customerId, o.idempotency_key, payloadHash, 'new', o.mode,
           String(customer.first_name), String(customer.last_name),
           String(customer.phone), String(customer.email),
           street, city, housingType, JSON.stringify(o.payment_methods), o.cash_change_for,
+          o.hot_sauce === null ? null : (o.hot_sauce ? 1 : 0),
           t.products_cents, t.promo_cents, t.delivery_fee_cents, t.total_cents,
           now, serviceDay(), o.scheduled_for
         ]
@@ -142,11 +143,11 @@ export default async function orderCreate(c) {
         const it = o.items[pos];
         await tx.insert(
           `INSERT INTO order_items (order_id, position, name, variant, qty, unit_price_cents, line_total_cents,
-              removed_json, extras_json, half_json, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              removed_json, extras_json, half_json, note, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id, pos, it.name, it.variant, it.qty, it.unit_price_cents, it.unit_price_cents * it.qty,
             JSON.stringify(it.removed), JSON.stringify(it.extras),
-            it.half === null ? null : JSON.stringify(it.half), it.note
+            it.half === null ? null : JSON.stringify(it.half), it.note, it.category ?? null
           ]
         );
       }

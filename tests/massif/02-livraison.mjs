@@ -448,7 +448,7 @@ async function partie2() {
   // Types de lignes en livraison (zone Hénin-Beaumont, minimum 1000).
   const types = [
     ['pizza à composer (base au choix) Duo', [{ type: 'composer', taille: 'Duo', base: 'crème fraîche' }]],
-    ['pizza à composer sans base, Solo + boisson', [{ type: 'composer', taille: 'Solo' }, { type: 'produit', nom: 'Boisson Coca-Cola Original Taste grande bouteille' }]],
+    ['pizza à composer sans base, Solo + boisson', [{ type: 'composer', taille: 'Solo' }, { type: 'produit', nom: 'Maxi Coca' }]],
     ['calzone avec garniture (kebab) Solo', [{ type: 'calzone', taille: 'Solo', garniture: 'kebab' }]],
     ['moitié-moitié Duo (Régina / Kebab)', [{ type: 'pizza', nom: 'Régina', taille: 'Duo', moitie: 'Kebab' }]],
     ['moitié-moitié XXL (Subito / Campione) et Solo', [{ type: 'pizza', nom: 'Subito', taille: 'XXL', moitie: 'Campione' }, { type: 'pizza', nom: 'Neptune', taille: 'Solo' }]],

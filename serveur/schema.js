@@ -35,6 +35,8 @@ export const TABLES = {
       ['customer_phone', 'str:20', false], ['customer_email', 'str:190', false],
       ['delivery_street', 'str:150', true], ['delivery_city', 'str:60', true], ['delivery_housing_type', 'str:20', true],
       ['payment_methods', 'text', false], ['cash_change_for', 'int', true],
+      // Sauce piquante (livraison uniquement) : NULL pour un retrait, 0/1 sinon (SBT-009).
+      ['hot_sauce', 'int', true],
       ['products_cents', 'int', false], ['promo_cents', 'int', false],
       ['delivery_fee_cents', 'int', false], ['total_cents', 'int', false],
       ['delay_minutes', 'int', true],
@@ -57,7 +59,10 @@ export const TABLES = {
       ['name', 'str:160', false], ['variant', 'str:20', false], ['qty', 'int', false],
       ['unit_price_cents', 'int', false], ['line_total_cents', 'int', false],
       ['removed_json', 'text', false], ['extras_json', 'text', false], ['half_json', 'text', true],
-      ['note', 'str:300', false]
+      ['note', 'str:300', false],
+      // Catégorie du catalogue au moment de la commande (pizzas, tex-mex, desserts, boissons…) : sert
+      // uniquement à organiser le ticket (SBT-006/008) — jamais au calcul des prix ni des promotions.
+      ['category', 'str:20', true]
     ],
     unique: {},
     index: { ix_items_order: ['order_id'] },
@@ -87,6 +92,25 @@ export const TABLES = {
     unique: { uq_throttle_bucket: ['bucket'] },
     index: {},
     fk: []
+  },
+  // Impression de préparation H-45 des commandes planifiées (SBT-005) : une ligne par commande acceptée avec
+  // scheduled_for. print_due_at = scheduled_for - 45 min. status : pending (en attente de l'heure) ->
+  // claimed (un appareil l'a prise, impression en cours) -> dispatched (octets remis avec succès à l'appli
+  // Android — jamais une preuve d'impression physique, voir I12) | failed (abandon après plusieurs essais) |
+  // unknown (résultat jamais revenu, ex. appareil éteint en plein envoi). claimed trop ancien -> reclassé
+  // pending par le serveur (voir impression.js), jamais bloqué indéfiniment.
+  print_jobs: {
+    columns: [
+      ['id', 'pk', false], ['order_id', 'int', false],
+      ['print_due_at', TS, false], ['status', 'str:10', false],
+      ['claimed_at', TS, true], ['claimed_by', 'str:120', true],
+      ['dispatched_at', TS, true], ['attempts', 'int', false],
+      ['last_error', 'str:300', true],
+      ['created_at', TS, false], ['updated_at', TS, false]
+    ],
+    unique: { uq_print_jobs_order: ['order_id'] },
+    index: { ix_print_jobs_due: ['status', 'print_due_at'] },
+    fk: [['order_id', 'orders', 'id']]
   }
 };
 
@@ -116,6 +140,7 @@ export const COUPURE_JOUR_SQL = `to_char((date_trunc('day', now() at time zone '
  */
 export const PURGE_SQL = [
   `DELETE FROM public.order_items WHERE order_id IN (SELECT id FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL})`,
+  `DELETE FROM public.print_jobs WHERE order_id IN (SELECT id FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL})`,
   `DELETE FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL}`,
   `DELETE FROM public.sessions WHERE expires_at < to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`
 ];

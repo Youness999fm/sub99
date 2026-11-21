@@ -52,6 +52,26 @@ export function serviceDay() {
   return FORMAT_JOUR.format(new Date(maintenantEpoch() * 1000));
 }
 
+const FORMAT_DATETIME_PARIS = new Intl.DateTimeFormat('en-CA', {
+  timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+});
+
+/** Epoch UTC (secondes) de l'instant qui s'affiche « année-mois-jour heure:minute » à Paris (DST-safe). */
+export function parisLocalVersEpoch(annee, mois, jour, heure, minute) {
+  const naif = Math.floor(Date.UTC(annee, mois - 1, jour, heure, minute, 0) / 1000);
+  const parts = {};
+  for (const p of FORMAT_DATETIME_PARIS.formatToParts(new Date(naif * 1000))) parts[p.type] = p.value;
+  const vu = Math.floor(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), 0) / 1000);
+  return naif - (vu - naif);
+}
+
+/** Le jour calendaire parisien de cet epoch, décalé de `offsetJours` jours (0 = aujourd'hui). */
+export function jourParisDecale(epoch, offsetJours) {
+  const [y, m, d] = FORMAT_JOUR.format(new Date(epoch * 1000)).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d) + offsetJours * 86400000);
+  return { annee: dt.getUTCFullYear(), mois: dt.getUTCMonth() + 1, jour: dt.getUTCDate() };
+}
+
 /** Nombre de caractères (points de code), comme mb_strlen. */
 export function strChars(s) {
   return Array.from(String(s)).length;

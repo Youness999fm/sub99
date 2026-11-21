@@ -1,0 +1,34 @@
+# Subito Pizza — Progress (Master Engineering Mission V6)
+
+Status labels: NOT_STARTED, IN_PROGRESS, IMPLEMENTED, AUTOMATED_TESTED, SIMULATOR_VERIFIED, LOCAL_VERIFIED, BLOCKED.
+
+| ID | Status | Notes |
+|---|---|---|
+| SBT-001 | AUTOMATED_TESTED | Already existed; verified by reading `serveur/horaires.js` + `order_create.js` + `reports/2026-11-19-pret-a-recevoir-commandes.md`. No change made. |
+| SBT-002 | LOCAL_VERIFIED | Tri-state AUTO/FORCE_OPEN/FORCE_CLOSED built: `serveur/horaires.js` (etatOuverture/ecrireBascule), new route `serveur/routes/owner_open_mode.js` (GET status, POST gated by requireSuperCode), UI tab "Ouverture" inside Espace patron (commercant.js/commercant.css/commercant/index.html), old unreachable `store_open` toggle removed from owner_settings.js. Fixed a real pre-existing gap along the way: FORCE_CLOSED/manual closure used to also block *scheduled* orders (schedule_slots.js returned 0 days) — now only blocks "dès que possible", per SBT-003. Verified: 156/157 tests/api-vercel (1 known unrelated CRLF failure), plus live in a real browser (forced closed → toolbar + panel update, schedule_slots still offers 7 days while closed, reverted to auto). |
+| SBT-003 | LOCAL_VERIFIED | Re-verified after SBT-002: found and fixed a real pre-existing gap where manual closure also blocked scheduled orders (schedule_slots.js/order_create.js) — scheduled orders now always allowed while closed, confirmed live. |
+| SBT-004 | AUTOMATED_TESTED | Already existed. No change planned. |
+| SBT-005 | NOT_STARTED | Next up — the big one (durable H-45 print-job scheduler). |
+| SBT-006 | LOCAL_VERIFIED | `splitTicketItems()` rewritten to use the catalog's `category` field (now threaded end-to-end: `serveur/catalogue.js` → new `order_items.category` column → `serveur/orders.js` view) instead of fragile name-prefix sniffing — robust against future renames (the SBT-010 drink rename earlier today would have broken a prefix-based detector). New order: pizzas → sauce piquante line → Tex-Mex box → (total) → desserts → drinks, drinks added as a brand new bottom section. |
+| SBT-007 | LOCAL_VERIFIED | Pizza size now right-aligned, both in the HTML preview (`.t-item-right` flex column: size above price) and the real ESC/POS bytes (`escItemLine()`, reusing the existing `escTwoColAt` column math at the big-font half-width) — verified live, byte-for-byte, via a mocked Android print bridge: `Regina            Duo`. Never truncates the name: falls back to a wrapped name line + a separate right-aligned size line if it doesn't fit (`escItemLine`). |
+| SBT-008 | LOCAL_VERIFIED | Tex-Mex box: real ASCII border box in ESC/POS (`+---+`/`\|...\|`), bordered/tinted card in the HTML preview. Verified live (see SBT-007 note) — renders correctly in both the merchant dialog and the raw print bytes. |
+| SBT-009 | LOCAL_VERIFIED | New `orders.hot_sauce` column (nullable int), mandatory client-side choice for delivery only (`assets/js/cart.js`, same mandatory-choice pattern as the existing pickup/delivery toggle), validated server-side (`serveur/orders.js`), printed in bold between pizzas and the Tex-Mex box. Verified live (toggle appears only in delivery mode, blocks checkout until chosen, prints "SAUCE PIQUANTE : OUI/NON" correctly). Found and fixed real regressions along the way: several massif test fixtures needed `hot_sauce` added to their delivery-order bodies (now mandatory), and the new `category` item field broke a few batteries' strict item key-set/deep-equality checks (01, 02) — fixed by adding the field to the expected key lists / stripping it before comparison where it's out of that battery's scope. |
+| SBT-010 | LOCAL_VERIFIED | Renamed the 9 matched drinks (menu.html visible text) and added a `data-ticket-name` override mechanism so the ticket label can differ from the customer label (both in `tools/build-catalogue.mjs`, the build-time source of truth, and its exact client-side mirror in `assets/js/cart.js`'s `qualifiedName()` — found and fixed a real regression where cart.js's own duplicate category-prefix logic still sent the old "Boisson "-prefixed name, rejected as unknown by the server). The extra pre-existing "Oasis Pomme Poire" drink (not in the mission's 9-item table) was left untouched, matching "preserve existing functionality — don't create duplicate products". Updated commercant.js's MENU constant and several massif test fixtures (02/11/14 + libs) that referenced the old names. Verified: 157/157 tests/api-vercel, and massif batteries 02 (498/498), 10 (1404/1404), 11 (325/325), 14 (608/609, the 1 remainder being the already-known, unrelated "no drink-flavor choice" product gap). |
+| SBT-011 | AUTOMATED_TESTED | Already existed. No change planned. |
+| SBT-012 | NOT_STARTED | |
+
+## Implementation order (dependency + risk based)
+
+1. **SBT-002** — tri-state open/close override (foundation for merchant control; moderate complexity).
+2. **SBT-010** — beverage label cleanup (small, isolated, data-only).
+3. **SBT-006/007/008** — ticket category reorganization + Tex-Mex box + pizza size alignment (one coherent ticket-rendering change).
+4. **SBT-009** — hot sauce choice (builds on the new ticket layout from step 3).
+5. **SBT-005** — durable H-45 print-job scheduler (largest, most architecturally new piece; done once the ticket layout it will trigger is stable).
+6. **SBT-012** — notification sound overhaul (independent; done last as polish).
+
+Re-run the real massif test suite (`tests/massif/`) relevant to each area after each step; re-run `tests/api-vercel` after any `serveur/` change.
+
+## Session log
+
+- 2026-11-21: Repository discovery complete (read-only agent). Findings written to `requirements.md`. Beginning SBT-002.
+- 2026-11-21: SBT-002, SBT-010, SBT-006/007/008/009 implemented and locally verified (live browser + full massif suite + api-vercel suite, no regressions). Moving to SBT-005 (print-job scheduler) — the largest remaining piece.

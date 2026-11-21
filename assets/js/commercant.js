@@ -88,15 +88,15 @@
     ] },
     { key: 'boissons', label: 'Boissons', items: [
       { name: "Oasis Pomme Poire canette", ing: [] },
-      { name: "Fanta Orange canette", ing: [] },
-      { name: "Coca-Cola Goût Original canette", ing: [] },
-      { name: "Coca-Cola Zero canette", ing: [] },
-      { name: "Tropico Orange & Ananas canette", ing: [] },
-      { name: "Lipton Peach Ice Tea canette", ing: [] },
-      { name: "Oasis Pomme Cassis Framboise canette", ing: [] },
-      { name: "Coca-Cola Original Taste grande bouteille", ing: [] },
-      { name: "Fanta Orange grande bouteille", ing: [] },
-      { name: "Tropico Orange & Ananas grande bouteille", ing: [] }
+      { name: "Canette Fanta orange", ing: [] },
+      { name: "Canette Coca-Cola", ing: [] },
+      { name: "Canette Coca-Cola zéro", ing: [] },
+      { name: "Canette Tropico", ing: [] },
+      { name: "Canette Lipton iced tea", ing: [] },
+      { name: "Canette Oasis pomme cassis framboise", ing: [] },
+      { name: "Maxi Coca", ing: [] },
+      { name: "Maxi Fanta", ing: [] },
+      { name: "Maxi Tropico", ing: [] }
     ] }
   ];
   const PRODUCTS = [];
@@ -128,8 +128,14 @@
     view: 'orders',
     defaultDelay: 30,
     savingDefault: false,
-    storeOpen: true,
-    savingStoreOpen: false,
+    // Ouverture/fermeture du restaurant (accès supérieur) : mode effectif + éléments d'affichage.
+    openMode: 'auto',
+    openModeOuvert: true,
+    openModeAutoOuvert: true,
+    openModeExpiresAt: null,
+    openModeProchaineTransition: null,
+    openModeHoraire: null,
+    savingOpenMode: false,
     soundOn: true,
     out: [],
     availLoaded: false,
@@ -148,7 +154,10 @@
     sessions: [],
     sessionsState: 'idle',
     netLost: false,
-    printIssues: new Map() // id commande -> { label, error } : tickets qui n'ont pas pu s'imprimer malgré les tentatives automatiques
+    printIssues: new Map(), // id commande -> { label, error } : tickets qui n'ont pas pu s'imprimer malgré les tentatives automatiques
+    // Impression de préparation H-45 des commandes planifiées (SBT-005).
+    claimingPrint: new Set(), // id commande en cours de réclamation (évite un double essai avant la réponse du serveur)
+    printBridgeAlerted: new Set() // id commande déjà signalée « imprimante non connectée » (une seule alerte, pas une par sondage)
   };
 
   const $ = sel => document.querySelector(sel);
@@ -416,6 +425,12 @@
     state.superUnlocked = false;
     state.superCode = '';
     state.recetteClearBusy = false;
+    state.openMode = 'auto';
+    state.openModeOuvert = true;
+    state.openModeAutoOuvert = true;
+    state.openModeExpiresAt = null;
+    state.openModeProchaineTransition = null;
+    state.openModeHoraire = null;
     setNetLost(false);
     closeDialog();
     lastHtml.clear();
@@ -484,6 +499,7 @@
     showApp();
     renderAll();
     loadSettings();
+    loadOpenMode();
     // ordersLoaded reste faux jusqu'au premier sondage réel (applyOrders) : sinon les commandes déjà
     // présentes au chargement sont annoncées comme « nouvelles » (vues comme arrivées après un état vide).
     poll();
@@ -705,6 +721,39 @@
         ? `${scheduledArrivals.length} nouvelles commandes programmées.`
         : `Commande programmée pour ${scheduledLabel(scheduledArrivals[0])}.`);
     }
+    checkDuePrintJobs(list);
+  }
+
+  // ---------- Impression de préparation H-45 des commandes planifiées (SBT-005) ----------
+  // Indépendante du bouton manuel « Imprimer le ticket » (toujours disponible, jamais affecté par ce qui
+  // suit) : une consultation ou une réimpression manuelle ne doit jamais faire croire au système que
+  // l'impression de préparation a eu lieu — seule la réclamation ci-dessous peut faire avancer la tâche.
+  async function checkDuePrintJobs(orders) {
+    const dues = orders.filter(o => o.print_due && !state.claimingPrint.has(o.id));
+    if (!dues.length) return;
+    if (!hasAndroidPrinter()) {
+      // Imprimante non connectée : on NE réclame PAS la tâche (elle doit rester "pending" côté serveur,
+      // reprise dès que l'imprimante sera disponible) — une seule alerte par commande, pas une par sondage.
+      const nouvelles = dues.filter(o => !state.printBridgeAlerted.has(o.id));
+      if (nouvelles.length) {
+        nouvelles.forEach(o => state.printBridgeAlerted.add(o.id));
+        toast(`⚠ Impression de préparation en attente (imprimante non connectée) : ${nouvelles.map(customerLabel).join(', ')}`);
+      }
+      return;
+    }
+    for (const o of dues) {
+      state.claimingPrint.add(o.id);
+      try {
+        const r = await api('owner_print_claim.php', { method: 'POST', body: { id: o.id, device: (navigator.userAgent || '').slice(0, 120) } });
+        if (r.ok && r.data.claimed) printOrderOnPrinter(o, { scheduledJob: true });
+      } catch (e) { /* le prochain sondage réessaiera : la tâche reste "pending" tant qu'elle n'est pas réclamée */ }
+      finally { state.claimingPrint.delete(o.id); }
+    }
+  }
+
+  async function accuserReceptionImpression(orderId, outcome, error) {
+    try { await api('owner_print_ack.php', { method: 'POST', body: { id: orderId, outcome, error: error ? String(error).slice(0, 300) : undefined } }); }
+    catch (e) { /* sans effet : le serveur reclassera la tâche bloquée de lui-même après le délai (voir impression.js) */ }
   }
 
   document.addEventListener('visibilitychange', () => {
@@ -817,35 +866,49 @@
       if (r.ok && DELAYS.includes(Number(r.data.default_delay_minutes))) {
         state.defaultDelay = Number(r.data.default_delay_minutes);
       }
-      if (r.ok && typeof r.data.store_open === 'boolean') {
-        state.storeOpen = r.data.store_open;
-      }
       scheduleRender();
     } catch (e) { /* les réglages restent à leur dernière valeur connue */ }
   }
 
-  async function saveStoreOpen(open) {
-    if (state.savingStoreOpen) return;
-    const previous = state.storeOpen;
-    state.savingStoreOpen = true;
-    state.storeOpen = open; // optimiste : le commerçant doit voir l'effet tout de suite
+  function applyOpenMode(d) {
+    state.openMode = d.mode;
+    state.openModeOuvert = d.ouvert;
+    state.openModeAutoOuvert = d.auto_ouvert;
+    state.openModeExpiresAt = d.expires_at;
+    state.openModeProchaineTransition = d.prochaine_transition;
+    state.openModeHoraire = d.horaire_auto;
+  }
+
+  // Lecture seule : accessible sans code supérieur, pour que le statut s'affiche dans la barre du haut
+  // sans avoir à ressaisir le code à chaque chargement.
+  async function loadOpenMode() {
+    try {
+      const r = await api('owner_open_mode.php');
+      if (r.ok) { applyOpenMode(r.data); scheduleRender(); }
+    } catch (e) { /* le statut reste à sa dernière valeur connue */ }
+  }
+
+  // Changement de mode : réservé à l'accès supérieur (code déjà saisi, state.superCode).
+  async function saveOpenMode(mode) {
+    if (state.savingOpenMode || !state.superUnlocked) return;
+    state.savingOpenMode = true;
     scheduleRender();
     try {
-      const r = await api('owner_settings.php', { method: 'POST', body: { store_open: open } });
+      const r = await api('owner_open_mode.php', { method: 'POST', body: { mode, code: state.superCode } });
       if (r.unauth) return;
       if (r.ok) {
-        state.storeOpen = r.data.store_open;
-        toast(state.storeOpen ? 'Prise de commandes ouverte.' : 'Prise de commandes fermée : les clients ne peuvent plus commander.');
+        applyOpenMode(r.data);
+        toast(mode === 'auto' ? 'Horaires automatiques rétablis.' : mode === 'open' ? 'Ouverture forcée : les clients peuvent commander dès maintenant.' : 'Fermeture forcée : les clients ne peuvent plus commander dès maintenant.');
+      } else if (r.data.error === 'invalid_super_code') {
+        superLock('Accès supérieur invalide, reverrouillé.');
       } else {
-        state.storeOpen = previous;
         toast(r.data.message || 'Le réglage n\'a pas pu être enregistré.');
       }
     } catch (e) {
       if (e instanceof StaleError) return;
-      state.storeOpen = previous;
       toast('Connexion impossible : le réglage n\'a pas été enregistré.');
     } finally {
-      state.savingStoreOpen = false;
+      state.savingOpenMode = false;
       scheduleRender();
     }
   }
@@ -1267,7 +1330,7 @@
     return `
       <div class="patron-head">
         <nav class="sub-tabs" aria-label="Espace patron">
-          ${tab('recap', 'Recette du jour')}${locked ? '' : tab('clients', 'Clients')}${locked ? '' : tab('devices', 'Appareils connectés')}
+          ${tab('recap', 'Recette du jour')}${locked ? '' : tab('horaires', 'Ouverture')}${locked ? '' : tab('clients', 'Clients')}${locked ? '' : tab('devices', 'Appareils connectés')}
         </nav>
         <button type="button" class="btn btn-soft btn-sm super-btn ${locked ? '' : 'is-active'}" data-action="${locked ? 'super-open' : 'super-lock'}" aria-label="Paramètres" title="Paramètres">
           <span aria-hidden="true">⚙️</span>
@@ -1296,6 +1359,46 @@
           </div>
         </aside>
       </div>`;
+  }
+
+  function horairesShell() {
+    return `
+      <div class="horaires-card">
+        <div class="col-head">
+          <h2>Ouverture et fermeture du restaurant</h2>
+          <p class="muted">Une bascule forcée revient d'elle-même à l'automatique à la prochaine heure d'ouverture ou de fermeture — jamais besoin d'y repenser le lendemain.</p>
+        </div>
+        <p class="horaires-status" id="horaires-status"></p>
+        <p class="muted" id="horaires-detail"></p>
+        <div class="horaires-actions">
+          <button type="button" class="btn btn-accept" data-action="open-mode-set" data-mode="open" id="horaires-btn-open">Ouvrir maintenant</button>
+          <button type="button" class="btn btn-refuse" data-action="open-mode-set" data-mode="closed" id="horaires-btn-closed">Fermer maintenant</button>
+          <button type="button" class="btn btn-ghost" data-action="open-mode-set" data-mode="auto" id="horaires-btn-auto">Revenir aux horaires automatiques</button>
+        </div>
+      </div>`;
+  }
+
+  function fillHoraires() {
+    const statusEl = document.getElementById('horaires-status');
+    const detailEl = document.getElementById('horaires-detail');
+    if (!statusEl || !detailEl) return;
+    statusEl.textContent = state.openModeOuvert ? 'Ouvert actuellement' : 'Fermé actuellement';
+    statusEl.classList.toggle('is-open', state.openModeOuvert);
+    statusEl.classList.toggle('is-closed', !state.openModeOuvert);
+    const modeLabel = state.openMode === 'auto' ? 'Automatique (horaire programmé)' : state.openMode === 'open' ? 'Ouverture forcée' : 'Fermeture forcée';
+    const horaireTxt = state.openModeHoraire
+      ? `Horaire habituel : ${state.openModeHoraire.opens_at} – ${state.openModeHoraire.closes_at}, tous les jours.`
+      : 'Horaires automatiques désactivés pour cet essai (commandes acceptées à toute heure par défaut).';
+    const transition = toDate(state.openModeProchaineTransition);
+    const transitionTxt = state.openMode !== 'auto' && transition ? ` Revient automatiquement à l'horaire programmé vers ${hm(transition)}.` : '';
+    setHTML(detailEl, `Mode : <strong>${esc(modeLabel)}</strong>. ${esc(horaireTxt)}${esc(transitionTxt)}`);
+    const busy = state.savingOpenMode;
+    const bo = document.getElementById('horaires-btn-open');
+    if (bo) bo.disabled = busy || state.openMode === 'open';
+    const bc = document.getElementById('horaires-btn-closed');
+    if (bc) bc.disabled = busy || state.openMode === 'closed';
+    const ba = document.getElementById('horaires-btn-auto');
+    if (ba) ba.disabled = busy || state.openMode === 'auto';
   }
 
   function clientsShell() {
@@ -1337,10 +1440,11 @@
     const sig = state.patronTab + '|' + state.superUnlocked;
     if (sig !== patronSig) {
       patronSig = sig;
-      const body = state.patronTab === 'clients' ? clientsShell() : state.patronTab === 'devices' ? devicesShell() : recapShell();
+      const body = state.patronTab === 'clients' ? clientsShell() : state.patronTab === 'devices' ? devicesShell() : state.patronTab === 'horaires' ? horairesShell() : recapShell();
       setHTML(el.patronBody, patronTabs() + body);
     }
     if (state.patronTab === 'recap') fillRecap();
+    if (state.patronTab === 'horaires') fillHoraires();
     if (state.patronTab === 'clients') fillClients();
     if (state.patronTab === 'devices') fillDevices();
   }
@@ -1519,13 +1623,15 @@
     if (dd) dd.textContent = 'Délai par défaut · ' + delayLabel(state.defaultDelay);
     const sb = document.getElementById('sound-btn');
     if (sb) sb.textContent = state.soundOn ? 'Couper le son' : 'Réactiver le son';
+    // Statut en lecture seule (le réglage se fait dans Espace patron > Ouverture, derrière l'accès supérieur) :
+    // visible d'un coup d'œil dans la barre du haut, sans avoir à ressaisir le code.
     const ob = document.getElementById('store-open-btn');
     if (ob) {
-      ob.textContent = state.storeOpen ? 'Ouvert' : 'Fermé';
-      ob.classList.toggle('is-open', state.storeOpen);
-      ob.classList.toggle('is-closed', !state.storeOpen);
-      ob.disabled = state.savingStoreOpen;
-      ob.setAttribute('aria-pressed', String(!state.storeOpen));
+      const force = state.openMode !== 'auto';
+      ob.textContent = state.openModeOuvert ? (force ? 'Ouvert (forcé)' : 'Ouvert') : (force ? 'Fermé (forcé)' : 'Fermé');
+      ob.classList.toggle('is-open', state.openModeOuvert);
+      ob.classList.toggle('is-closed', !state.openModeOuvert);
+      ob.classList.toggle('is-forced', force);
     }
     renderNotifSlot();
     renderQueue();
@@ -1580,28 +1686,35 @@
   // champ line_name) préfixe déjà le nom enregistré selon la catégorie — jamais pour les pizzas/calzones
   // (ex. « Kebab »), « Pâtes X », « Subitowich X », « Tex-Mex X », « Salade X », « Dessert X » pour le reste :
   // pas besoin de redeviner la catégorie, juste adapter ce préfixe déjà présent dans it.name.
-  //  - Pizza (a une taille) : jamais « Pizza » devant, taille écrite en entier (assez de place sur le ticket).
+  //  - Pizza (a une taille) : jamais « Pizza » devant, taille toujours renvoyée à part (voir `size`
+  //    ci-dessous) pour être alignée à droite de la ligne (SBT-007), jamais noyée dans le nom.
   //  - « Subitowich » renommé « Panini » (demande explicite). Pâtes/Tex-Mex/Salade : préfixe inchangé.
   //  - Dessert : préfixe inchangé, mais traité à part (voir splitTicketItems, isTicketDessert ci-dessous).
   const TICKET_PREFIX_RENAME = { Subitowich: 'Panini' };
+  // Renvoie { main, size } : `size` est la taille à aligner à droite (DUO/QUATTRO/XXL), vide si l'article
+  // n'en a pas. Moitié-moitié compris : « saveur1 / saveur2 » en `main`, la taille reste à part.
   function ticketItemTitle(it) {
-    // Moitié-moitié : une seule ligne directe « saveur1 / saveur2 Taille » (ex. « Regina / Subito
-    // Duo »), jamais la pizza principale seule suivie d'une ligne de saveurs en dessous.
     if (it.half && (it.half.flavor1 || it.half.flavor2)) {
-      return `${it.half.flavor1 || '?'} / ${it.half.flavor2 || '?'}${it.variant ? ` ${it.variant}` : ''}`;
+      return { main: `${it.half.flavor1 || '?'} / ${it.half.flavor2 || '?'}`, size: it.variant || '' };
     }
     const name = String(it.name || '');
-    if (it.variant) {
-      return `${name} ${it.variant}`;
-    }
+    if (it.variant) return { main: name, size: it.variant };
     const m = /^(\S+)\s+(.+)$/.exec(name);
-    if (m && TICKET_PREFIX_RENAME[m[1]]) return `${TICKET_PREFIX_RENAME[m[1]]} ${m[2]}`;
-    return name;
+    if (m && TICKET_PREFIX_RENAME[m[1]]) return { main: `${TICKET_PREFIX_RENAME[m[1]]} ${m[2]}`, size: '' };
+    return { main: name, size: '' };
   }
-  // Un dessert (jamais de taille, nom déjà préfixé « Dessert » par le catalogue) — identifié ainsi pour
-  // le mettre à part : c'est la personne à l'accueil qui le donne, pas celle qui prépare les pizzas.
+  // Catégorie du catalogue enregistrée sur la ligne (serveur/catalogue.js, catalogueCanonicalItems) : fiable
+  // même si le nom change (contrairement à une détection par préfixe de nom, voir le renommage des boissons
+  // SBT-010, qui a justement cassé un éventuel repérage par « Boisson » en préfixe commun). Le dessert garde
+  // en plus son ancien repérage par préfixe, pour rester robuste même sans la catégorie (anciennes données).
   function isTicketDessert(it) {
-    return !it.variant && /^Dessert\s/.test(String(it.name || ''));
+    return it.category === 'desserts' || (!it.variant && /^Dessert\s/.test(String(it.name || '')));
+  }
+  function isTicketTexMex(it) {
+    return it.category === 'tex-mex';
+  }
+  function isTicketDrink(it) {
+    return it.category === 'boissons';
   }
   // Rang de taille pour regrouper les pizzas entre elles, peu importe l'ordre de saisie de la commande
   // (demande du 20/11) : toutes les Solo ensemble, puis les Duo, etc. ; le reste (sans taille) à la fin.
@@ -1609,14 +1722,20 @@
   function ticketSizeRank(it) {
     return it.variant && TICKET_SIZE_RANK[it.variant] !== undefined ? TICKET_SIZE_RANK[it.variant] : 4;
   }
-  // Sépare les articles courants (lus par la personne qui prépare) des desserts (donnés par la personne
-  // à l'accueil), puis regroupe les premiers par taille (tri stable : l'ordre d'origine est conservé
-  // entre deux articles de même taille).
+  // Sépare les articles courants (pizzas, pâtes, paninis, salades — lus par la personne qui prépare) des
+  // Tex-Mex (mis en valeur dans leur propre encadré, juste en dessous), des desserts et des boissons
+  // (donnés par la personne à l'accueil, toujours en dernier — SBT-006/008), puis regroupe les premiers par
+  // taille (tri stable : l'ordre d'origine est conservé entre deux articles de même taille).
   function splitTicketItems(items) {
-    const plats = [], desserts = [];
-    (items || []).forEach(it => (isTicketDessert(it) ? desserts : plats).push(it));
+    const plats = [], texmex = [], desserts = [], boissons = [];
+    (items || []).forEach(it => {
+      if (isTicketDessert(it)) desserts.push(it);
+      else if (isTicketTexMex(it)) texmex.push(it);
+      else if (isTicketDrink(it)) boissons.push(it);
+      else plats.push(it);
+    });
     plats.sort((a, b) => ticketSizeRank(a) - ticketSizeRank(b));
-    return { plats, desserts };
+    return { plats, texmex, desserts, boissons };
   }
   // Préfixe quantité : jamais « 1× » (inutile), affiché à partir de 2 — fait déjà partie du nom en gros/gras.
   // « x » en ASCII simple pour l'imprimante thermique (escAscii retire le « × » typographique, hors ASCII).
@@ -1645,19 +1764,29 @@
   // Ticket de commande : en-tête petit (logo + nom), client/tél/heure compacts en haut, PUIS les
   // articles en très gros et gras (l'inverse de l'ancien ticket) pour une lecture en un coup d'œil en
   // cuisine, regroupés par taille (Solo avec Solo, Duo avec Duo…) avec un trait fin entre les tailles,
-  // le total toujours tout en bas, et les desserts dans leur propre bloc après le total (c'est la
-  // personne à l'accueil qui les donne, pas celle qui prépare — ils ne doivent pas se mélanger).
+  // la sauce piquante puis les Tex-Mex juste après (SBT-008/009 : la cuisine doit les voir tout de suite),
+  // le total toujours tout en bas, et les desserts puis les boissons dans leur propre bloc après le total
+  // (c'est la personne à l'accueil qui les donne, pas celle qui prépare — ils ne doivent pas se mélanger).
   function ticketHtml(o) {
     const delivery = o.mode === 'delivery';
     const received = toDate(o.created_at);
     const ready = toDate(o.ready_at);
-    const { plats, desserts } = splitTicketItems(o.items);
-    const itemLine = (it, i, arr) => `
+    const { plats, texmex, desserts, boissons } = splitTicketItems(o.items);
+    const itemLine = (it, i, arr) => {
+      const { main, size } = ticketItemTitle(it);
+      return `
       ${i > 0 && ticketSizeRank(arr[i - 1]) !== ticketSizeRank(it) ? '<div class="t-size-break"></div>' : ''}
       <div class="t-item">
-        <span class="t-item-name">${esc(ticketQtyPrefix(it))}${esc(ticketItemTitle(it))}</span>
-        <span class="t-item-price">${esc(eur(it.line_total_cents))}</span>
+        <span class="t-item-name">${esc(ticketQtyPrefix(it))}${esc(main)}</span>
+        <span class="t-item-right">
+          ${size ? `<span class="t-item-size">${esc(size)}</span>` : ''}
+          <span class="t-item-price">${esc(eur(it.line_total_cents))}</span>
+        </span>
       </div>
+      ${ticketItemModsHtml(it)}`;
+    };
+    const texMexLine = (it) => `
+      <div class="t-texmex-item">${esc(ticketQtyPrefix(it))}${esc(ticketItemTitle(it).main)}</div>
       ${ticketItemModsHtml(it)}`;
     return `
       <div class="ticket">
@@ -1683,6 +1812,13 @@
           <p class="t-payment">${esc(paymentLabel(o))}</p>
         </div>` : ''}
         <div class="t-items">${plats.map(itemLine).join('')}</div>
+        ${o.hot_sauce !== null && o.hot_sauce !== undefined ? `
+        <div class="t-hotsauce"><strong>SAUCE PIQUANTE : ${o.hot_sauce ? 'OUI' : 'NON'}</strong></div>` : ''}
+        ${texmex.length ? `
+        <div class="t-texmex-box">
+          <p class="t-texmex-label">TEX-MEX</p>
+          ${texmex.map(texMexLine).join('')}
+        </div>` : ''}
         <div class="t-rule t-bottom"></div>
         ${Number(o.delivery_fee_cents) > 0 ? `<div class="t-line"><span>Frais de livraison</span><span>${esc(eur(o.delivery_fee_cents))}</span></div>` : ''}
         <div class="t-line t-total"><strong>TOTAL</strong><strong>${esc(eur(o.total_cents))}</strong></div>
@@ -1694,6 +1830,11 @@
           <p class="t-dessert-label">Dessert</p>
           ${desserts.map(itemLine).join('')}
         </div>` : ''}
+        ${boissons.length ? `
+        <div class="t-drinks">
+          <p class="t-drinks-label">Boissons</p>
+          ${boissons.map(itemLine).join('')}
+        </div>` : ''}
       </div>`;
   }
 
@@ -1701,20 +1842,25 @@
   function printerPayload(o) {
     const delivery = o.mode === 'delivery';
     const received = toDate(o.created_at);
-    const asLine = it => ({
-      qty: Number(it.qty) || 1,
-      qtyPrefix: ticketQtyPrefix(it, 'x'),
-      title: ticketItemTitle(it),
-      lineTotal: eur(it.line_total_cents),
-      removed: (it.removed || []).slice(),
-      extrasText: (it.extras || []).map(x => {
-        const qty = Number(x.qty) || 1;
-        const price = Number(x.price_cents) || 0;
-        return `+ ${qty > 1 ? qty + 'x ' : ''}${x.name}${price ? ` (${eur(price)}${qty > 1 ? ' piece' : ''})` : ''}`;
-      }),
-      note: it.note && String(it.note).trim() ? String(it.note).trim() : null
-    });
-    const { plats, desserts } = splitTicketItems(o.items);
+    const asLine = it => {
+      const { main, size } = ticketItemTitle(it);
+      return {
+        qty: Number(it.qty) || 1,
+        qtyPrefix: ticketQtyPrefix(it, 'x'),
+        title: size ? `${main} ${size}` : main, // repli simple (dessert/boisson/tex-mex : jamais de taille)
+        titleMain: main,
+        titleSize: size,
+        lineTotal: eur(it.line_total_cents),
+        removed: (it.removed || []).slice(),
+        extrasText: (it.extras || []).map(x => {
+          const qty = Number(x.qty) || 1;
+          const price = Number(x.price_cents) || 0;
+          return `+ ${qty > 1 ? qty + 'x ' : ''}${x.name}${price ? ` (${eur(price)}${qty > 1 ? ' piece' : ''})` : ''}`;
+        }),
+        note: it.note && String(it.note).trim() ? String(it.note).trim() : null
+      };
+    };
+    const { plats, texmex, desserts, boissons } = splitTicketItems(o.items);
     const itemsWithBreaks = plats.map((it, i) => ({ ...asLine(it), sizeBreakBefore: i > 0 && ticketSizeRank(plats[i - 1]) !== ticketSizeRank(it) }));
     return {
       orderId: String(o.id),
@@ -1726,11 +1872,14 @@
       phone: o.customer_phone || '',
       receivedAt: received ? hm(received) : '',
       items: itemsWithBreaks,
+      texmex: texmex.map(asLine),
       desserts: desserts.map(asLine),
+      drinks: boissons.map(asLine),
       deliveryFee: Number(o.delivery_fee_cents) > 0 ? eur(o.delivery_fee_cents) : null,
       total: eur(o.total_cents),
       delay: o.delay_minutes != null ? delayLabel(o.delay_minutes, o.mode === 'delivery') : null,
-      scheduled: o.scheduled_for ? scheduledLabel(o) : null
+      scheduled: o.scheduled_for ? scheduledLabel(o) : null,
+      hotSauce: o.hot_sauce === null || o.hot_sauce === undefined ? null : (o.hot_sauce ? 'OUI' : 'NON')
     };
   }
 
@@ -1780,6 +1929,15 @@
     }
     if (line) lines.push(line);
     return lines.join('\n');
+  }
+  // Ligne d'article avec taille alignée à droite (SBT-007 : DUO/QUATTRO/XXL bien en vue, jamais noyés dans
+  // le nom). Tient sur une ligne dès que possible ; sinon le nom est écrit en entier d'abord (jamais tronqué,
+  // jamais perdu — demande explicite), puis la taille sur sa propre ligne, toujours alignée à droite.
+  function escItemLine(prefixAndName, size, width) {
+    if (!size) return escWrapWordsAt(prefixAndName, width) + '\n';
+    const s = escAscii(size);
+    if (escAscii(prefixAndName).length + 1 + s.length <= width) return escTwoColAt(prefixAndName, size, width);
+    return escWrapWordsAt(prefixAndName, width) + '\n' + escTwoColAt('', size, width);
   }
 
   // ---------- Logo du ticket : image -> bitmap ESC/POS, converti une seule fois au chargement de la page ----------
@@ -1904,16 +2062,52 @@
     }
 
     // Articles : le cœur du ticket — très gros, gras, bien espacés pour se voir de loin, regroupés par
-    // taille (Solo avec Solo, Duo avec Duo…) avec un trait fin entre deux tailles différentes.
+    // taille (Solo avec Solo, Duo avec Duo…) avec un trait fin entre deux tailles différentes, taille
+    // toujours alignée à droite (SBT-007 : jamais noyée dans le nom, jamais perdue si la ligne est trop longue).
     align(0);
     (o.items || []).forEach(it => {
       if (it.sizeBreakBefore) thinSep();
       bold(true); charSize(2, 3);
-      text(escWrapWordsAt(`${it.qtyPrefix}${it.title}`, PRINT_WIDTH_X2) + '\n');
+      text(escItemLine(`${it.qtyPrefix}${it.titleMain}`, it.titleSize, PRINT_WIDTH_X2));
       charSize(1, 1); bold(false);
       printMods(it);
       blank(1);
     });
+
+    // Sauce piquante (livraison uniquement, SBT-009) : juste après les pizzas, avant le Tex-Mex, en gras.
+    if (o.hotSauce) {
+      bold(true);
+      text('SAUCE PIQUANTE : ' + o.hotSauce + '\n');
+      bold(false);
+      blank(1);
+    }
+
+    // Tex-Mex : encadré bien visible juste après les pizzas (SBT-008) — la cuisine doit les repérer et les
+    // lancer tout de suite, avant même de lire le reste du ticket.
+    if (o.texmex && o.texmex.length) {
+      const inner = Math.max(4, PRINT_WIDTH - 4);
+      const boxBorder = () => text('+' + '-'.repeat(PRINT_WIDTH - 2) + '+\n');
+      const boxLine = (s, centered) => {
+        for (const line of escWrapWordsAt(s, inner).split('\n')) {
+          const pad = Math.max(0, inner - line.length);
+          const left = centered ? Math.floor(pad / 2) : 0;
+          text('| ' + ' '.repeat(left) + line + ' '.repeat(pad - left) + ' |\n');
+        }
+      };
+      bold(true);
+      boxBorder();
+      boxLine('TEX-MEX', true);
+      o.texmex.forEach(it => {
+        boxLine(`${it.qtyPrefix}${it.title}`, false);
+        if (it.removed && it.removed.length) it.removed.forEach(r => boxLine('- ' + r, false));
+        (it.extrasText || []).forEach(e => boxLine(e, false));
+        if (it.note) boxLine('#' + it.note, false);
+      });
+      boxBorder();
+      bold(false);
+      blank(1);
+    }
+
     sep();
     blank(1);
 
@@ -1925,8 +2119,9 @@
     blank(1);
     if (o.delay) text(escRow('Delai annonce', o.delay));
 
-    // Dessert : bloc à part, après le total — donné par la personne à l'accueil, pas par celle qui
-    // prépare les pizzas ; il ne doit jamais se mélanger aux articles lus pendant la préparation.
+    // Dessert puis boissons : blocs à part, après le total — donnés par la personne à l'accueil, pas par
+    // celle qui prépare les pizzas ; ils ne doivent jamais se mélanger aux articles lus pendant la préparation.
+    // Boissons toujours en tout dernier (SBT-006).
     if (o.desserts && o.desserts.length) {
       blank(2); sep();
       align(1); bold(true); charSize(2, 2);
@@ -1934,6 +2129,18 @@
       charSize(1, 1); bold(false);
       align(0);
       o.desserts.forEach(it => {
+        text(escTwoCol(`${it.qtyPrefix}${it.title}`, it.lineTotal));
+        printMods(it);
+      });
+    }
+
+    if (o.drinks && o.drinks.length) {
+      blank(2); sep();
+      align(1); bold(true); charSize(2, 2);
+      text('BOISSONS\n');
+      charSize(1, 1); bold(false);
+      align(0);
+      o.drinks.forEach(it => {
         text(escTwoCol(`${it.qtyPrefix}${it.title}`, it.lineTotal));
         printMods(it);
       });
@@ -1957,16 +2164,19 @@
   }
 
   let printRequestSeq = 0;
-  const pendingPrints = new Map(); // requestId -> { orderId, label, base64, attempt }
+  const pendingPrints = new Map(); // requestId -> { orderId, label, base64, attempt, scheduledJob }
 
-  // Lance l'impression d'une commande (depuis l'acceptation, ou depuis "Réessayer"/"Réimprimer").
-  function printOrderOnPrinter(o) {
+  // Lance l'impression d'une commande (depuis l'acceptation, le bouton manuel "Imprimer/Réimprimer le
+  // ticket", ou — avec { scheduledJob: true } — la tâche d'impression de préparation H-45 d'une commande
+  // planifiée déjà réclamée). scheduledJob ne change rien à l'impression elle-même : seulement, le résultat
+  // est aussi rapporté au serveur (owner_print_ack.php) pour faire avancer cette tâche précise.
+  function printOrderOnPrinter(o, { scheduledJob = false } = {}) {
     if (!o || !hasAndroidPrinter()) return;
     try {
       const payload = printerPayload(o);
       const base64 = bytesToBase64(buildTicketBytes(payload));
       const requestId = 'p' + (++printRequestSeq) + '-' + payload.orderId;
-      pendingPrints.set(requestId, { orderId: payload.orderId, label: customerLabel(o), base64, attempt: 0 });
+      pendingPrints.set(requestId, { orderId: payload.orderId, label: customerLabel(o), base64, attempt: 0, scheduledJob });
       sendAttempt(requestId);
     } catch (e) { /* l'impression ne doit jamais bloquer le flux de commande */ }
   }
@@ -1997,10 +2207,14 @@
     const job = pendingPrints.get(requestId);
     if (!job) return;
     pendingPrints.delete(requestId);
+    // Rapporte le résultat RÉEL (dispatched/failed) à la tâche planifiée H-45 réclamée plus tôt — jamais pour
+    // une impression manuelle (bouton "Imprimer/Réimprimer le ticket"), qui reste une simple consultation.
+    if (job.scheduledJob) accuserReceptionImpression(job.orderId, ok ? 'dispatched' : 'failed', ok ? null : error);
     if (ok) {
       state.printIssues.delete(job.orderId);
+      state.printBridgeAlerted.delete(job.orderId);
       renderPrintIssues();
-      toast(`Ticket imprimé · ${job.label}`);
+      toast(job.scheduledJob ? `Ticket de préparation imprimé · ${job.label}` : `Ticket imprimé · ${job.label}`);
       return;
     }
     state.printIssues.set(job.orderId, { label: job.label, error: error || 'erreur inconnue' });
@@ -2259,10 +2473,11 @@
     if (v === 'patron') openPatronTab(state.patronTab);
   }
   function openPatronTab(tab) {
-    const t = (tab === 'clients' || tab === 'devices') && !state.superUnlocked ? 'recap' : tab;
+    const t = (tab === 'clients' || tab === 'devices' || tab === 'horaires') && !state.superUnlocked ? 'recap' : tab;
     state.patronTab = t;
     if (t === 'clients') loadCustomers();
     if (t === 'devices') loadSessions();
+    if (t === 'horaires') loadOpenMode();
   }
 
   // ---------- Gestion des clics (délégation) ----------
@@ -2276,8 +2491,8 @@
       case 'sound-toggle':
         toggleSound();
         break;
-      case 'store-open-toggle':
-        saveStoreOpen(!state.storeOpen);
+      case 'open-mode-set':
+        saveOpenMode(t.dataset.mode);
         break;
       case 'logout':
         logout();
@@ -2477,5 +2692,9 @@
 
   renderClock();
   setInterval(renderClock, 1000);
+  // Une bascule forcée (ouvrir/fermer maintenant) expire d'elle-même à la prochaine transition automatique :
+  // ce sondage lent tient la barre du haut et le panneau « Ouverture » à jour même si le commerçant ne les
+  // rouvre pas (ex. bascule posée en fin de service, qui doit redevenir "automatique" avant la réouverture).
+  setInterval(() => { if (state.authed) loadOpenMode(); }, 60000);
   boot();
 })();

@@ -49,6 +49,7 @@ function totalCents(items, mode = 'pickup') {
 }
 const body = (items, over = {}) => ({
   idempotency_key: newKey(), mode: 'pickup', payment_methods: [], cash_change_for: null,
+  hot_sauce: over.mode === 'delivery' ? true : null,
   items, delivery_fee_cents: 0, total_cents: totalCents(items), ...over,
 });
 const countOrders = () => Number(db.prepare('SELECT COUNT(*) AS n FROM orders').get().n);
@@ -111,7 +112,7 @@ test('catalogue conforme aux pages (lecture indépendante)', () => {
   const sizes = [...menu.matchAll(/size-chart__name">([^<]+)<[\s\S]*?size-chart__price">([^<]+)</g)].map((m) => ({ name: m[1], price_cents: euros(m[2]) }));
   assert.deepEqual(catalogue.sizes, sizes);
   // Prix de fiche (desserts, boissons).
-  const own = [...menu.matchAll(/menu-item__name">([^<]+)<\/h3>(?:(?!<\/article>)[\s\S])*?menu-item__price">([^<]+)</g)]
+  const own = [...menu.matchAll(/menu-item__name"[^>]*>([^<]+)<\/h3>(?:(?!<\/article>)[\s\S])*?menu-item__price">([^<]+)</g)]
     .map((m) => [m[1].replace(/&amp;/g, '&'), euros(m[2])]);
   assert.ok(own.length >= 7);
   for (const [name, cents] of own) {

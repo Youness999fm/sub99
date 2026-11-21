@@ -793,8 +793,19 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .ticket .t-items { margin: 4px 0; }
 .ticket .t-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 16px; }
 .ticket .t-item:first-child { margin-top: 0; }
-.ticket .t-item-name { font-size: 24px; font-weight: 800; line-height: 1.2; }
+.ticket .t-item-name { flex: 1 1 auto; min-width: 0; font-size: 24px; font-weight: 800; line-height: 1.2; overflow-wrap: break-word; }
+/* Taille (SBT-007) toujours alignée à droite de la ligne, au-dessus du prix — jamais noyée dans le nom. */
+.ticket .t-item-right { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.ticket .t-item-size { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
 .ticket .t-item-price { font-size: 16px; font-weight: 700; white-space: nowrap; }
+.ticket .t-hotsauce { margin-top: 10px; font-size: 16px; text-align: center; }
+/* Tex-Mex (SBT-008) : encadré bien visible juste après les pizzas, pour que la cuisine le lance tout de suite. */
+.ticket .t-texmex-box {
+  margin-top: 14px; padding: 10px 12px; background: #FDEDEA; border: 3px solid #B5321B; border-radius: 8px;
+}
+.ticket .t-texmex-box .t-texmex-label { margin: 0 0 6px; font-size: 16px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; color: #B5321B; }
+.ticket .t-texmex-box .t-texmex-item { margin-top: 6px; font-size: 18px; font-weight: 800; }
+.ticket .t-texmex-box .t-texmex-item:first-of-type { margin-top: 0; }
 .ticket .t-mod { padding-left: 16px; font-size: 14px; color: #444; margin-top: 2px; }
 .ticket .t-mod-plus { font-weight: 800; }
 .ticket .t-mod-note { font-weight: 800; }
@@ -812,6 +823,13 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .ticket .t-dessert .t-item { margin-top: 8px; }
 .ticket .t-dessert .t-item:first-of-type { margin-top: 0; }
 .ticket .t-dessert .t-item-name { font-size: 16px; font-weight: 700; }
+.ticket .t-drinks {
+  margin-top: 14px; padding: 10px 12px; background: #EAF2F6; border: 2px dashed #3E7C93; border-radius: 8px;
+}
+.ticket .t-drinks .t-drinks-label { margin: 0 0 6px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #2C5A6B; }
+.ticket .t-drinks .t-item { margin-top: 8px; }
+.ticket .t-drinks .t-item:first-of-type { margin-top: 0; }
+.ticket .t-drinks .t-item-name { font-size: 16px; font-weight: 700; }
 .ticket-pair { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; align-items: flex-start; }
 .ticket-pair > div { flex: 0 1 300px; }
 .cm-dialog.is-wide { width: min(940px, calc(100vw - 32px)); }
@@ -954,6 +972,21 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .device-sub { font-size: 14px; color: var(--muted); }
 .device-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .device-actions .btn { min-height: 56px; font-size: 16px; }
+
+.store-open-btn.is-forced { box-shadow: inset 0 0 0 2px var(--paper); }
+
+.horaires-card {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; max-width: 640px;
+}
+.horaires-status { font-family: var(--font-display); font-size: 22px; font-weight: 800; }
+.horaires-status.is-open { color: var(--green); }
+.horaires-status.is-closed { color: var(--red); }
+.horaires-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 8px; }
+.horaires-actions .btn { min-height: 56px; font-size: 15px; }
+@media (max-width: 760px) {
+  .horaires-actions { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* ---------- Téléphone ---------- */
 

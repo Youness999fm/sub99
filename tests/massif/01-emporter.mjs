@@ -35,10 +35,12 @@ const ms = (x) => Math.round(x);
 // Délai global : si quelque chose se bloque, le script échoue au lieu de pendre jusqu'à l'arrêt du lanceur.
 setTimeout(() => { console.log('FAIL  délai global de 450 s dépassé'); process.exit(1); }, 450_000).unref();
 
-const CLES_VUE = ['id', 'status', 'mode', 'customer_name', 'delivery_address', 'payment_methods', 'cash_change_for', 'items', 'products_cents',
+// hot_sauce (SBT-009) : toujours présente (null hors livraison), même à l'emporter.
+const CLES_VUE = ['id', 'status', 'mode', 'customer_name', 'delivery_address', 'payment_methods', 'cash_change_for', 'hot_sauce', 'items', 'products_cents',
   'promo_cents', 'delivery_fee_cents', 'total_cents', 'created_at', 'accepted_at', 'refused_at', 'prepared_at', 'delay_minutes', 'ready_at', 'service_day', 'scheduled_for'];
 const CLES_PATRON = ['customer_id', 'customer_phone', 'customer_email'];
-const CLES_LIGNE = ['name', 'variant', 'qty', 'unit_price_cents', 'line_total_cents', 'removed', 'extras', 'half', 'note'];
+// category (SBT-006) : catégorie du catalogue au moment de la commande, ajoutée pour organiser le ticket.
+const CLES_LIGNE = ['name', 'variant', 'qty', 'unit_price_cents', 'line_total_cents', 'removed', 'extras', 'half', 'note', 'category'];
 const triees = (t) => [...t].sort();
 
 // ------------------------------------------------------------------------------------------------------------------ 0. modèle
@@ -78,7 +80,10 @@ function analyserVue(vue, o, { proprietaire, jours }) {
   const a = o.sc.attendu;
   const pb = { lignes: [], totaux: [], statut: [], adressePaiement: [], horodatage: [], identite: [] };
   if (vue === null || typeof vue !== 'object') { for (const k of Object.keys(pb)) pb[k].push('vue absente'); return pb; }
-  const e = ecart(a.items, vue.items, 'items');
+  // category (SBT-006) : catégorie du catalogue au moment de la commande, hors du périmètre de cette comparaison
+  // (jamais fournie par le calcul indépendant de cette batterie) -> retirée avant de chercher un écart.
+  const itemsSansCategorie = Array.isArray(vue.items) ? vue.items.map(({ category, ...reste }) => reste) : vue.items;
+  const e = ecart(a.items, itemsSansCategorie, 'items');
   if (e) pb.lignes.push(e);
   if (Array.isArray(vue.items)) {
     vue.items.forEach((it, i) => { if (!isDeepStrictEqual(triees(Object.keys(it)), triees(CLES_LIGNE))) pb.lignes.push(`items[${i}] clés ${Object.keys(it)}`); });

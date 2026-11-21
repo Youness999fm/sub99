@@ -291,7 +291,7 @@ export function famLimites(r) {
     L(r, pizza('Carnivora'), 'XXL', { qty: 20 }), L(r, pizza('Régina'), 'Duo', { qty: 20 }), L(r, pizza('Napolitaine'), 'Solo', { qty: 20 })
   ]));
   out.push(commande('I-60articles-sans-pizza', 'limites', [
-    L(r, produit('Boisson Oasis Pomme Poire canette'), '', { qty: 20 }), L(r, produit('Boisson Coca-Cola Original Taste grande bouteille'), '', { qty: 20 }), L(r, produit('Dessert Tiramisubito Oreo'), '', { qty: 20 })
+    L(r, produit('Boisson Oasis Pomme Poire canette'), '', { qty: 20 }), L(r, produit('Maxi Coca'), '', { qty: 20 }), L(r, produit('Dessert Tiramisubito Oreo'), '', { qty: 20 })
   ]));
   // 40 lignes qui portent chacune une remarque de 300 caractères (accents)
   out.push(commande('I-40lignes-notes300', 'limites', lignes40(() => 1).map((l0, i) => L(r, l0.produit, l0.taille, { garniture: l0.garniture, note: i % 2 ? NOTES.accents300 : NOTES.mixte300 }))));

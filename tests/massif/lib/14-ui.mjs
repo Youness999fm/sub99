@@ -399,11 +399,23 @@ export class Ui {
     return this.attendre("(() => { const o = document.getElementById('cartOverlay'); return !o || o.hidden; })()", 3000);
   }
 
-  /** Bouton « À emporter » / « Livraison » du tiroir. */
+  /** Bouton « À emporter » / « Livraison » du tiroir. En livraison, choisit aussi la sauce piquante (SBT-009:
+   * choix obligatoire avant de commander) — « oui » par défaut, sans quoi le bouton « Commander » resterait bloqué. */
   async basculer(mode) {
     const r = await this.cliquer(`.order-mode-toggle__btn[data-mode="${mode}"]`);
     await this.attendre(`(() => { const b = document.querySelector('.order-mode-toggle__btn.is-active'); return !!b && b.getAttribute('data-mode') === '${mode}'; })()`, 3000);
-    if (mode === 'delivery') await this.attendre("(() => { const s = document.getElementById('deliveryStatus'); return !!s && !/V.rification de votre adresse/.test(s.textContent); })()", 6000);
+    if (mode === 'delivery') {
+      await this.attendre("(() => { const s = document.getElementById('deliveryStatus'); return !!s && !/V.rification de votre adresse/.test(s.textContent); })()", 6000);
+      if (!(await this.evaluer("!!document.querySelector('.hot-sauce-toggle__btn.is-active')"))) await this.choisirSaucePiquante(true);
+    }
+    return r;
+  }
+
+  /** Choix de la sauce piquante (livraison uniquement, SBT-009). */
+  async choisirSaucePiquante(oui) {
+    const v = oui ? 'oui' : 'non';
+    const r = await this.cliquer(`.hot-sauce-toggle__btn[data-hot-sauce="${v}"]`);
+    await this.attendre(`(() => { const b = document.querySelector('.hot-sauce-toggle__btn.is-active'); return !!b && b.getAttribute('data-hot-sauce') === '${v}'; })()`, 3000);
     return r;
   }
 

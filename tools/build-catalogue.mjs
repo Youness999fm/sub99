@@ -351,9 +351,12 @@ export function buildCatalogue(root = ROOT) {
     const ownPriceEl = first(item, 'menu-item__price');
     const category = closest(item, (x) => hasClass(x, 'menu-category'));
     const categoryId = category ? (category.attrs.id || null) : null;
+    // Libellé de ticket différent du nom client (SBT-010, ex. boissons « Canette Coca-Cola » -> ticket « Canette Coca ») :
+    // attribut data-ticket-name sur le <h3>, prioritaire sur la règle générique (préfixe de catégorie).
+    const ticketOverride = nameEl.attrs && typeof nameEl.attrs['data-ticket-name'] === 'string' ? nameEl.attrs['data-ticket-name'].trim() : '';
     const base = {
       name,
-      line_name: qualifiedName(name, categoryId, cart.labels),
+      line_name: ticketOverride !== '' ? ticketOverride : qualifiedName(name, categoryId, cart.labels),
       category: categoryId,
       kind: 'product',
       ingredients: parsed.ingredients,

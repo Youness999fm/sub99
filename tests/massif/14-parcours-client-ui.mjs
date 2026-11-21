@@ -383,7 +383,7 @@ async function p04({ ui }) {
   // Nouveau panier, persistance après rechargement, puis commande
   const b1 = await ajouterPizza(ui, { carte: CAL, nomLigne: 'Calzone (soufflée) — Thon', taille: 'Quatro', garniture: 'Thon', base: CAL });
   const b2 = await ajouterProduit(ui, { carte: 'Carbonara', nomLigne: 'Pâtes Carbonara' });
-  const b3 = await ajouterProduit(ui, { carte: 'Coca-Cola Original Taste grande bouteille', nomLigne: 'Boisson Coca-Cola Original Taste grande bouteille' });
+  const b3 = await ajouterProduit(ui, { carte: 'Maxi Coca', nomLigne: 'Maxi Coca' });
   const b4 = await ajouterProduit(ui, { carte: 'Part de Tarte au Daim', nomLigne: 'Dessert Part de Tarte au Daim' });
   controle('nouveau panier : calzone Quatro Thon, pâtes Carbonara, grande bouteille, tarte au Daim', [b1, b2, b3, b4].every((x) => x.echecs.length === 0), json([b1, b2, b3, b4].map((x) => x.echecs)));
   lignes = [b1.ligne, b2.ligne, b3.ligne, b4.ligne];
@@ -392,7 +392,7 @@ async function p04({ ui }) {
   controle('rechargement de la page : le panier est conservé (4 lignes)', Array.isArray(stocke) && stocke.length === 4, `${Array.isArray(stocke) ? stocke.length : stocke} lignes`);
   const barre = await ui.lirePanierAffiche();
   controle('rechargement : la barre du panier affiche 4 articles et 37,50 €', barre.barre.visible && barre.barre.nb === '4' && barre.barre.total === 3750, json(barre.barre));
-  controle('rechargement : les compteurs des cartes se resynchronisent (boisson : « Ajouter » devient compteur à 1)', (await ui.texte({ sel: '.add-to-cart__qty', carte: 'Coca-Cola Original Taste grande bouteille' })) === '1', await ui.texte({ sel: '.add-to-cart__qty', carte: 'Coca-Cola Original Taste grande bouteille' }));
+  controle('rechargement : les compteurs des cartes se resynchronisent (boisson : « Ajouter » devient compteur à 1)', (await ui.texte({ sel: '.add-to-cart__qty', carte: 'Maxi Coca' })) === '1', await ui.texte({ sel: '.add-to-cart__qty', carte: 'Maxi Coca' }));
   aff = await tiroirEtAffichage(ui, 'P04 après rechargement', lignes, 'pickup', null);
   const r = await passerCommande(ui);
   await verifierApresCommande(ui, 'P04', r, { aff, lignes, mode: 'pickup', compte: c });
@@ -741,7 +741,7 @@ async function p10({ ui, nav, p }) {
 
   // (2) Nouveau panier ; session périmée ; la page est rechargée (aucune session en mémoire) ; le panier change dans un autre onglet pendant la connexion
   await ui.aller('/menu.html', { menu: true });
-  const b1 = await ajouterProduit(ui, { carte: 'Coca-Cola Original Taste grande bouteille', nomLigne: 'Boisson Coca-Cola Original Taste grande bouteille' });
+  const b1 = await ajouterProduit(ui, { carte: 'Maxi Coca', nomLigne: 'Maxi Coca' });
   const b2 = await ajouterProduit(ui, { carte: 'Calzone Nutella', nomLigne: 'Dessert Calzone Nutella' });
   controle('2e panier : grande bouteille + calzone Nutella', b1.echecs.length === 0 && b2.echecs.length === 0, json([b1.echecs, b2.echecs]));
   controle('la session du client est de nouveau périmée', expirerSession(c.email) === 1);

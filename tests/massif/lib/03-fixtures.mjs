@@ -99,6 +99,7 @@ export function construireFixtures() {
         mode,
         payment_methods: mode === 'delivery' ? paiements : [],
         cash_change_for: mode === 'delivery' && paiements.includes('cash') ? billet : null,
+        hot_sauce: mode === 'delivery' ? true : null,
         items: lignes.map((l) => l.envoi),
         delivery_fee_cents: tot.frais,
         total_cents: tot.total
@@ -144,7 +145,7 @@ export function construireFixtures() {
       ligne('Chèvre miel', { taille: 'Solo', supplements: ['jambon'] }),
       ligne("L'Extravagante", { taille: 'Quatro', moitie: '3 Jambons' }),
       ligne('Pâtes Carbonara', { qty: 2 }),
-      ligne('Boisson Coca-Cola Original Taste grande bouteille')
+      ligne('Maxi Coca')
     ]
   });
 
@@ -178,7 +179,7 @@ export function construireFixtures() {
       () => [ligne('Pâtes Saumon', { qty: 2 })],
       () => [ligne('Pâtes Carbonara', { qty: 2 })],
       () => [ligne('Pâtes Bolognaise', { qty: 3 })],
-      () => [ligne('Pâtes 3 fromages', { qty: 2 }), ligne('Dessert Part de Tarte au Daim'), ligne('Boisson Coca-Cola Original Taste grande bouteille'), ligne('Tex-Mex Wings (5 pièces)')]
+      () => [ligne('Pâtes 3 fromages', { qty: 2 }), ligne('Dessert Part de Tarte au Daim'), ligne('Maxi Coca'), ligne('Tex-Mex Wings (5 pièces)')]
     ][idx]();
     const [m, b] = MOYENS_Z[i];
     fixture('Z' + String(i + 1).padStart(2, '0'), 'V3', `frais de livraison ${ville} (aucune pizza)`, { mode: 'delivery', ville, paiements: m, billet: b, lignes });
@@ -247,7 +248,7 @@ export function construireFixtures() {
   // ------------------------------------------------------------------ V5 : extrêmes
   const pizzas8 = ['Végétarienne', 'Régina', 'Kebab', 'Subito', 'Chicken', 'Orientale', 'Neptune', 'Campione', 'Kefta', 'Pollame', 'Fajitas', 'Maroilles', 'Suisse', 'Carolina'];
   const autres = ['Pâtes Bolognaise', 'Pâtes Saumon', 'Subitowich Kebab', 'Subitowich Rome', 'Tex-Mex Nuggets (4 pièces)', 'Salade Exotique', 'Salade Di Roma', 'Dessert Tiramisubito Oreo',
-    'Dessert Calzone Nutella', 'Boisson Oasis Pomme Poire canette', 'Boisson Coca-Cola Original Taste grande bouteille', 'Tex-Mex Tenders (4 pièces)', 'Pâtes 3 fromages'];
+    'Dessert Calzone Nutella', 'Boisson Oasis Pomme Poire canette', 'Maxi Coca', 'Tex-Mex Tenders (4 pièces)', 'Pâtes 3 fromages'];
   const tailles = ['Solo', 'Duo', 'Quatro', 'XXL'];
   const quarante = [];
   for (let i = 0; i < 40; i++) {

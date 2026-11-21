@@ -49,7 +49,7 @@ test('constantes exposées (type Uber Eats : créneaux 30 min, 7 jours, 1h de d�
 
 // ---------------------------------------------------------------- 2. parcours réel (serveur + DB)
 
-import { makeEnv, runTool, startServer, stopServer, Client, openTestDb, OWNER_CODE } from './lib/harness.mjs';
+import { makeEnv, runTool, startServer, stopServer, Client, openTestDb, OWNER_CODE, SUPER_CODE } from './lib/harness.mjs';
 
 let ctx;
 let proc;
@@ -90,7 +90,7 @@ test('schedule_slots.php : public, forme attendue, créneaux de 30 min dans 18h2
   const r = await anon.get('schedule_slots.php');
   assert.equal(r.status, 200, r.text);
   assert.equal(r.json.ok, undefined); // comme availability.php : pas de clé « ok »
-  assert.equal(r.json.manually_closed, false);
+  assert.equal(r.json.immediate_open, true);
   assert.equal(r.json.min_lead_minutes, 60);
   assert.equal(r.json.max_days, 7);
   assert.equal(r.json.step_minutes, 30);
@@ -134,17 +134,34 @@ test('order_create : créneau non aligné, trop proche, trop lointain ou hors fe
   expectError(await alice.post('order_create.php', corps('planif-hors-fenetre', horsFenetre.toISOString().replace(/\.\d{3}Z$/, 'Z'))), 422, 'invalid_schedule');
 });
 
-test('fermeture manuelle (store_open) : bloque aussi les commandes programmées, et schedule_slots le signale', async () => {
-  const close = await owner.post('owner_settings.php', { store_open: false });
-  assert.equal(close.json.store_open, false);
+test('fermeture manuelle (accès supérieur, FORCE_CLOSED) : bloque « dès que possible », jamais les commandes programmées (SBT-003)', async () => {
+  const close = await owner.post('owner_open_mode.php', { mode: 'closed', code: SUPER_CODE });
+  assert.equal(close.status, 200, close.text);
+  assert.equal(close.json.mode, 'closed');
+  assert.equal(close.json.ouvert, false);
   try {
+    // schedule_slots.php continue de proposer de vrais créneaux : seule une commande « dès que possible » est bloquée.
     const slots = await alice.get('schedule_slots.php');
-    assert.equal(slots.json.manually_closed, true);
-    assert.deepEqual(slots.json.days, []);
+    assert.equal(slots.json.immediate_open, false);
+    assert.ok(Array.isArray(slots.json.days) && slots.json.days.length > 0, 'les créneaux restent proposés, restaurant fermé');
 
-    const futur = new Date(Date.now() + 2 * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
-    expectError(await alice.post('order_create.php', corps('planif-ferme', futur)), 422, 'closed');
+    const immediat = corps('planif-ferme-immediat', null);
+    expectError(await alice.post('order_create.php', immediat), 422, 'closed');
+
+    const slot = slots.json.days[1].slots[0];
+    const r = await alice.post('order_create.php', corps('planif-ferme-programmee', slot.iso));
+    assert.equal(r.status, 201, r.text); // une commande planifiée reste acceptée même fermé
   } finally {
-    await owner.post('owner_settings.php', { store_open: true });
+    const reopen = await owner.post('owner_open_mode.php', { mode: 'auto', code: SUPER_CODE });
+    assert.equal(reopen.json.mode, 'auto');
   }
+});
+
+test('owner_open_mode.php : POST réservé au code supérieur (le code commerçant seul ne suffit pas)', async () => {
+  const sansCode = await owner.post('owner_open_mode.php', { mode: 'closed', code: 'faux-code' });
+  assert.equal(sansCode.status, 403, sansCode.text);
+  assert.equal(sansCode.json.error, 'invalid_super_code');
+  const get = await owner.get('owner_open_mode.php'); // la LECTURE ne demande pas le code supérieur
+  assert.equal(get.status, 200, get.text);
+  assert.equal(get.json.mode, 'auto');
 });
