@@ -24,3 +24,8 @@ serveur/outils/
 .claude/
 .env
 .env.*
+
+# Documentation interne de l'équipe de dev : jamais destinée au public.
+CLAUDE.md
+AGENTS.md
+docs/
