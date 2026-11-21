@@ -59,9 +59,11 @@ export default async function ownerOrderDecide(c) {
   }
 
   // Commande planifiée tout juste acceptée (SBT-005) : tâche d'impression de préparation à H-45. Idempotent
-  // (contrainte unique sur order_id) : sans effet sur un rejeu d'acceptation.
+  // (contrainte unique sur order_id) : sans effet sur un rejeu d'acceptation. Tolère l'absence de la table
+  // print_jobs (migration pas encore appliquée en prod) : l'acceptation de la commande ne doit jamais échouer
+  // à cause de ça, l'impression planifiée sera juste indisponible.
   if (action === 'accept' && order.scheduled_for !== null) {
-    await creerTacheImpression(id, String(order.scheduled_for));
+    try { await creerTacheImpression(id, String(order.scheduled_for)); } catch (e) { /* print_jobs indisponible */ }
   }
 
   return ok({ order: (await orderViews([order], true))[0], replayed });
