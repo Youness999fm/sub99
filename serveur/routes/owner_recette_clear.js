@@ -20,7 +20,6 @@ export default async function ownerRecetteClear(c) {
     if (ids.length === 0) return 0;
     const placeholders = ids.map(() => '?').join(',');
     await exec(`DELETE FROM order_items WHERE order_id IN (${placeholders})`, ids);
-    await exec(`DELETE FROM print_jobs WHERE order_id IN (${placeholders})`, ids);
     return exec(`DELETE FROM orders WHERE id IN (${placeholders})`, ids);
   });
 
