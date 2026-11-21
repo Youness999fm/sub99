@@ -199,7 +199,10 @@ async function parcoursAccepter(ong, o, delai, opt = {}) {
   const d1 = await attendre(async () => { const d = await lireDecision(ong); return d.tuiles.length === delaisAttendus.length ? d : null; }, 2500, 50);
   B.controle(`${lib} : « Accepter » propose les ${delaisAttendus.length} délais`, d1.ok && d1.valeur.tuiles.map((t) => t.min).join() === delaisAttendus.join(), d1.ok ? d1.valeur.tuiles.map((t) => t.min).join() : 'absent');
   if (d1.ok) {
-    B.controle(`${lib} : délai par défaut (${delaiParDefaut}) présélectionné`, d1.valeur.tuiles.filter((t) => t.on).map((t) => t.min).join() === String(delaiParDefaut) && d1.valeur.confirmer === `Confirmer · ${libelleDelaiCourt(delaiParDefaut)}`, `${d1.valeur.tuiles.filter((t) => t.on).map((t) => t.min)} / ${d1.valeur.confirmer}`);
+    // Livraison : 1 heure présélectionnée (trajet du livreur), jamais le délai par défaut de préparation.
+    const delaiPreselectionAttendu = o.mode === 'delivery' ? 60 : delaiParDefaut;
+    const confirmerAttenduDefaut = o.mode === 'delivery' ? `Confirmer · plus ou moins ${libelleDelaiCourt(delaiPreselectionAttendu)}` : `Confirmer · ${libelleDelaiCourt(delaiPreselectionAttendu)}`;
+    B.controle(`${lib} : délai par défaut (${delaiPreselectionAttendu}) présélectionné`, d1.valeur.tuiles.filter((t) => t.on).map((t) => t.min).join() === String(delaiPreselectionAttendu) && d1.valeur.confirmer === confirmerAttenduDefaut, `${d1.valeur.tuiles.filter((t) => t.on).map((t) => t.min)} / ${d1.valeur.confirmer}`);
   }
   let e = (await etat()).parId.get(o.id);
   B.controle(`${lib} : après « Accepter », rien n'est encore décidé (serveur)`, e.status === 'new', e.status);
@@ -214,9 +217,11 @@ async function parcoursAccepter(ong, o, delai, opt = {}) {
     await attendre(async () => (await lireDecision(ong)).tuiles.length === 5, 2500, 50);
   }
 
+  // Livraison : « plus ou moins » devant le délai (trajet du livreur jamais exact), jamais à emporter.
+  const confirmeAttendu = o.mode === 'delivery' ? `Confirmer · plus ou moins ${libelleDelaiCourt(delai)}` : `Confirmer · ${libelleDelaiCourt(delai)}`;
   await cliquer(ong.page, `#decision [data-action="delay"][data-min="${delai}"]`, { nom: `tuile ${delai}` });
   const d2 = await attendre(async () => { const d = await lireDecision(ong); return d.tuiles.find((t) => t.min === delai && t.on) ? d : null; }, 2500, 50);
-  B.controle(`${lib} : la tuile ${delai} est choisie, bouton « Confirmer · ${libelleDelaiCourt(delai)} »`, d2.ok && d2.valeur.confirmer === `Confirmer · ${libelleDelaiCourt(delai)}` && d2.valeur.tuiles.filter((t) => t.on).length === 1, d2.ok ? `${d2.valeur.confirmer}` : 'tuile non choisie');
+  B.controle(`${lib} : la tuile ${delai} est choisie, bouton « ${confirmeAttendu} »`, d2.ok && d2.valeur.confirmer === confirmeAttendu && d2.valeur.tuiles.filter((t) => t.on).length === 1, d2.ok ? `${d2.valeur.confirmer}` : 'tuile non choisie');
   e = (await etat()).parId.get(o.id);
   B.controle(`${lib} : délai choisi mais rien envoyé (serveur)`, e.status === 'new', e.status);
 
@@ -262,8 +267,9 @@ async function parcoursAccepter(ong, o, delai, opt = {}) {
     B.controle(`${lib} : entre dans « En préparation » avec « Prête vers HH:MM »`, prep.ok && norm(prep.valeur.sous) === attenduSous && norm(prep.valeur.titre) === o.nom, prep.ok ? norm(prep.valeur.sous) : 'absente de la bande');
     const bande = await ong.page.evaluate(`!document.getElementById('prep-strip').hidden`);
     B.controle(`${lib} : la bande « En préparation » est visible`, bande, '');
-    const tt = await attendreToast(ong, `Commande de ${o.nom} acceptée · délai annoncé : ${libelleDelai(delai)}`, clic.t, 3000);
-    B.controle(`${lib} : message « acceptée · délai annoncé : ${libelleDelai(delai)} »`, tt.ok, tt.ok ? `${tt.valeur.t - clic.t} ms` : 'message absent');
+    const delaiAnnonceAttendu = o.mode === 'delivery' ? `plus ou moins ${libelleDelai(delai)}` : libelleDelai(delai);
+    const tt = await attendreToast(ong, `Commande de ${o.nom} acceptée · délai annoncé : ${delaiAnnonceAttendu}`, clic.t, 3000);
+    B.controle(`${lib} : message « acceptée · délai annoncé : ${delaiAnnonceAttendu} »`, tt.ok, tt.ok ? `${tt.valeur.t - clic.t} ms` : 'message absent');
     // la sélection passe à la 1re commande restante
     const restantes = idsAvant.filter((id) => id !== o.id);
     const sel = await attendre(async () => { const d = await lireDetail(ong); return restantes.length ? d.selection === restantes[0] : d.vide ? d : null; }, 3000, 60);
@@ -337,12 +343,19 @@ async function parcoursPrete(ong, o, opt = {}) {
   const lib = `Prête · ${o.nom}`;
   const e0 = (await etat()).parId.get(o.id);
   await cliquer(ong.page, selPrep(o.id), { nom: `pastille « en préparation » de ${o.nom}` });
+  // Livraison : « Livreur sur la route » à la place de « Commande prête » (c'est le livreur qui part, pas le client qui vient).
+  const texteBoutonPret = e0.mode === 'delivery' ? 'Livreur sur la route · prévenir le client' : 'Commande prête · prévenir le client';
   const dlg = await attendre(async () => { const d = await lireDialogue(ong); return d.ouvert && d.boutons.some((b) => b.action === 'mark-ready') ? d : null; }, 2500, 50);
-  B.controle(`${lib} : la pastille ouvre le ticket avec « Commande prête · prévenir le client »`, dlg.ok && dlg.valeur.titre === `Ticket — ${o.nom}` && dlg.valeur.boutons.some((b) => b.texte === 'Commande prête · prévenir le client'), dlg.ok ? dlg.valeur.titre : 'pas de fenêtre');
+  B.controle(`${lib} : la pastille ouvre le ticket avec « ${texteBoutonPret} »`, dlg.ok && dlg.valeur.titre === `Ticket — ${o.nom}` && dlg.valeur.boutons.some((b) => b.texte === texteBoutonPret), dlg.ok ? dlg.valeur.titre : 'pas de fenêtre');
   if (dlg.ok) {
     const t = dlg.valeur.texte;
+    const delaiAnnonceTicket = e0.mode === 'delivery' ? `plus ou moins ${libelleDelai(e0.delay_minutes)}` : libelleDelai(e0.delay_minutes);
+    // Un retrait au commerce n'affiche volontairement aucune étiquette de mode sur le ticket (voir le commentaire
+    // « rien de plus ici pour un retrait au commerce » dans buildTicketBytes, assets/js/commercant.js) : seule la
+    // livraison affiche « LIVRAISON ».
+    const modeOk = e0.mode === 'delivery' ? t.includes('LIVRAISON') : true;
     B.controle(`${lib} : le ticket indique mode, client, total, délai annoncé et heure prévue`,
-      t.includes(e0.mode === 'delivery' ? 'LIVRAISON' : 'EMPORTER') && t.includes(o.nom) && t.includes(eur(e0.total_cents)) && t.includes(libelleDelai(e0.delay_minutes)) && t.includes(`Prête vers${hm(e0.ready_at)}`.replace('vers', 'vers')) ,
+      modeOk && t.includes(o.nom) && t.includes(eur(e0.total_cents)) && t.includes(delaiAnnonceTicket) && t.includes(`Prête vers${hm(e0.ready_at)}`.replace('vers', 'vers')) ,
       t.slice(0, 160));
   }
   let e = (await etat()).parId.get(o.id);
@@ -376,8 +389,9 @@ async function parcoursPrete(ong, o, opt = {}) {
     B.controle(`${lib} : la fenêtre du ticket se referme`, ferme.ok, '');
     const sorti = await attendre(async () => !(await prepPresent(ong, o.id)), 4000, 40);
     B.controle(`${lib} : la commande quitte « En préparation »`, sorti.ok, sorti.ok ? `${Date.now() - clic.t} ms après le clic` : 'toujours présente');
-    const tt = await attendreToast(ong, `Commande de ${o.nom} prête · le client est prévenu`, clic.t, 3000);
-    B.controle(`${lib} : message « prête · le client est prévenu »`, tt.ok, tt.ok ? `${tt.valeur.t - clic.t} ms` : 'message absent');
+    const texteToastPret = e0.mode === 'delivery' ? `Livreur en route pour ${o.nom} · le client est prévenu` : `Commande de ${o.nom} prête · le client est prévenu`;
+    const tt = await attendreToast(ong, texteToastPret, clic.t, 3000);
+    B.controle(`${lib} : message « ${texteToastPret} »`, tt.ok, tt.ok ? `${tt.valeur.t - clic.t} ms` : 'message absent');
   }
   return { clic, serveur: srv.ordre };
 }
@@ -669,9 +683,11 @@ async function principal() {
     });
 
     await phase('5f. Une nouvelle commande arrive PENDANT le choix du délai : le choix en cours est conservé', async () => {
+      // À emporter explicitement (et non la première venue) : l'assertion ci-dessous vérifie un texte
+      // de confirmation fixe (« 50 min », sans « plus ou moins »), propre à l'emporter.
       const parId = new Map(envoyees.map((o) => [o.id, o]));
       const cur = nouvellesServeur(await etat());
-      const x = parId.get(cur[0]);
+      const x = parId.get(cur.find((id) => parId.get(id).mode !== 'delivery'));
       const arrivees = [];
       await parcoursAccepter(A, x, 50, {
         ui: false,
@@ -720,11 +736,14 @@ async function principal() {
       const bouton = await A.page.evaluate(`document.getElementById('default-delay-btn').textContent`);
       B.controle('Le bouton annonce « Délai par défaut · 50 min »', norm(bouton) === 'Délai par défaut · 50 min', norm(bouton));
       await attendre(async () => !(await lireDialogue(A)).ouvert, 2500, 60);
+      // Choisie explicitement à emporter (et non la première venue) : le délai par défaut réglé ici ne
+      // s'applique qu'à l'emporter, la livraison présélectionne toujours 1 heure (voir plus haut).
       const parId = new Map(envoyees.map((o) => [o.id, o]));
       const cur = nouvellesServeur(await etat());
-      await selectionner(A, parId.get(cur[0]));
+      const idPickup = cur.find((id) => parId.get(id).mode !== 'delivery');
+      await selectionner(A, parId.get(idPickup));
       await cliquer(A.page, '#decision [data-action="accept"]', { nom: 'Accepter' });
-      const d = await attendre(async () => { const x = await lireDecision(A); return x.tuiles.length === 5 ? x : null; }, 2500, 50);
+      const d = await attendre(async () => { const x = await lireDecision(A); return x.tuiles.length === 7 ? x : null; }, 2500, 50);
       B.controle('Au clic sur Accepter, la tuile 50 est présélectionnée', d.ok && d.valeur.tuiles.filter((t) => t.on).map((t) => t.min).join() === '50' && d.valeur.confirmer === 'Confirmer · 50 min', d.ok ? d.valeur.confirmer : '');
       await cliquer(A.page, '#decision [data-action="edit-cancel"]', { nom: 'Annuler' });
       await cliquer(A.page, '[data-action="default-delay-open"]', { nom: 'Délai par défaut' });
@@ -925,7 +944,8 @@ async function principal() {
       const live = await lireLive(A.page);
       B.controle('Décision hors connexion : le message est aussi annoncé (zone aria-live)', live.some((x) => x.t >= tc && /Connexion impossible/.test(x.texte)), '');
       const btn = await lireDecision(A);
-      B.controle('Décision hors connexion : le bouton « Confirmer · 30 min » est de nouveau actif (pas de blocage sur « Envoi… »)', btn.confirmer === 'Confirmer · 30 min' && btn.confirmerActif === true, `${btn.confirmer}/${btn.confirmerActif}`);
+      const confirmerAttendu = cible.mode === 'delivery' ? 'Confirmer · plus ou moins 30 min' : 'Confirmer · 30 min';
+      B.controle(`Décision hors connexion : le bouton « ${confirmerAttendu} » est de nouveau actif (pas de blocage sur « Envoi… »)`, btn.confirmer === confirmerAttendu && btn.confirmerActif === true, `${btn.confirmer}/${btn.confirmerActif}`);
       const e1 = (await etat()).parId.get(cible.id);
       B.controle('Décision hors connexion : rien n\'a été enregistré (serveur) et la pastille reste dans « À traiter »', e1.status === 'new' && (await chipPresent(A, cible.id)), e1.status);
       const hors = (await lireIds(A)).filter((id) => manquees.some((m) => m.id === id));
@@ -946,10 +966,10 @@ async function principal() {
       const sonde = await lireSonde(A.page);
       analyserAlertes(sonde, tOn - 20, Date.now(), manquees, 'Rattrapage après coupure');
       await convergence(A, 'Après la coupure');
-      // La décision peut être refaite.
+      // La décision peut être refaite. L'échec hors connexion n'a jamais réinitialisé l'état « en train de choisir »
+      // (state.editingId reste fixé sur cible.id, voir la vérification du bouton « Confirmer » plus haut) : le panneau
+      // est toujours sur l'écran des tuiles de délai, pas sur le bouton initial « Accepter ». On confirme directement.
       await selectionner(A, cible);
-      await cliquer(A.page, '#decision [data-action="accept"]', { nom: 'Accepter' });
-      await cliquer(A.page, '#decision [data-action="delay"][data-min="30"]', { nom: 'tuile 30' });
       const tr = Date.now();
       await cliquer(A.page, '#decision [data-action="accept-confirm"]', { nom: 'Confirmer' });
       const ok = await attendreServeur(cible.id, (x) => x.status === 'accepted' && x.delay_minutes === 30, 6000);
@@ -975,7 +995,10 @@ async function principal() {
       if (rec.ok) {
         const ecarts = rec.valeur.lignes.map((l, i) => {
           const o = acceptees[i];
-          const attenduInfo = `Acceptée à ${hm(o.accepted_at)}${o.status === 'ready' ? ' · Prête' : ''}Délai ${libelleDelai(o.delay_minutes)}`;
+          const delaiAttenduRecap = o.mode === 'delivery' ? `plus ou moins ${libelleDelai(o.delay_minutes)}` : libelleDelai(o.delay_minutes);
+          // Espace avant « Délai » : les deux <span> de .rc-info (commercant.js, fillRecap) sont séparés par un saut de
+          // ligne dans le gabarit, donc un espace réel existe dans le DOM entre eux, qu'importe le statut « ready ».
+          const attenduInfo = `Acceptée à ${hm(o.accepted_at)}${o.status === 'ready' ? ' · Prête' : ''} Délai ${delaiAttenduRecap}`;
           return norm(l.nom) === o.customer_name && norm(l.info) === attenduInfo && norm(l.montant) === eur(o.total_cents) ? null : `${i}: ${norm(l.nom)} | ${norm(l.info)} | ${norm(l.montant)} (attendu ${o.customer_name} | ${attenduInfo})`;
         }).filter(Boolean);
         B.controle('Recette du jour : chaque ligne (nom, heure d\'acceptation, « Prête », délai, montant) est exacte, par ordre d\'acceptation', ecarts.length === 0, ecarts.slice(0, 2).join(' ; '));

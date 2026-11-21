@@ -301,7 +301,7 @@ export function attendu({ client, mode, moyens, billet, lignes: ls, calc, adress
     status: 'new',
     mode,
     customer_name: `${c.first_name} ${c.last_name}`,
-    delivery_address: livraison && adresse ? { street: adresse.street, city: adresse.city } : null,
+    delivery_address: livraison && adresse ? { street: adresse.street, city: adresse.city, housing_type: adresse.housing_type ?? 'maison' } : null,
     payment_methods: livraison ? dedoublonner(moyens) : [],
     cash_change_for: livraison && moyens.includes('cash') ? billet : null,
     items: ls.map((l) => l.attendu),

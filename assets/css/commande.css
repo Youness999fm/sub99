@@ -26,6 +26,8 @@
   font-weight: 700;
   font-size: 1.1rem;
   color: var(--green-dark);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .order-track-scheduled {
@@ -193,6 +195,8 @@
   margin: 2px 0 0;
   font-size: 0.78rem;
   color: var(--gray);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .order-track-total {

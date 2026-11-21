@@ -1187,10 +1187,12 @@ const SUBITO_CART_CONFIG = {
     chips.addEventListener("customize:change", refresh);
     removeSection.appendChild(chips);
 
+    const noteId2 = "customizeNote" + (++customizeIdCounter);
     const noteSection = document.createElement("div");
     noteSection.className = "customize__section";
-    noteSection.innerHTML = '<p class="customize__title">' + SubitoIcons.svg("message-square") + ' Autre demande (facultatif)</p>';
+    noteSection.innerHTML = '<label class="customize__title" for="' + noteId2 + '">' + SubitoIcons.svg("message-square") + ' Autre demande (facultatif)</label>';
     const noteInput = document.createElement("input");
+    noteInput.id = noteId2;
     noteInput.type = "text";
     noteInput.className = "customize__note";
     noteInput.maxLength = 140;

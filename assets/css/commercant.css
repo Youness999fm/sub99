@@ -458,7 +458,7 @@ button { font: inherit; }
   .cm-main { padding: 14px 16px 16px; }
   .orders-grid, .view-patron .recap-layout, .clients-layout { grid-template-columns: minmax(0, 1fr); }
   .cm-tabs { display: flex; width: 100%; }
-  .cm-tabs .tab { flex: 1 1 0; padding: 8px 6px; font-size: 15px; }
+  .cm-tabs .tab { flex: 1 1 0; min-width: 0; padding: 8px 6px; font-size: 15px; overflow: hidden; text-overflow: ellipsis; }
   .detail-col { padding: 16px; }
   .recap-summary { order: -1; }
   .recap-actions { grid-template-columns: 1fr; }
@@ -775,9 +775,8 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 /* ---------- Ticket de commande (aperçu) : à emporter ou livraison ---------- */
 
 .ticket .t-center { text-align: center; }
-.ticket .t-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.ticket .t-head { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px; }
 .ticket .t-logo { border-radius: 50%; flex: 0 0 auto; }
-.ticket .t-brand { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: #6E6862; text-transform: uppercase; }
 .ticket .t-customer-box { border: 3px solid #1C1B19; padding: 3mm 2mm; margin-bottom: 10px; text-align: center; }
 .ticket .t-customer-name { margin: 0; font-size: 24px; font-weight: 800; line-height: 1.2; }
 .ticket .t-top {

@@ -332,7 +332,7 @@ async function apiEtats() {
   ctl('ingrédient out_today : listé dans ingredientsIndisponibles (pas dans les pizzas)', memeListe(p.json.ingredientsIndisponibles, ['thon']) && p.json.pizzasIndisponibles.length === 0, p.json);
   await pose(patron, 'product', 'Bolognaise', 'out_manual');
   p = await lirePublic(pub);
-  ctl('produit hors service : JAMAIS dans la réponse publique (seuls pizzas et ingrédients y sont)', !JSON.stringify(p.json).includes('Bolognaise'), p.json);
+  ctl('produit hors service : listé dans produitsIndisponibles (affiché sur le site, comme les pizzas)', memeListe(p.json.produitsIndisponibles, ['Bolognaise']), p.json);
   r = await patron.get('owner_availability.php');
   ctl('… mais le patron le voit', r.json.out.some((e) => e.kind === 'product' && e.name === 'Bolognaise'), r.json.out.length + ' entrées');
   // Plusieurs graphies d'une même pizza : « available » les efface toutes.

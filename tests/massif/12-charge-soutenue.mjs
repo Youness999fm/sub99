@@ -767,7 +767,7 @@ for (let i = 0; i < compo.customer_login; i++) {
 for (let i = 0; i < compo.customer_update_address; i++) {
   const c = clients[(i * 11 + 3) % clients.length];
   const rue = `${100 + i} avenue du Test`;
-  ajouter('customer_update_address', async () => ({ rep: await c.post('customer_update_address.php', { street: rue, city: c.ville }) }), ({ rep }) => (rep.status === 200 && rep.json && rep.json.customer && rep.json.customer.street === rue ? null : `HTTP ${rep.status} ${String(rep.text).slice(0, 100)}`));
+  ajouter('customer_update_address', async () => ({ rep: await c.post('customer_update_address.php', { street: rue, city: c.ville, housing_type: 'maison' }) }), ({ rep }) => (rep.status === 200 && rep.json && rep.json.customer && rep.json.customer.street === rue ? null : `HTTP ${rep.status} ${String(rep.text).slice(0, 100)}`));
 }
 
 const melanges = rr.melanger(taches);

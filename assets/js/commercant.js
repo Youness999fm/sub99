@@ -738,7 +738,9 @@
         syncAlarm(); // arrête la sonnerie tout de suite si c'était la dernière commande à traiter (pas d'attente du prochain sondage)
         const done = r.data.order || {};
         if (action === 'accept' && done.status === 'accepted') printOrderOnPrinter(done);
-        toast(done.status === 'accepted'
+        // On se base sur l'action envoyée par CET appareil, pas sur done.status : en cas de rejeu d'un accept, la
+        // commande peut déjà être « ready » (marquée prête par un autre appareil) sans jamais avoir été refusée.
+        toast(action === 'accept'
           ? `Commande de ${name} acceptée · délai annoncé : ${delayLabel(done.delay_minutes, done.mode === 'delivery')}`
           : `Commande de ${name} refusée`);
       } else if (r.data.error === 'already_decided') {
@@ -748,9 +750,10 @@
           cur.delay_minutes = r.data.delay_minutes != null ? r.data.delay_minutes : cur.delay_minutes;
         }
         syncAlarm();
-        toast(r.data.status === 'accepted'
-          ? `La commande de ${name} était déjà acceptée (délai ${delayLabel(r.data.delay_minutes, cur && cur.mode === 'delivery')}).`
-          : `La commande de ${name} était déjà refusée.`);
+        // r.data.status peut être « ready » (déjà marquée prête par un autre appareil) : ce n'est jamais un refus.
+        toast(r.data.status === 'refused'
+          ? `La commande de ${name} était déjà refusée.`
+          : `La commande de ${name} était déjà acceptée (délai ${delayLabel(r.data.delay_minutes, cur && cur.mode === 'delivery')}).`);
       } else if (r.data.error === 'not_found') {
         alertMsg(`La commande de ${name} est introuvable.`);
       } else {
@@ -1083,7 +1086,8 @@
         data-action="delay" data-min="${DELAY_IMMEDIATE}" ${dis}>
         <span class="dl-unit">Tout de suite</span>
       </button>` : '';
-    const confirmLabel = m === DELAY_IMMEDIATE ? 'tout de suite' : delayLabel(m, o.mode === 'delivery');
+    const confirmLabelCourt = m === 60 ? '1 h' : m + ' min';
+    const confirmLabel = m === DELAY_IMMEDIATE ? 'tout de suite' : (o.mode === 'delivery' ? 'plus ou moins ' + confirmLabelCourt : confirmLabelCourt);
     return `
       <p class="ask" id="delay-ask">Délai annoncé au client</p>
       <div class="dl-grid" role="group" aria-labelledby="delay-ask">${tiles}${immediateTile}</div>
@@ -1659,7 +1663,6 @@
       <div class="ticket">
         <div class="t-head">
           <img class="t-logo" src="../assets/img/logo.jpg" alt="" width="30" height="30">
-          <span class="t-brand">Subito Pizza</span>
         </div>
         <div class="t-customer-box">
           <p class="t-customer-name">${esc(customerLabel(o))}</p>
@@ -1859,11 +1862,9 @@
 
     push(0x1B, 0x40); // initialisation
 
-    // En-tête : petit, dans un coin, logo juste au-dessus du nom.
+    // En-tête : juste le logo (le nom du commerce ne sert à rien en double, il est déjà dessus).
     if (logoRasterBytes) { align(1); raw(logoRasterBytes); blank(1); }
     align(0);
-    text((o.shop || 'Subito Pizza') + '\n');
-    blank(1);
 
     // Nom du client : même taille et même gras que les articles, encadré et centré, tout en haut du
     // ticket, pour qu'on le voie du premier coup d'œil (plus de confusion entre deux commandes à la suite).

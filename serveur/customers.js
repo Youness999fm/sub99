@@ -68,10 +68,9 @@ export function validateAddress(b, errors) {
   if (typeof city !== 'string') { errors.city = 'Ville invalide.'; city = ''; }
   if (typeof housingType !== 'string') { errors.housing_type = 'Type de logement invalide.'; housingType = ''; }
   // Postgres refuse le caractère NUL dans un texte : refus propre (422) plutôt qu'une erreur 500.
-  if (street.includes('\0') || city.includes('\0')) {
-    errors.street = errors.street || 'Adresse invalide.';
-    return [null, null, null];
-  }
+  if (street.includes('\0')) errors.street = errors.street || 'Adresse invalide.';
+  if (city.includes('\0')) errors.city = errors.city || 'Ville invalide.';
+  if (street.includes('\0') || city.includes('\0')) return [null, null, null];
   street = cleanSpaces(street);
   city = city.trim();
   housingType = housingType.trim();

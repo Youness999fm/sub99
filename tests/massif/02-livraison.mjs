@@ -583,7 +583,7 @@ async function partie4() {
   verifierRefus('adresse effacée, livraison : 422 address_required', t8, { statut: 422, code: 'address_required' });
   const t9 = await appel(c1, 'GET', `order_status.php?id=${t6.rep.json.order.id}`);
   egal('la commande déjà passée garde son adresse après effacement du compte (order_status)',
-    [t9.status, t9.json?.order?.delivery_address], [200, { street: '12 rue des Écoles', city: 'Rouvroy' }]);
+    [t9.status, t9.json?.order?.delivery_address], [200, { street: '12 rue des Écoles', city: 'Rouvroy', housing_type: 'maison' }]);
   const t10 = await commander(c1, { mode: 'pickup', specs: [{ type: 'produit', nom: 'Salade Niçoise' }] });
   verifierCreation('adresse effacée, à emporter : acceptée', t10);
 
@@ -770,7 +770,7 @@ async function partie5() {
   const rejeu = await appel(c, 'POST', 'order_create.php', o1.corps);
   egal('S1 · rejeu de la commande n°1 (même clé, même corps) après le changement d\'adresse : 200 replayed, ANCIENNE adresse',
     [rejeu.status, rejeu.json?.replayed, rejeu.json?.order?.id, rejeu.json?.order?.delivery_address, rejeu.json?.order?.delivery_fee_cents],
-    [200, true, o1.rep.json.order.id, { street: '1 rue Jean Jaurès', city: 'Hénin-Beaumont' }, 550]);
+    [200, true, o1.rep.json.order.id, { street: '1 rue Jean Jaurès', city: 'Hénin-Beaumont', housing_type: 'maison' }, 550]);
   await changerAdresse(c, '1 rue Jean Jaurès', 'Hénin-Beaumont');
   const o4 = await commander(c, { specs: p1000.specs, moyens: ['ticket'] });
   verifierCreation('S1 · retour à Hénin-Beaumont : le panier de 1000 est de nouveau accepté (commande n°3)', o4);
@@ -796,10 +796,10 @@ async function partie5() {
   d1.att.ready_at = K.utcAt(epochActuel + 40 * 60);
   await changerAdresse(d, '77 chemin des Prés', 'Courrières');
   const st = await appel(d, 'GET', `order_status.php?id=${d1.rep.json.order.id}`);
-  egal('S2 · après le déménagement, la commande acceptée garde l\'adresse de Dourges (vue client)', [K.comparerVue(st.json?.order, d1.att).length, st.json?.order?.delivery_address], [0, { street: '4 rue Victor Hugo', city: 'Dourges' }]);
+  egal('S2 · après le déménagement, la commande acceptée garde l\'adresse de Dourges (vue client)', [K.comparerVue(st.json?.order, d1.att).length, st.json?.order?.delivery_address], [0, { street: '4 rue Victor Hugo', city: 'Dourges', housing_type: 'maison' }]);
   const lp = await appel(patron, 'GET', 'owner_orders.php');
   const vp = lp.json?.orders?.find((o) => o.id === d1.rep.json.order.id);
-  egal('S2 · même chose dans la vue du patron', [K.comparerVue(vp, d1.att, { proprietaire: true }).length, vp?.delivery_address], [0, { street: '4 rue Victor Hugo', city: 'Dourges' }]);
+  egal('S2 · même chose dans la vue du patron', [K.comparerVue(vp, d1.att, { proprietaire: true }).length, vp?.delivery_address], [0, { street: '4 rue Victor Hugo', city: 'Dourges', housing_type: 'maison' }]);
 
   // S3 : adresse effacée entre deux commandes.
   const e = cl[2];
@@ -810,7 +810,7 @@ async function partie5() {
   const e2 = await commander(e, { specs: [{ type: 'pizza', nom: 'Régina', taille: 'Duo' }], enregistrer: false });
   verifierRefus('S3 · adresse effacée : la livraison suivante est refusée (address_required)', e2, { statut: 422, code: 'address_required' });
   const es = await appel(e, 'GET', `order_status.php?id=${e1.rep.json.order.id}`);
-  egal('S3 · la première commande garde son adresse', es.json?.order?.delivery_address, { street: '3 impasse du Moulin', city: 'Billy-Montigny' });
+  egal('S3 · la première commande garde son adresse', es.json?.order?.delivery_address, { street: '3 impasse du Moulin', city: 'Billy-Montigny', housing_type: 'maison' });
 
   // S4 : un client, 8 villes, 8 commandes identiques (2500 sans pizza) : frais et adresses propres à chacune.
   const g = cl[3];

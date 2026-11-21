@@ -402,9 +402,13 @@ try {
       const idCmd = cmd.json.order.id;
       const baseDec = () => ({ id: idCmd, action: 'accept', delay_minutes: 30 });
       const decFausse = [
-        ...[null, '1', 0, -1, 1.5, true, [], {}, '__INF__', 1e21, [idCmd], { a: 1 }, 'x'].map((v) => ({ lib: `id = ${visible(v, 20)}`, corps: serialiser(avec(baseDec(), ['id'], v)), champ: 'id' })),
+        // 1e21 est volontairement absent ici : un id hors de la plage de la colonne est documenté comme 404 (orderLoad),
+        // pas 422, et c'est exactement ce que couvre déjà le lot « identifiant hors plage ou inexistant » ci-dessous.
+        ...[null, '1', 0, -1, 1.5, true, [], {}, '__INF__', [idCmd], { a: 1 }, 'x'].map((v) => ({ lib: `id = ${visible(v, 20)}`, corps: serialiser(avec(baseDec(), ['id'], v)), champ: 'id' })),
         ...[null, 1, 'ACCEPT', 'accept ', 'x', [], {}, 'accept\u0000', "accept'; DROP TABLE orders;--", ['accept']].map((v) => ({ lib: `action = ${visible(v, 20)}`, corps: serialiser(avec(baseDec(), ['action'], v)), champ: 'action' })),
-        ...[null, 25, 0, 20.5, '20', 60.0001, [], true, 1e21, -20, 70].map((v) => ({ lib: `delay_minutes = ${visible(v, 20)}`, corps: serialiser(avec(baseDec(), ['delay_minutes'], v)), champ: 'delay_minutes' }))
+        // 0 est volontairement absent ici : c'est DELAY_IMMEDIATE (« venir tout de suite »), une valeur valide documentée
+        // dans serveur/routes/owner_order_decide.js, pas une valeur fausse.
+        ...[null, 25, 20.5, '20', 60.0001, [], true, 1e21, -20, 70].map((v) => ({ lib: `delay_minutes = ${visible(v, 20)}`, corps: serialiser(avec(baseDec(), ['delay_minutes'], v)), champ: 'delay_minutes' }))
       ];
       await lot('A2 · owner_order_decide · id, action, délai faux : 422', decFausse.map((k) => cas(k.lib, () => apiBrut('owner_order_decide', k.corps, { cookie }), { champ: k.champ })), (r, k) => attenduValidation(k.champ)(r));
       const absents = [2147483648, 2147483647, 9007199254740993, 999999999, 1e308].map((id) => cas(`id inexistant ${id}`, () => api('owner_order_decide', { id, action: 'refuse' }, { cookie })));
