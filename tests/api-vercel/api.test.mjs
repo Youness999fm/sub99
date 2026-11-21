@@ -651,16 +651,22 @@ test('6. réglages', async () => {
   await ownerA.post('owner_settings.php', { default_delay_minutes: 40 });
   assert.equal((await ownerA.get('owner_settings.php')).json.default_delay_minutes, 40);
 
-  // Ouverture/fermeture manuelle (owner_open_mode.php, accès supérieur) : fermeture forcée, prioritaire sur
-  // l'horaire (créneau « off » dans ces tests) pour une commande « dès que possible » seulement.
-  expectError(await ownerA.post('owner_open_mode.php', { mode: 'bascule', code: SUPER_CODE }), 422, 'validation');
-  expectError(await ownerA.post('owner_open_mode.php', { mode: 'closed', code: 'faux' }), 403, 'invalid_super_code');
-  const closed = await ownerA.post('owner_open_mode.php', { mode: 'closed', code: SUPER_CODE });
-  assert.deepEqual(closed.json, { ok: true, mode: 'closed', ouvert: false, auto_ouvert: true, expires_at: null, prochaine_transition: null, horaire_auto: null });
-  assert.equal((await ownerA.get('owner_open_mode.php')).json.mode, 'closed');
+  // Ouverture/fermeture manuelle (owner_open_mode.php, accès supérieur), canal « restaurant » : fermeture
+  // forcée, prioritaire sur l'horaire (créneau « off » dans ces tests) pour une commande « dès que
+  // possible » seulement. Indépendante du canal « delivery » (couvert par planification.test.mjs).
+  expectError(await ownerA.post('owner_open_mode.php', { canal: 'restaurant', mode: 'bascule', code: SUPER_CODE }), 422, 'validation');
+  expectError(await ownerA.post('owner_open_mode.php', { canal: 'cuisine', mode: 'closed', code: SUPER_CODE }), 422, 'validation');
+  expectError(await ownerA.post('owner_open_mode.php', { canal: 'restaurant', mode: 'closed', code: 'faux' }), 403, 'invalid_super_code');
+  const closed = await ownerA.post('owner_open_mode.php', { canal: 'restaurant', mode: 'closed', code: SUPER_CODE });
+  assert.deepEqual(closed.json, {
+    ok: true,
+    restaurant: { mode: 'closed', ouvert: false, auto_ouvert: true, expires_at: null, prochaine_transition: null, horaire_auto: null },
+    delivery: { mode: 'auto', ouvert: true, auto_ouvert: true, expires_at: null, prochaine_transition: null, horaire_auto: null }
+  });
+  assert.equal((await ownerA.get('owner_open_mode.php')).json.restaurant.mode, 'closed');
   expectError(await custA.post('order_create.php', orderBody({ items: [pizza('Régina', 'Duo', 1600)] })), 422, 'closed');
-  const reopened = await ownerA.post('owner_open_mode.php', { mode: 'auto', code: SUPER_CODE });
-  assert.equal(reopened.json.mode, 'auto');
+  const reopened = await ownerA.post('owner_open_mode.php', { canal: 'restaurant', mode: 'auto', code: SUPER_CODE });
+  assert.equal(reopened.json.restaurant.mode, 'auto');
   const r = await custA.post('order_create.php', orderBody({ items: [pizza('Régina', 'Duo', 1600)] }));
   assert.equal(r.status, 201, r.text);
 });
