@@ -45,25 +45,20 @@ export default async function orderCreate(c) {
   if (o.scheduled_for === null) {
     // Commande « dès que possible » : fermeture manuelle (FORCE_CLOSED) OU hors créneau automatique (AUTO) ->
     // aucune commande nouvelle (personne ne la verrait). Jamais appliqué aux commandes planifiées (SBT-003) :
-    // le client doit pouvoir programmer une commande même restaurant/livraison fermé(e). Chaque mode a son
-    // propre canal (restaurant/delivery), indépendant.
-    const etat = await etatOuverture(o.mode === 'delivery' ? 'delivery' : 'restaurant');
+    // le client doit pouvoir programmer une commande même restaurant fermé.
+    const etat = await etatOuverture();
     if (!etat.ouvert) {
       // Fermeture manuelle : pas d'heure annoncée (le commerçant peut rouvrir à tout moment, avant l'expiration
       // automatique de la bascule). Fermé par l'horaire automatique : on annonce l'heure d'ouverture habituelle.
-      // Message distinct pour la livraison : les deux canaux sont indépendants, l'un peut être fermé sans
-      // l'autre — le client ne doit jamais croire que tout le site est fermé si seule la livraison l'est.
-      const quoi = o.mode === 'delivery' ? 'La livraison' : 'La prise de commandes';
       fail(422, 'closed',
         etat.mode === 'closed'
-          ? `${quoi} est fermée par le commerçant pour le moment. Réessayez plus tard.`
-          : `${quoi} est fermée pour le moment.`,
+          ? 'Le commerçant a fermé la prise de commandes pour le moment. Réessayez plus tard.'
+          : 'Les commandes en ligne sont fermées pour le moment.',
         etat.mode === 'auto' && etat.creneau ? { opens_at: libelleHeure(etat.creneau.debut), closes_at: libelleHeure(etat.creneau.fin) } : {});
     }
   } else {
-    // Commande planifiée : le créneau choisi doit être un horaire réellement proposé pour CE mode (délai,
-    // alignement, fenêtre propre au retrait ou à la livraison — voir planification.js).
-    if (!creneauValide(utcToEpoch(o.scheduled_for), o.mode)) {
+    // Commande planifiée : le créneau choisi doit être un horaire réellement proposé (délai, alignement, fenêtre de retrait 18h20-22h30).
+    if (!creneauValide(utcToEpoch(o.scheduled_for))) {
       fail(422, 'invalid_schedule', "L'horaire choisi n'est plus disponible. Choisissez-en un autre.");
     }
   }

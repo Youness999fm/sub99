@@ -128,9 +128,14 @@
     view: 'orders',
     defaultDelay: 30,
     savingDefault: false,
-    // Ouverture/fermeture (accès supérieur), un canal indépendant par mode : restaurant (retrait) et livraison.
-    openModes: { restaurant: null, delivery: null },
-    savingOpenMode: null,
+    // Ouverture/fermeture du restaurant (accès supérieur) : mode effectif + éléments d'affichage.
+    openMode: 'auto',
+    openModeOuvert: true,
+    openModeAutoOuvert: true,
+    openModeExpiresAt: null,
+    openModeProchaineTransition: null,
+    openModeHoraire: null,
+    savingOpenMode: false,
     soundOn: true,
     out: [],
     availLoaded: false,
@@ -410,7 +415,12 @@
     state.superUnlocked = false;
     state.superCode = '';
     state.recetteClearBusy = false;
-    state.openModes = { restaurant: null, delivery: null };
+    state.openMode = 'auto';
+    state.openModeOuvert = true;
+    state.openModeAutoOuvert = true;
+    state.openModeExpiresAt = null;
+    state.openModeProchaineTransition = null;
+    state.openModeHoraire = null;
     setNetLost(false);
     closeDialog();
     lastHtml.clear();
@@ -696,13 +706,6 @@
   }
 
   // ---------- Impression de préparation ----------
-  function printJobStatusLabel(job) {
-    if (!job) return null;
-    if (job.status === 'dispatched') return 'Ticket de préparation imprimé';
-    if (job.status === 'claimed') return 'Impression du ticket de préparation en cours…';
-    if (job.status === 'failed') return '⚠ Impression de préparation échouée — à réimprimer manuellement';
-    return 'Ticket de préparation prévu';
-  }
   async function checkDuePrintJobs(orders) {
     const dues = orders.filter(o => o.print_due && !state.claimingPrint.has(o.id));
     if (!dues.length) return;
@@ -843,9 +846,13 @@
     } catch (e) { /* les réglages restent à leur dernière valeur connue */ }
   }
 
-  function applyOpenModes(data) {
-    state.openModes.restaurant = data.restaurant;
-    state.openModes.delivery = data.delivery;
+  function applyOpenMode(d) {
+    state.openMode = d.mode;
+    state.openModeOuvert = d.ouvert;
+    state.openModeAutoOuvert = d.auto_ouvert;
+    state.openModeExpiresAt = d.expires_at;
+    state.openModeProchaineTransition = d.prochaine_transition;
+    state.openModeHoraire = d.horaire_auto;
   }
 
   // Lecture seule : accessible sans code supérieur, pour que le statut s'affiche dans la barre du haut
@@ -853,21 +860,20 @@
   async function loadOpenMode() {
     try {
       const r = await api('owner_open_mode.php');
-      if (r.ok) { applyOpenModes(r.data); scheduleRender(); }
+      if (r.ok) { applyOpenMode(r.data); scheduleRender(); }
     } catch (e) { /* le statut reste à sa dernière valeur connue */ }
   }
 
-  async function saveOpenMode(canal, mode) {
+  async function saveOpenMode(mode) {
     if (state.savingOpenMode || !state.superUnlocked) return;
-    state.savingOpenMode = canal;
+    state.savingOpenMode = true;
     scheduleRender();
     try {
-      const r = await api('owner_open_mode.php', { method: 'POST', body: { canal, mode, code: state.superCode } });
+      const r = await api('owner_open_mode.php', { method: 'POST', body: { mode, code: state.superCode } });
       if (r.unauth) return;
       if (r.ok) {
-        applyOpenModes(r.data);
-        const canalLabel = canal === 'delivery' ? 'livraison' : 'restaurant';
-        toast(mode === 'auto' ? `Horaires automatiques rétablis (${canalLabel}).` : mode === 'open' ? `Ouverture forcée (${canalLabel}) : les clients peuvent commander dès maintenant.` : `Fermeture forcée (${canalLabel}) : les clients ne peuvent plus commander dès maintenant.`);
+        applyOpenMode(r.data);
+        toast(mode === 'auto' ? 'Horaires automatiques rétablis.' : mode === 'open' ? 'Ouverture forcée : les clients peuvent commander dès maintenant.' : 'Fermeture forcée : les clients ne peuvent plus commander dès maintenant.');
       } else if (r.data.error === 'invalid_super_code') {
         superLock('Accès supérieur invalide, reverrouillé.');
       } else {
@@ -877,7 +883,7 @@
       if (e instanceof StaleError) return;
       toast('Connexion impossible : le réglage n\'a pas été enregistré.');
     } finally {
-      state.savingOpenMode = null;
+      state.savingOpenMode = false;
       scheduleRender();
     }
   }
@@ -1046,7 +1052,6 @@
         <div>
           <p class="eyebrow">${rank ? 'Commande ' + rank + ' de la file' : ''}</p>
           ${o.scheduled_for ? `<p class="eyebrow eyebrow-scheduled">Programmée pour ${esc(scheduledLabel(o))}</p>` : ''}
-          ${o.print_job ? `<p class="eyebrow eyebrow-print${o.print_job.status === 'failed' ? ' eyebrow-print--failed' : ''}">${esc(printJobStatusLabel(o.print_job))}</p>` : ''}
           <h3 class="od-num">${esc(customerLabel(o))}</h3>
           <p class="od-time">${esc(receivedLabel(o))}</p>
         </div>
@@ -1331,56 +1336,44 @@
       </div>`;
   }
 
-  const CANAL_LABEL = { restaurant: 'Restaurant (retrait)', delivery: 'Livraison' };
-
-  function horairesCanalHtml(canal) {
+  function horairesShell() {
     return `
       <div class="horaires-card">
         <div class="col-head">
-          <h2>${esc(CANAL_LABEL[canal])}</h2>
+          <h2>Ouverture et fermeture du restaurant</h2>
           <p class="muted">Une bascule forcée revient d'elle-même à l'automatique à la prochaine heure d'ouverture ou de fermeture — jamais besoin d'y repenser le lendemain.</p>
         </div>
-        <p class="horaires-status" id="horaires-status-${canal}"></p>
-        <p class="muted" id="horaires-detail-${canal}"></p>
+        <p class="horaires-status" id="horaires-status"></p>
+        <p class="muted" id="horaires-detail"></p>
         <div class="horaires-actions">
-          <button type="button" class="btn btn-accept" data-action="open-mode-set" data-canal="${canal}" data-mode="open" id="horaires-btn-open-${canal}">Ouvrir maintenant</button>
-          <button type="button" class="btn btn-refuse" data-action="open-mode-set" data-canal="${canal}" data-mode="closed" id="horaires-btn-closed-${canal}">Fermer maintenant</button>
-          <button type="button" class="btn btn-ghost" data-action="open-mode-set" data-canal="${canal}" data-mode="auto" id="horaires-btn-auto-${canal}">Revenir à l'automatique</button>
+          <button type="button" class="btn btn-accept" data-action="open-mode-set" data-mode="open" id="horaires-btn-open">Ouvrir maintenant</button>
+          <button type="button" class="btn btn-refuse" data-action="open-mode-set" data-mode="closed" id="horaires-btn-closed">Fermer maintenant</button>
+          <button type="button" class="btn btn-ghost" data-action="open-mode-set" data-mode="auto" id="horaires-btn-auto">Revenir aux horaires automatiques</button>
         </div>
       </div>`;
   }
 
-  function horairesShell() {
-    return `<div class="horaires-grid">${horairesCanalHtml('restaurant')}${horairesCanalHtml('delivery')}</div>`;
-  }
-
-  function fillHorairesCanal(canal) {
-    const etat = state.openModes[canal];
-    const statusEl = document.getElementById('horaires-status-' + canal);
-    const detailEl = document.getElementById('horaires-detail-' + canal);
-    if (!statusEl || !detailEl || !etat) return;
-    statusEl.textContent = etat.ouvert ? 'Ouvert actuellement' : 'Fermé actuellement';
-    statusEl.classList.toggle('is-open', etat.ouvert);
-    statusEl.classList.toggle('is-closed', !etat.ouvert);
-    const modeLabel = etat.mode === 'auto' ? 'Automatique (horaire programmé)' : etat.mode === 'open' ? 'Ouverture forcée' : 'Fermeture forcée';
-    const horaireTxt = etat.horaire_auto
-      ? `Horaire habituel : ${etat.horaire_auto.opens_at} – ${etat.horaire_auto.closes_at}, tous les jours.`
-      : 'Horaires automatiques désactivés pour cet essai (commandes acceptées à toute heure par défaut).';
-    const transition = toDate(etat.prochaine_transition);
-    const transitionTxt = etat.mode !== 'auto' && transition ? ` Revient automatiquement à l'horaire programmé vers ${hm(transition)}.` : '';
-    setHTML(detailEl, `Mode : <strong>${esc(modeLabel)}</strong>. ${esc(horaireTxt)}${esc(transitionTxt)}`);
-    const busy = state.savingOpenMode === canal;
-    const bo = document.getElementById('horaires-btn-open-' + canal);
-    if (bo) bo.disabled = busy || etat.mode === 'open';
-    const bc = document.getElementById('horaires-btn-closed-' + canal);
-    if (bc) bc.disabled = busy || etat.mode === 'closed';
-    const ba = document.getElementById('horaires-btn-auto-' + canal);
-    if (ba) ba.disabled = busy || etat.mode === 'auto';
-  }
-
   function fillHoraires() {
-    fillHorairesCanal('restaurant');
-    fillHorairesCanal('delivery');
+    const statusEl = document.getElementById('horaires-status');
+    const detailEl = document.getElementById('horaires-detail');
+    if (!statusEl || !detailEl) return;
+    statusEl.textContent = state.openModeOuvert ? 'Ouvert actuellement' : 'Fermé actuellement';
+    statusEl.classList.toggle('is-open', state.openModeOuvert);
+    statusEl.classList.toggle('is-closed', !state.openModeOuvert);
+    const modeLabel = state.openMode === 'auto' ? 'Automatique (horaire programmé)' : state.openMode === 'open' ? 'Ouverture forcée' : 'Fermeture forcée';
+    const horaireTxt = state.openModeHoraire
+      ? `Horaire habituel : ${state.openModeHoraire.opens_at} – ${state.openModeHoraire.closes_at}, tous les jours.`
+      : 'Horaires automatiques désactivés pour cet essai (commandes acceptées à toute heure par défaut).';
+    const transition = toDate(state.openModeProchaineTransition);
+    const transitionTxt = state.openMode !== 'auto' && transition ? ` Revient automatiquement à l'horaire programmé vers ${hm(transition)}.` : '';
+    setHTML(detailEl, `Mode : <strong>${esc(modeLabel)}</strong>. ${esc(horaireTxt)}${esc(transitionTxt)}`);
+    const busy = state.savingOpenMode;
+    const bo = document.getElementById('horaires-btn-open');
+    if (bo) bo.disabled = busy || state.openMode === 'open';
+    const bc = document.getElementById('horaires-btn-closed');
+    if (bc) bc.disabled = busy || state.openMode === 'closed';
+    const ba = document.getElementById('horaires-btn-auto');
+    if (ba) ba.disabled = busy || state.openMode === 'auto';
   }
 
   function clientsShell() {
@@ -1602,12 +1595,11 @@
     // Statut en lecture seule (le réglage se fait dans Espace patron > Ouverture, derrière l'accès supérieur) :
     // visible d'un coup d'œil dans la barre du haut, sans avoir à ressaisir le code.
     const ob = document.getElementById('store-open-btn');
-    if (ob && state.openModes.restaurant) {
-      const r = state.openModes.restaurant;
-      const force = r.mode !== 'auto';
-      ob.textContent = r.ouvert ? (force ? 'Ouvert (forcé)' : 'Ouvert') : (force ? 'Fermé (forcé)' : 'Fermé');
-      ob.classList.toggle('is-open', r.ouvert);
-      ob.classList.toggle('is-closed', !r.ouvert);
+    if (ob) {
+      const force = state.openMode !== 'auto';
+      ob.textContent = state.openModeOuvert ? (force ? 'Ouvert (forcé)' : 'Ouvert') : (force ? 'Fermé (forcé)' : 'Fermé');
+      ob.classList.toggle('is-open', state.openModeOuvert);
+      ob.classList.toggle('is-closed', !state.openModeOuvert);
       ob.classList.toggle('is-forced', force);
     }
     renderNotifSlot();
@@ -2467,7 +2459,7 @@
         toggleSound();
         break;
       case 'open-mode-set':
-        saveOpenMode(t.dataset.canal, t.dataset.mode);
+        saveOpenMode(t.dataset.mode);
         break;
       case 'logout':
         logout();

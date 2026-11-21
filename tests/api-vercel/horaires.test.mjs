@@ -10,20 +10,11 @@ test('lecture du créneau', () => {
   assert.deepEqual(lireCreneau('n importe quoi'), { debut: 1080, fin: 1367 }, 'valeur invalide : créneau du site');
 });
 
-test('créneau actif (restaurant) : Vercel par défaut, local sans contrôle, variable prioritaire', () => {
-  assert.equal(creneauActif('restaurant', {}), null);
-  assert.deepEqual(creneauActif('restaurant', { VERCEL: '1' }), { debut: 1080, fin: 1367 });
-  assert.equal(creneauActif('restaurant', { VERCEL: '1', HORAIRES_COMMANDES: 'off' }), null);
-  assert.deepEqual(creneauActif('restaurant', { HORAIRES_COMMANDES: '11:00-14:00' }), { debut: 660, fin: 840 });
-});
-
-test('créneau actif (livraison) : son propre défaut (19h-22h) et sa propre variable', () => {
-  assert.equal(creneauActif('delivery', {}), null);
-  assert.deepEqual(creneauActif('delivery', { VERCEL: '1' }), { debut: 19 * 60, fin: 22 * 60 });
-  assert.equal(creneauActif('delivery', { VERCEL: '1', HORAIRES_LIVRAISON: 'off' }), null);
-  assert.deepEqual(creneauActif('delivery', { HORAIRES_LIVRAISON: '11:00-14:00' }), { debut: 660, fin: 840 });
-  // HORAIRES_COMMANDES ne doit jamais affecter le canal livraison, et vice-versa.
-  assert.deepEqual(creneauActif('delivery', { VERCEL: '1', HORAIRES_COMMANDES: 'off' }), { debut: 19 * 60, fin: 22 * 60 });
+test('créneau actif : Vercel par défaut, local sans contrôle, variable prioritaire', () => {
+  assert.equal(creneauActif({}), null);
+  assert.deepEqual(creneauActif({ VERCEL: '1' }), { debut: 1080, fin: 1367 });
+  assert.equal(creneauActif({ VERCEL: '1', HORAIRES_COMMANDES: 'off' }), null);
+  assert.deepEqual(creneauActif({ HORAIRES_COMMANDES: '11:00-14:00' }), { debut: 660, fin: 840 });
 });
 
 test('ouvert / fermé, bornes comprises', () => {

@@ -1,34 +1,14 @@
-// Horaires de prise de commande en ligne, à l'heure de Paris — deux canaux indépendants : « restaurant »
-// (retrait) et « delivery » (livraison), chacun avec son propre horaire automatique et sa propre bascule
-// manuelle (demande du 21/11 : pouvoir ouvrir/fermer l'un sans affecter l'autre).
-// Réglage restaurant : variable HORAIRES_COMMANDES, réglage livraison : HORAIRES_LIVRAISON — même format
-// « HH:MM-HH:MM » (ex. « 18:00-22:47 »), ou « off » pour accepter les commandes à toute heure.
-// Sans variable : contrôle actif uniquement sur Vercel, avec le créneau affiché sur le site.
+// Horaires de prise de commande en ligne, à l'heure de Paris.
+// Réglage : variable HORAIRES_COMMANDES, au format « HH:MM-HH:MM » (ex. « 18:00-22:47 »),
+// ou « off » pour accepter les commandes à toute heure (utile pour un essai en dehors du service).
+// Sans variable : contrôle actif uniquement sur Vercel, avec le créneau affiché sur le site (18h00–22h47).
 // En local et dans les tests (hors Vercel), aucun contrôle sauf si la variable est posée.
 import { maintenantEpoch } from './horloge.js';
 import { FUSEAU, parisLocalVersEpoch, jourParisDecale } from './util.js';
 import { one, exec, estViolationUnique } from './db.js';
 
 export const HORAIRES_PAR_DEFAUT = '18:00-22:47';
-export const HORAIRES_LIVRAISON_PAR_DEFAUT = '19:00-22:00';
 export const MODES_OUVERTURE = ['auto', 'open', 'closed'];
-export const CANAUX = ['restaurant', 'delivery'];
-
-function cleEnv(canal) {
-  return canal === 'delivery' ? 'HORAIRES_LIVRAISON' : 'HORAIRES_COMMANDES';
-}
-
-function defautCanal(canal) {
-  return canal === 'delivery' ? HORAIRES_LIVRAISON_PAR_DEFAUT : HORAIRES_PAR_DEFAUT;
-}
-
-/** Noms des deux réglages (mode + expiration) en base, distincts par canal — « restaurant » garde les clés
- * historiques (open_mode / open_mode_expires_at), posées avant l'existence du canal livraison. */
-function clesBascule(canal) {
-  return canal === 'delivery'
-    ? { mode: 'open_mode_delivery', exp: 'open_mode_delivery_expires_at' }
-    : { mode: 'open_mode', exp: 'open_mode_expires_at' };
-}
 
 async function ecrireReglage(cle, valeur) {
   if (valeur === null) { await exec('DELETE FROM settings WHERE skey = ?', [cle]); return; }
@@ -43,36 +23,42 @@ async function ecrireReglage(cle, valeur) {
 }
 
 /**
- * Bascule manuelle ouverture/fermeture d'un canal (accès supérieur, 1109 — voir owner_open_mode.js) :
+ * Bascule manuelle ouverture/fermeture (accès supérieur, 1109 — voir owner_open_mode.js) :
  * AUTO (horaire programmé), FORCE_OPEN ou FORCE_CLOSED. Une bascule manuelle expire d'elle-même à la
- * prochaine transition automatique de CE canal (voir prochaineTransition()) : jamais besoin d'y repenser
- * le lendemain. Stockée dans la table settings, clés distinctes par canal (clesBascule) ; absente -> auto.
+ * prochaine transition automatique (voir prochaineTransition()) : jamais besoin d'y repenser le lendemain.
+ * Stockée dans la table settings (clés « open_mode » et « open_mode_expires_at ») ; absente -> auto.
  */
-async function lireBascule(canal, maintenant) {
-  const { mode: cleMode, exp: cleExp } = clesBascule(canal);
+async function lireBascule(maintenant) {
   const [modeRow, expRow] = await Promise.all([
-    one('SELECT svalue FROM settings WHERE skey = ?', [cleMode]),
-    one('SELECT svalue FROM settings WHERE skey = ?', [cleExp])
+    one('SELECT svalue FROM settings WHERE skey = ?', ['open_mode']),
+    one('SELECT svalue FROM settings WHERE skey = ?', ['open_mode_expires_at'])
   ]);
   const mode = modeRow !== null && MODES_OUVERTURE.includes(modeRow.svalue) ? modeRow.svalue : 'auto';
   const expiresAt = expRow !== null && /^\d+$/.test(expRow.svalue) ? Number(expRow.svalue) : null;
   if (mode !== 'auto' && expiresAt !== null && maintenant >= expiresAt) {
     // Expirée : on revient à l'automatique, et on l'écrit tout de suite (ne dépend pas du prochain appel).
-    await Promise.all([ecrireReglage(cleMode, 'auto'), ecrireReglage(cleExp, null)]);
+    await Promise.all([ecrireReglage('open_mode', 'auto'), ecrireReglage('open_mode_expires_at', null)]);
     return { mode: 'auto', expiresAt: null };
   }
   return { mode, expiresAt };
 }
 
-/** Fixe la bascule manuelle d'un canal. `mode` parmi MODES_OUVERTURE ; l'expiration est calculée par l'appelant. */
-export async function ecrireBascule(canal, mode, expiresAt) {
-  if (!CANAUX.includes(canal)) throw new Error('Canal invalide : ' + canal);
+/** Fixe la bascule manuelle. `mode` parmi MODES_OUVERTURE ; l'expiration est calculée par l'appelant. */
+export async function ecrireBascule(mode, expiresAt) {
   if (!MODES_OUVERTURE.includes(mode)) throw new Error('Mode invalide : ' + mode);
-  const { mode: cleMode, exp: cleExp } = clesBascule(canal);
   await Promise.all([
-    ecrireReglage(cleMode, mode),
-    ecrireReglage(cleExp, expiresAt === null ? null : String(expiresAt))
+    ecrireReglage('open_mode', mode),
+    ecrireReglage('open_mode_expires_at', expiresAt === null ? null : String(expiresAt))
   ]);
+}
+
+/**
+ * Fermeture manuelle (compat) : vrai si la bascule FORCE_CLOSED est active. Les commandes planifiées ne
+ * sont jamais bloquées par cette fonction (voir SBT-003) — seules les commandes « dès que possible » le sont,
+ * via etatOuverture().
+ */
+export async function fermetureManuelle(maintenant = maintenantEpoch()) {
+  return (await lireBascule(maintenant)).mode === 'closed';
 }
 
 const FORMAT_HEURE = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
@@ -86,11 +72,10 @@ export function lireCreneau(valeur) {
   return { debut: Number(src[1]) * 60 + Number(src[2]), fin: Number(src[3]) * 60 + Number(src[4]) };
 }
 
-/** Créneau applicable à cette exécution pour ce canal, ou null si les commandes sont acceptées à toute heure. */
-export function creneauActif(canal, env = process.env) {
-  const v = env[cleEnv(canal)];
-  if (v !== undefined && v !== '') return lireCreneau(v);
-  return env.VERCEL ? lireCreneau(defautCanal(canal)) : null;
+/** Créneau applicable à cette exécution, ou null si les commandes sont acceptées à toute heure. */
+export function creneauActif(env = process.env) {
+  if (env.HORAIRES_COMMANDES !== undefined && env.HORAIRES_COMMANDES !== '') return lireCreneau(env.HORAIRES_COMMANDES);
+  return env.VERCEL ? lireCreneau(HORAIRES_PAR_DEFAUT) : null;
 }
 
 /** Minutes écoulées depuis minuit, heure de Paris. */
@@ -132,17 +117,15 @@ export function prochaineTransition(creneau, maintenant = maintenantEpoch()) {
 }
 
 /**
- * État d'ouverture complet d'un canal (automatique + bascule manuelle), pour la vérification
- * (order_create.js) et l'affichage commerçant (owner_open_mode.js) : mode effectif, expiration de la
- * bascule, horaire automatique et ouverture résultante pour une commande « dès que possible ». Ne concerne
- * jamais les commandes planifiées (voir planification.js).
+ * État d'ouverture complet (automatique + bascule manuelle), pour la vérification (order_create.js) et
+ * l'affichage commerçant (owner_open_mode.js) : mode effectif, expiration de la bascule, horaire automatique
+ * et ouverture résultante pour une commande « dès que possible ». Ne concerne jamais les commandes planifiées.
  */
-export async function etatOuverture(canal, maintenant = maintenantEpoch()) {
-  if (!CANAUX.includes(canal)) throw new Error('Canal invalide : ' + canal);
-  const creneau = creneauActif(canal);
+export async function etatOuverture(maintenant = maintenantEpoch()) {
+  const creneau = creneauActif();
   const minutes = minutesParis(maintenant);
   const autoOuvert = commandesOuvertes(creneau, minutes);
-  const { mode, expiresAt } = await lireBascule(canal, maintenant);
+  const { mode, expiresAt } = await lireBascule(maintenant);
   const ouvert = mode === 'open' ? true : mode === 'closed' ? false : autoOuvert;
-  return { canal, mode, expires_at: expiresAt, ouvert, auto_ouvert: autoOuvert, creneau, prochaine_transition: prochaineTransition(creneau, maintenant) };
+  return { mode, expires_at: expiresAt, ouvert, auto_ouvert: autoOuvert, creneau, prochaine_transition: prochaineTransition(creneau, maintenant) };
 }
