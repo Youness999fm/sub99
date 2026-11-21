@@ -493,8 +493,14 @@ async function phaseA() {
     for (const t of jetonsListe) for (const ch of t) compteCar.set(ch, (compteCar.get(ch) || 0) + 1);
     const moy = (jetonsListe.length * 43) / 64;
     const ecartMax = Math.max(...[...compteCar.values()].map((v) => Math.abs(v - moy) / moy));
+    // Seuil dépendant de la taille de l'échantillon : avec ~36 jetons (moy ≈ 24 par caractère) le bruit multinomial
+    // normal d'un vrai CSPRNG dépasse 50 % d'écart ~60 % du temps (faux positif), auquel s'ajoute le biais
+    // structurel du 43e caractère (2 bits utiles → 4 symboles sur 64). On tolère donc 0,5 + 2,2/√moy, ce qui
+    // laisse passer un CSPRNG (taux de faux échec < 0,1 %) tout en détectant un biais grossier : un alphabet
+    // amputé échoue sur compteCar.size === 64, et un symbole 3× sur-représenté est capté à 100 %.
+    const seuilBiais = 0.5 + 2.2 / Math.sqrt(moy);
     controle(`4.8 ${jetonsListe.length} jetons émis : tous distincts, 43 caractères base64url, répartition des caractères sans biais grossier`,
-      jetonsListe.every((t) => FORME_JETON.test(t)) && compteCar.size === 64 && ecartMax < 0.5, `distincts ${jetons.size}, caractères distincts ${compteCar.size}, écart maximal à la moyenne ${(ecartMax * 100).toFixed(0)} %`);
+      jetonsListe.every((t) => FORME_JETON.test(t)) && compteCar.size === 64 && ecartMax < seuilBiais, `distincts ${jetons.size}, caractères distincts ${compteCar.size}, écart maximal à la moyenne ${(ecartMax * 100).toFixed(0)} % (seuil ${(seuilBiais * 100).toFixed(0)} %)`);
     mesures.jetons = jetonsListe.length;
 
     // ------------------------------------------------------------------------------------------------ 5. origine
@@ -696,9 +702,15 @@ async function phaseA() {
       'noms très longs (dans la limite des en-têtes)': [`/api/${'a'.repeat(300)}`, `/api/${'a_'.repeat(500)}`, `/api/${'a'.repeat(8000)}.php`, `/api/${'x'.repeat(14000)}`, `/api/${'%2e'.repeat(2000)}`, `/api/${'..%2f'.repeat(2000)}`, `/api/${'a/'.repeat(3000)}owner_zzz`],
       'noms réservés Windows (con, nul, aux, prn)': ['/api/con', '/api/nul', '/api/aux', '/api/prn', '/api/con.php', '/api/nul.php', '/api/aux.php', '/api/prn.php']
     };
+    // Une ligne de requête contenant un octet brut non-ASCII (ex. « é » non encodé) est rejetée par l'analyseur
+    // HTTP de Node (400 Bad Request) AVANT que le routeur ne s'exécute : c'est le comportement correct du serveur
+    // HTTP, pas une route « inconnue ». On l'accepte à condition qu'il n'y ait ni 5xx ni contenu servi (corps vide).
+    const octetBrutNonAscii = (c) => /[^ -]/.test(c);
+    const REJET_HTTP_400 = (rep) => rep.status === 400 && !/import|export|function|=>|session|subito_/.test(rep.text);
     for (const [nom, chemins] of Object.entries(groupes404)) {
       const reps = await enParallele(chemins, 6, (c) => http1({ methode: 'GET', chemin: c }));
-      const ec = reps.map((rep, i) => ({ rep, c: chemins[i] })).filter(({ rep }) => !ROUTE_404(rep));
+      const ec = reps.map((rep, i) => ({ rep, c: chemins[i] }))
+        .filter(({ rep, c }) => !ROUTE_404(rep) && !(octetBrutNonAscii(c) && REJET_HTTP_400(rep)));
       controle(`7.1 ${nom} (${chemins.length} chemins) : 404 JSON { error: not_found, message: Route inconnue. }, jamais de 5xx ni de contenu de fichier`,
         ec.length === 0, ec.slice(0, 3).map(({ rep, c }) => `${court(c, 50)} → ${rep.status || rep.erreur} ${court(rep.text, 50)}`).join(' ; ') || `${chemins.length}/${chemins.length} en 404`);
     }

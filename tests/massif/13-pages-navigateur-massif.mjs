@@ -684,25 +684,35 @@ async function verifierServiceWorker(nav, site, donnees) {
     await page.cdp.setViewport(768, 1024, true);
     const e = col.etat;
     const erreursJs = [...e.exceptions, ...e.consoleErreurs];
-    const jp = e.journal.filter((j) => !(j.url && !estLocalUrl(j.url)) && !(/\/api\/owner_me\.php$/.test(cheminDe(j.url || '')) && /401/.test(j.texte)));
+    // owner_me avant connexion : 401 attendu ; 403 possible ici parce que le profil Chrome est PARTAGÉ et qu'une
+    // phase précédente (compte.html connecté) a posé un cookie subito_customer (domaine localhost, chemin /api/) qui
+    // persiste dans la boîte à cookies du navigateur. requireOwner répond alors 403 (session client présente, pas de
+    // session commerçant) — réponse voulue de l'app, pas un bug. En production, une tablette commerçant n'a jamais de
+    // cookie client, donc owner_me répond 401 avant connexion. On tolère donc 401 ET 403 sur owner_me.
+    const jp = e.journal.filter((j) => !(j.url && !estLocalUrl(j.url)) && !(/\/api\/owner_me\.php$/.test(cheminDe(j.url || '')) && /\b(401|403)\b/.test(j.texte)));
     controle('espace commerçant connecté : aucune exception JavaScript ni console.error pendant toute la session', erreursJs.length === 0 && jp.length === 0, erreursJs.length || jp.length ? liste([...erreursJs, ...jp.map((j) => j.texte)], 3) : `0 (avertissements : ${e.consoleAvert.length})`);
-    const echecs = col.resume().echecs.filter((r) => !(/\/api\/owner_me\.php$/.test(cheminDe(r.url)) && r.statut === 401));
+    const echecs = col.resume().echecs.filter((r) => !(/\/api\/owner_me\.php$/.test(cheminDe(r.url)) && (r.statut === 401 || r.statut === 403)));
     controle('espace commerçant connecté : aucune requête locale en échec pendant toute la session', echecs.length === 0, echecs.length ? liste(echecs.map((r) => `${r.statut ?? r.echec} ${cheminDe(r.url)}`)) : `${col.resume().nbRequetes} requêtes`);
   } finally {
     try { await page.fermer(); } catch { /* déjà fermé */ }
   }
 
-  // Les pages publiques ne sont pas contrôlées par le service worker du commerçant
+  // Les pages publiques ne sont jamais contrôlées par le service worker du COMMERÇANT (/commercant/sw.js).
+  // Elles PEUVENT l'être par le service worker public (/sw.js, portée /), enregistré par assets/js/main.js : il
+  // sert uniquement l'installabilité PWA (coquille statique, réseau d'abord, aucune réponse /api/ en cache), donc
+  // aucun risque de menu/prix périmés pour le client. Le registre /commercant/ peut apparaître ici parce que le profil
+  // Chrome est PARTAGÉ (la phase précédente a enregistré /commercant/sw.js pour tout le navigateur) : sa portée
+  // /commercant/ ne contrôle de toute façon aucune page publique. On vérifie donc : contrôleur ≠ /commercant/sw.js.
   const publics = await enParallele(['/index.html', '/commande.html', '/menu.html'], 3, async (chemin) => {
     const p = await nav.ouvrirPage('about:blank', { largeur: 390, hauteur: 844, mobile: true });
     await C.instrumenter(p, base);
     try {
       await p.navigate(base + chemin, 300);
       await sleep(500);
-      return { chemin, ...(await C.evaluerAvecDelai(p, `(async () => ({ controle: !!navigator.serviceWorker.controller, scopes: (await navigator.serviceWorker.getRegistrations()).map((r) => r.scope) }))()`, 10000)) };
+      return { chemin, ...(await C.evaluerAvecDelai(p, `(async () => ({ controleur: navigator.serviceWorker.controller && navigator.serviceWorker.controller.scriptURL, scopes: (await navigator.serviceWorker.getRegistrations()).map((r) => r.scope) }))()`, 10000)) };
     } finally { try { await p.fermer(); } catch { /* ignoré */ } }
   });
-  controle('portée du service worker : les pages publiques ne sont pas contrôlées', publics.every((p) => p.controle === false && p.scopes.every((s) => s === base + '/commercant/')), publics.map((p) => `${p.chemin} contrôlée=${p.controle} registres=[${p.scopes.map((s) => s.replace(base, '')).join(',')}]`).join(' ; '));
+  controle('portée du service worker : les pages publiques ne sont jamais contrôlées par le SW du commerçant', publics.every((p) => p.controleur !== base + '/commercant/sw.js'), publics.map((p) => `${p.chemin} contrôleur=${p.controleur ? p.controleur.replace(base, '') : 'aucun'} registres=[${p.scopes.map((s) => s.replace(base, '')).join(',')}]`).join(' ; '));
   return resultats;
 }
 

@@ -13,7 +13,15 @@ const echec = (liste, etape, r) => { if (!r || !r.ok) liste.push({ etape, ...(r 
  */
 export async function remplirInscription(ui, c, { soumettre = true } = {}) {
   const echecs = [];
+  // L'onglet « Créer un compte » n'ouvre le formulaire qu'une fois ses écouteurs posés par compte.js
+  // (init() après le chargement de window.SubitoAccount). On attend donc que la page soit prête, puis
+  // on vérifie que le formulaire est bien révélé — un clic parti trop tôt ne basculerait pas l'onglet.
+  await ui.attendre("!!window.SubitoAccount && !!document.getElementById('tabSignup')", 8000);
   echec(echecs, 'onglet', await ui.cliquer('#tabSignup'));
+  if (!(await ui.attendre("(() => { const f = document.getElementById('signupForm'); return !!f && !f.hidden; })()", 4000))) {
+    echec(echecs, 'onglet (2e essai)', await ui.cliquer('#tabSignup'));
+    await ui.attendre("(() => { const f = document.getElementById('signupForm'); return !!f && !f.hidden; })()", 4000);
+  }
   echec(echecs, 'prénom', await ui.saisir('#signupFirstName', c.prenom));
   echec(echecs, 'nom', await ui.saisir('#signupLastName', c.nom));
   echec(echecs, 'email', await ui.saisir('#signupEmail', c.email));
@@ -22,7 +30,23 @@ export async function remplirInscription(ui, c, { soumettre = true } = {}) {
   echec(echecs, 'confirmation', await ui.saisir('#signupPasswordConfirm', c.confirmation === undefined ? c.mdp : c.confirmation));
   if (c.rue !== undefined) echec(echecs, 'rue', await ui.saisir('#signupStreet', c.rue));
   if (c.ville) echec(echecs, 'ville', await ui.choisir('#signupCity', c.ville));
-  if (soumettre) echec(echecs, 'envoi', await ui.cliquer('#signupSubmit'));
+  if (c.logement) echec(echecs, 'logement', await ui.choisir('#signupHousingType', c.logement));
+  if (soumettre) {
+    echec(echecs, 'envoi', await ui.cliquer('#signupSubmit'));
+    // Depuis le 20/11, une inscription réussie affiche d'abord l'écran « Compte créé ! »
+    // (#accountCreated) : il faut appuyer sur « Continuer » pour atteindre l'écran connecté.
+    // Exceptions, où cet écran n'apparaît pas : les inscriptions refusées (erreur affichée,
+    // pas de compte créé) et le détour de commande (reprise automatique qui quitte compte.html
+    // tout de suite). On attend donc soit l'écran, soit l'un de ces deux dénouements, puis on
+    // ne clique « Continuer » que si l'écran est bien présent.
+    const ecranVisible = await ui.attendre(
+      "(() => { const cr = document.getElementById('accountCreated'); if (cr && !cr.hidden) return true;"
+      + " const er = document.getElementById('signupError'); if (er && !er.hidden) return true;"
+      + " return location.pathname !== '/compte.html'; })()", 15000);
+    if (ecranVisible && (await ui.evaluer("(() => { const e = document.getElementById('accountCreated'); return !!e && !e.hidden; })()"))) {
+      echec(echecs, 'continuer', await ui.cliquer('#accountCreatedContinue'));
+    }
+  }
   return { echecs };
 }
 
@@ -45,11 +69,13 @@ export async function connecter(ui, email, mdp) {
 }
 
 /** Compte de test n° num : valeurs fabriquées, jamais réelles. */
-export function compteTest(num, { ville = null, rue = null } = {}) {
+export function compteTest(num, { ville = null, rue = null, logement = 'Maison' } = {}) {
   return {
     prenom: 'Alice' + num, nom: 'Parcours', email: `parcours14-${num}@example.test`,
     tel: '06 14 14 14 ' + String(10 + num).slice(-2), mdp: `Essai-14-${num}-Aa1!`,
-    rue: ville ? (rue || `${num + 3} rue des Tests`) : undefined, ville
+    rue: ville ? (rue || `${num + 3} rue des Tests`) : undefined, ville,
+    // Type de logement : obligatoire avec l'adresse de livraison depuis le 20/11 (voir cart.js SUBITO_HOUSING_TYPES).
+    logement: ville ? logement : undefined
   };
 }
 

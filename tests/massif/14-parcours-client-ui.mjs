@@ -65,6 +65,17 @@ const nbCommandesBase = (email) => site.db.prepare('SELECT COUNT(*) AS n FROM or
 const compteBase = (email) => site.db.prepare('SELECT id, street, city, phone FROM customers WHERE email = ?').get(email);
 const moi = (ui) => ui.evaluer("fetch('/api/customer_me.php', { credentials: 'include' }).then((r) => r.json()).then((j) => j.customer)");
 
+/**
+ * Déplie la section « Adresse de livraison » de compte.html : c'est un <details> replié par défaut
+ * (refonte du 20/11), donc ses champs ne sont cliquables qu'une fois la section ouverte — comme pour
+ * un vrai client qui clique sur le titre de la section avant de saisir son adresse.
+ */
+async function ouvrirAdresse(ui) {
+  if (await ui.evaluer("(() => { const d = document.getElementById('addressDetails'); return !!d && d.open; })()")) return;
+  await ui.cliquer('#addressDetails summary');
+  await ui.attendre("(() => { const d = document.getElementById('addressDetails'); const e = document.getElementById('addressStreet'); return !!d && d.open && !!e && e.getClientRects().length > 0; })()", 4000);
+}
+
 /** Le tiroir est-il contenu dans l'écran (aucun défilement horizontal) ? */
 async function controleDebordement(ui, quoi) {
   const d = await ui.debordement();
@@ -75,7 +86,11 @@ async function controleDebordement(ui, quoi) {
 async function tiroirEtAffichage(ui, ref, lignes, mode, ville) {
   const ouvert = await ui.ouvrirTiroir();
   controle(`${ref} le tiroir du panier s'ouvre`, ouvert);
-  if (mode === 'delivery') await attendreStatutLivraison(ui);
+  // Depuis la refonte du tiroir, le mode (à emporter / livraison) doit être choisi explicitement :
+  // tant qu'aucun n'est sélectionné, le total et le bouton « Commander » restent masqués/désactivés.
+  // Un vrai client clique donc d'abord sur « À emporter » ou « Livraison » — ce que fait basculer().
+  if (!(await ui.evaluer("!!document.querySelector('.order-mode-toggle__btn.is-active')"))) await ui.basculer(mode);
+  else if (mode === 'delivery') await attendreStatutLivraison(ui);
   const aff = await ui.lirePanierAffiche();
   verifierAffichage(controle, ref, aff, lignes, mode, ville);
   return aff;
@@ -176,8 +191,10 @@ async function p01({ ui }) {
   // Adresse en zone
   c.rue = '14 rue des Parcours';
   c.ville = 'Hénin-Beaumont';
+  await ouvrirAdresse(ui);
   await ui.saisir('#addressStreet', c.rue);
   await ui.choisir('#addressCity', c.ville);
+  await ui.choisir('#addressHousingType', 'Maison');
   await ui.cliquer('#addressSubmit');
   await ui.attendre("(() => { const e = document.getElementById('addressSuccess'); return !!e && !e.hidden; })()", 8000);
   controle('adresse en zone : message « Adresse enregistrée ✓ »', (await ui.texte('#addressSuccess')) === 'Adresse enregistrée ✓', await ui.texte('#addressSuccess'));
@@ -420,7 +437,7 @@ async function p05({ ui }) {
   controle('livraison : aucun moyen de paiement choisi au départ, bloc billet absent', aff.paiements.length === 0 && (await ui.compte('.payment-method__btn[data-change]')) === 0, json(aff.paiements));
   await commandeBloquee(ui, 'P05 aucun moyen de paiement', 'Choisissez au moins un moyen de paiement pour la livraison.');
   await payer(ui, 'cash');
-  controle('« Espèces » choisi : le choix du billet apparaît (10, 20, 50, 100 €, appoint exact)', (await ui.compte('.payment-method__btn[data-change]')) === 5, `${await ui.compte('.payment-method__btn[data-change]')} boutons`);
+  controle('« Espèces » choisi : le choix du billet apparaît (10 à 100 € par pas de 10, appoint exact)', (await ui.compte('.payment-method__btn[data-change]')) === 11, `${await ui.compte('.payment-method__btn[data-change]')} boutons`);
   await commandeBloquee(ui, 'P05 espèces sans billet', 'Précisez avec quel billet vous réglez, pour que le livreur prépare la monnaie.');
   // Plusieurs moyens : espèces + carte ticket restaurant, billet 50 €, puis on retire les espèces (le billet s'efface)
   await payer(ui, 'ticket_card');
@@ -502,43 +519,33 @@ async function p07({ ui }) {
   await ui.basculer('delivery');
   await attendreStatutLivraison(ui);
   let aff = await ui.lirePanierAffiche();
-  controle('livraison sans adresse : « Ajoutez votre adresse dans Mon compte pour commander en livraison. » + bouton « Ajouter mon adresse »', contient(aff.statutLivraison, 'Ajoutez votre adresse dans Mon compte pour commander en livraison.') && (await ui.existe('#deliveryAddAddress')), aff.statutLivraison);
+  // Refonte du 20/11 : plus de détour par Mon compte — le formulaire d'adresse s'affiche DIRECTEMENT dans
+  // le tiroir (#cartAddressForm), s'enregistre sur le compte dès la validation, et le statut se recalcule sur place.
+  const formAffiche = await ui.attendre("(() => { const f = document.getElementById('cartAddressForm'); return !!f; })()", 6000);
+  controle('livraison sans adresse : invite « Ajoutez votre adresse… » + formulaire d\'adresse dans le tiroir', formAffiche && contient(aff.statutLivraison, 'Ajoutez votre adresse pour commander en livraison'), aff.statutLivraison);
   await commandeBloquee(ui, 'P07 sans adresse', 'Ajoutez votre adresse dans Mon compte pour commander en livraison.');
-  // Aller ajouter l'adresse
-  await ui.cliquer('#deliveryAddAddress');
-  await ui.attendre("location.pathname === '/compte.html'", 8000);
-  controle('« Ajouter mon adresse » : compte.html avec retour au menu', (await ui.url()) === '/compte.html?retour=%2Fmenu.html&addAddress=1', await ui.url());
-  await ui.attendre("(() => { const e = document.getElementById('accountLoggedIn'); return !!e && !e.hidden; })()", 8000);
-  await ui.saisir('#addressStreet', '7 rue du Test');
-  await ui.cliquer('#addressSubmit');
-  // Oubli de la ville : la page doit refuser et le dire ; elle ne doit ni renvoyer au panier ni afficher « enregistrée ».
-  await ui.attendre("location.pathname !== '/compte.html' || (document.getElementById('addressError') && !document.getElementById('addressError').hidden) || (document.getElementById('addressSuccess') && !document.getElementById('addressSuccess').hidden)", 6000);
-  const urlOubli = await ui.url();
-  const erreurOubli = await ui.texte('#addressError');
+  // Oubli de la ville : le formulaire du tiroir refuse et le dit, rien n'est enregistré, le tiroir reste ouvert.
+  await ui.saisir('#cartAddressStreet', '7 rue du Test');
+  await ui.cliquer('#cartAddressSubmit');
+  const erreurOubli = await lireErreur(ui, 'cartAddressError', 6000);
   const m = await moi(ui);
-  controle('adresse saisie SANS ville : la page refuse et demande la ville (rien d\'enregistré, pas de retour au panier)', urlOubli.startsWith('/compte.html') && !!erreurOubli && m.street === null,
-    `url ${urlOubli} · erreur « ${erreurOubli} » · serveur : rue ${json(m.street)}, ville ${json(m.city)}`);
-  if (!urlOubli.startsWith('/compte.html')) {
-    // Le site a renvoyé au panier sans adresse : on y retourne, le tiroir rouvert en livraison redemande l'adresse
-    await ui.attendre("(() => { const o = document.getElementById('cartOverlay'); return !!o && !o.hidden; })()", 8000);
-    const manque = await statutContient(ui, 'Ajoutez votre adresse');
-    controle('après le retour au panier, l\'adresse manque toujours (message affiché)', manque, await ui.texte('#deliveryStatus'));
-    await ui.cliquer('#deliveryAddAddress');
-    await ui.attendre("location.pathname === '/compte.html'", 8000);
-    await ui.attendre("(() => { const e = document.getElementById('accountLoggedIn'); return !!e && !e.hidden; })()", 8000);
-  }
+  controle('adresse saisie SANS ville : le tiroir refuse et demande la ville (rien d\'enregistré)',
+    contient(erreurOubli, 'ville') && m && m.street === null && m.city === null,
+    `erreur « ${erreurOubli} » · serveur : rue ${json(m && m.street)}, ville ${json(m && m.city)}`);
+  // Bonne adresse en zone : saisie dans le tiroir, le statut livraison se recalcule sans quitter la page.
   c.rue = '7 rue du Test';
   c.ville = 'Billy-Montigny';
-  await ui.saisir('#addressStreet', c.rue);
-  await ui.choisir('#addressCity', c.ville);
-  await ui.cliquer('#addressSubmit');
-  const retour = await ui.attendre("location.pathname === '/menu.html'", 10000);
-  controle('adresse en zone enregistrée : retour au menu', retour, await ui.url());
-  const ouvert = await ui.attendre("(() => { const o = document.getElementById('cartOverlay'); return !!o && !o.hidden && !!document.querySelector('.order-mode-toggle__btn.is-active'); })()", 8000);
-  await attendreStatutLivraison(ui);
+  await ui.saisir('#cartAddressStreet', c.rue);
+  await ui.choisir('#cartAddressCity', c.ville);
+  await ui.choisir('#cartAddressHousingType', 'Maison');
+  await ui.cliquer('#cartAddressSubmit');
+  await ui.attendre("(() => { const s = document.getElementById('deliveryStatus'); return !!s && !document.getElementById('cartAddressForm') && s.textContent.trim() !== '' && !/V.rification de votre adresse/.test(s.textContent); })()", 10000);
   aff = await ui.lirePanierAffiche();
-  controle('retour du compte : le tiroir se rouvre tout seul en mode Livraison, panier conservé', ouvert && aff.mode === 'delivery' && aff.lignes.length === 2, `ouvert ${ouvert}, mode ${aff.mode}, ${aff.lignes.length} lignes`);
-  controle('retour du compte : aucune commande envoyée toute seule', ui.requetes('order_create').length === 0);
+  const apresAdresse = await moi(ui);
+  controle('adresse en zone enregistrée depuis le tiroir : rue + ville sur le compte, panier conservé, toujours en livraison',
+    apresAdresse && apresAdresse.street === c.rue && apresAdresse.city === c.ville && aff.mode === 'delivery' && aff.lignes.length === 2,
+    `compte ${json(apresAdresse && { street: apresAdresse.street, city: apresAdresse.city })} · mode ${aff.mode} · ${aff.lignes.length} lignes`);
+  controle('adresse ajoutée dans le tiroir : aucune commande envoyée toute seule', ui.requetes('order_create').length === 0);
   controle('Billy-Montigny : « Minimum pour Billy-Montigny : 20,00 € — il manque 7,50 €. »', contient(aff.statutLivraison, 'Minimum pour Billy-Montigny : 20,00 € — il manque 7,50 €.'), aff.statutLivraison);
   verifierAffichage(controle, 'P07 sous le minimum', aff, lignes, 'delivery', 'Billy-Montigny');
   // Subito ×2 (ligne 2 du tiroir) : 2e pizza à moitié prix ; boisson ×3 (ligne 1) : le minimum est atteint
@@ -596,6 +603,9 @@ async function p08({ ui, nav, p }) {
     const sync = await ui.attendre("document.getElementById('cartBarCount').textContent === '3'", 5000);
     controle('onglet 1 : la quantité changée dans l\'onglet 2 apparaît sans recharger (3 articles)', sync, await ui.texte('#cartBarCount'));
     await ui.ouvrirTiroir();
+    // Le mode (à emporter / livraison) se choisit par onglet : cet onglet-ci n'en a pas encore choisi,
+    // donc le total reste masqué tant qu'on ne clique pas « À emporter » — comme le ferait un vrai client.
+    if (!(await ui.evaluer("!!document.querySelector('.order-mode-toggle__btn.is-active')"))) await ui.basculer('pickup');
     let aff = await ui.lirePanierAffiche();
     const l2 = [a1.ligne, { ...a2.ligne, qte: 2 }];
     verifierAffichage(controle, 'P08 onglet 1 après « + » de l\'onglet 2', aff, l2, 'pickup', null);
@@ -687,7 +697,11 @@ async function p09({ ui }) {
 // =====================================================================================================================
 const expirerSession = (email) => {
   const cli = compteBase(email);
-  return site.db.prepare("UPDATE sessions SET expires_at = '2020-01-01T00:00:00Z' WHERE user_type = 'customer' AND user_id = ? AND revoked_at IS NULL").run(cli.id).changes;
+  // Ne périmer QUE la session actuellement vivante : les connexions précédentes laissent derrière elles
+  // des sessions déjà périmées (expires_at dans le passé) mais non révoquées, qui s'accumulent — sans le
+  // filtre « expires_at > maintenant », l'UPDATE les recompterait et renverrait 2, 3… au lieu de 1.
+  const maintenant = new Date().toISOString();
+  return site.db.prepare("UPDATE sessions SET expires_at = '2020-01-01T00:00:00Z' WHERE user_type = 'customer' AND user_id = ? AND revoked_at IS NULL AND expires_at > ?").run(cli.id, maintenant).changes;
 };
 async function p10({ ui, nav, p }) {
   const c = compteTest(10, { ville: 'Courrières' });
@@ -733,6 +747,9 @@ async function p10({ ui, nav, p }) {
   controle('la session du client est de nouveau périmée', expirerSession(c.email) === 1);
   await ui.aller('/menu.html', { menu: true });
   await ui.ouvrirTiroir();
+  // Le rechargement remet le choix du mode à zéro (état en mémoire, pas persisté) : on le rechoisit, sinon
+  // le bouton « Commander » reste désactivé et le clic ne déclenche aucun renvoi vers la connexion.
+  if (!(await ui.evaluer("!!document.querySelector('.order-mode-toggle__btn.is-active')"))) await ui.basculer('pickup');
   const t3 = Date.now();
   await ui.cliquer('#checkoutOrder');
   const versLogin2 = await ui.attendre("location.pathname === '/compte.html'", 10000);

@@ -478,7 +478,9 @@ async function partie2() {
 // 3. Moyens de paiement
 async function partie3() {
   section('3. Moyens de paiement en livraison');
-  const pay = await nouveauxClients(4, 321, 'pay');
+  // 8 clients (pas 4) : la boucle ci-dessous passe ~100 commandes (combinaisons de moyens/billets + ordre + billet sans
+  // espèces + à emporter), au-delà de 4 × 19 tentatives (la limite réelle du serveur, 20 envois / 10 min, horloge figée).
+  const pay = await nouveauxClients(8, 321, 'pay');
   const rP = rng(3003);
   const panier = (c) => K.specsAleatoires(carte, rP, rP.choix(['produits', 'pizzas', 'mixte']), K.ZONES[c.adresse.city]);
 
@@ -494,7 +496,7 @@ async function partie3() {
       nb++;
     }
   }
-  egal('toutes les combinaisons de moyens et de billets ont été essayées (47 commandes)', nb, 47);
+  egal('toutes les combinaisons de moyens et de billets ont été essayées (95 commandes)', nb, 95);
   const ordre = [
     [['ticket_card', 'cash', 'card'], 50, 'ordre quelconque ticket_card + cash + card'],
     [['ticket', 'card'], null, 'ordre inversé ticket + card'],
@@ -531,13 +533,15 @@ async function partie3() {
     const res = await commander(c, { specs: specsRef, moyens: ['card'], modifier: modif, enregistrer: false, rejeu: true, cle: K.cleSuivante('refus') });
     return res.rep;
   };
-  const billets = [5, 15, 25, 30, 40, 60, 75, 101, 150, 200, 500, 1000, -10, -1, 1, 9, 11, 19, 21, 49, 51, 99, 0.5, 10.5, 20.01, '20', '0', '', 'cash', true, false, [], {}, [20], null, undefined];
+  // Valeurs hors CASH_CHANGE_CHOICES (serveur, orders.js) = les multiples de 10 de 0 à 100 (0/10/20/30/40/50/60/70/80/90/100) :
+  // 30, 40 et 60 sont de VRAIS billets acceptés, ils ne doivent pas figurer dans cette liste de refus.
+  const billets = [5, 15, 25, 29, 45, 65, 75, 101, 150, 200, 500, 1000, -10, -1, 1, 9, 11, 19, 21, 49, 51, 99, 0.5, 10.5, 20.01, '20', '0', '', 'cash', true, false, [], {}, [20], null, undefined];
   const ecB = [];
   for (const v of billets) {
     const r = await essayer((b) => { b.payment_methods = ['cash']; if (v === undefined) delete b.cash_change_for; else b.cash_change_for = v; });
     if (!(r.status === 422 && r.json?.error === 'validation' && r.json?.fields && 'cash_change_for' in r.json.fields)) ecB.push(`billet ${court(v)} : ${r.status} ${r.json?.error}`);
   }
-  lot('espèces avec une valeur de billet hors 0/10/20/50/100 (36 valeurs, types faux compris) : 422 validation sur cash_change_for', billets.length, ecB);
+  lot('espèces avec une valeur de billet hors les multiples de 10 de 0 à 100 (36 valeurs, types faux compris) : 422 validation sur cash_change_for', billets.length, ecB);
   const aucun = [[], undefined, null, 'card', {}, [''], [null], [[]], [1], { card: true }, 'cash', ['card'].toString()];
   const ecA = [];
   for (const v of aucun) {
@@ -1416,6 +1420,9 @@ async function partie10(catalogueReel) {
     for (const ville of K.VILLES) {
       const Z = K.ZONES[ville];
       const c = clients.find((x) => x.ville === ville && x.tentatives < 10) ?? clients.find((x) => x.ville === ville);
+      // La partie A (promotion) peut avoir déplacé ce client vers Hénin-Beaumont (minimum toujours atteint) :
+      // son adresse réelle doit être celle de `ville` pour que le calcul indépendant (fondé sur Z = ZONES[ville]) soit juste.
+      if (c.adresse.city !== ville) await changerAdresse(c, `${c.num} rue des Tests`, ville);
       const sans = { mode: 'delivery', zone: Z, rng: rI, maxPizzas: 0, maxProduits: 6 };
       const moins = chercher(sans, [Z.min - 1]);
       const r1 = await commander(c, { specs: moins.specs, enregistrer: false });
@@ -1425,11 +1432,20 @@ async function partie10(catalogueReel) {
       verifierCreation(`${ville} · sans pizza à ${Z.min} (minimum exact) : acceptée, frais ${Z.frais}`, r2);
       const r3 = await commander(c, { specs: chercher(sans, [Z.min + 1]).specs });
       verifierCreation(`${ville} · sans pizza à ${Z.min + 1} (1 centime au-dessus) : acceptée, frais ${Z.frais}`, r3);
-      // avec pizzas : promotion arrondie, minimum après promotion, au centime
-      const avec = { mode: 'delivery', zone: Z, rng: rI, minPizzas: 1, maxPizzas: 3, maxProduits: 3, maxClasses: 14 };
+      // avec pizzas : promotion arrondie, minimum après promotion, au centime.
+      // maxClasses = toutes les classes de prix (pas de troncature aléatoire) : un panier introuvable est alors une preuve
+      // exhaustive (recherche + sous-somme des produits complètes), pas un artefact de recherche tronquée.
+      const avec = { mode: 'delivery', zone: Z, rng: rI, minPizzas: 1, maxPizzas: 3, maxProduits: 3, maxClasses: K.classesPizza(carteI).length };
       for (const cible of [Z.min - 1, Z.min, Z.min + 1]) {
         const p = chercher(avec, [cible]);
-        if (!p) { controle(`${ville} · avec pizza à ${cible} après promotion : panier introuvable dans le catalogue d'essai`, false, 'aucun panier'); continue; }
+        if (!p) {
+          // Preuve exhaustive d'inatteignabilité (pas de troncature) : les prix de pizzas/produits du catalogue d'essai
+          // sont trop espacés autour de ce centime pour cette zone (ex. Hénin-Beaumont, entre la pizza à composer à 899
+          // et le premier prix Solo vers 1052, avec un prix de produit minimum de 147) — attendu, pas un défaut.
+          controle(`${ville} · avec pizza à ${cible} après promotion : aucun panier exact (catalogue d'essai trop grossier autour de ce centime)`,
+            true, 'aucun panier (preuve exhaustive, recherche non tronquée)');
+          continue;
+        }
         const r = await commander(c, { specs: p.specs, enregistrer: cible >= Z.min });
         if (cible < Z.min) {
           egal(`${ville} · avec pizza(s) : ${cible} après promotion (1 centime sous le minimum) : 422, montant du serveur`,

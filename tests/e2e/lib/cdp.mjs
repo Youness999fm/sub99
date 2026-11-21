@@ -86,13 +86,22 @@ export class Cdp {
         for (const listener of this.listeners) listener(msg);
       }
     };
+    this.ws.onclose = () => this.rejeterEnAttente('Connexion DevTools fermée.');
     return new Promise((resolve, reject) => {
       this.ws.onopen = () => resolve(this);
-      this.ws.onerror = () => reject(new Error('Connexion DevTools impossible.'));
+      this.ws.onerror = () => { this.rejeterEnAttente('Connexion DevTools impossible.'); reject(new Error('Connexion DevTools impossible.')); };
     });
   }
 
+  /** Rejette toute requête encore en attente de réponse (connexion fermée ou en erreur) : sans ça, une promesse
+   * de send() jamais résolue bloquerait indéfiniment l'appelant (aucune réponse ne peut plus jamais arriver). */
+  rejeterEnAttente(message) {
+    for (const { reject } of this.pending.values()) reject(new Error(message));
+    this.pending.clear();
+  }
+
   send(method, params = {}) {
+    if (!this.ws || this.ws.readyState >= 2 /* CLOSING ou CLOSED */) return Promise.reject(new Error('Connexion DevTools fermée.'));
     const id = ++this.nextId;
     this.ws.send(JSON.stringify({ id, method, params }));
     return new Promise((resolve, reject) => this.pending.set(id, { resolve, reject }));

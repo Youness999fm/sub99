@@ -1057,6 +1057,11 @@ async function principal() {
       if (stats.latencesUiDecision.length) B.metrique(`clic sur Confirmer -> pastille retirée de « À traiter » : ${fmtStat(statistiques(stats.latencesUiDecision))}`);
       void lv;
       await A.page.fermer();
+      // Dernière phase : la page est fermée volontairement ci-dessus. A = null pour que phase() (qui appelle
+      // remettreEnEtat(A) après CHAQUE phase) ne tente pas d'évaluer du JS sur une connexion CDP déjà fermée —
+      // Cdp.send() n'a pas de garde-fou sur un WebSocket fermé (voir tests/e2e/lib/cdp.mjs) et la promesse
+      // correspondante ne se résout ni ne se rejette jamais : c'était la cause du dépassement du délai global.
+      A = null;
     });
   }, { pagesMax: 5 });
 
