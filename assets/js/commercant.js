@@ -154,9 +154,10 @@
     sessions: [],
     sessionsState: 'idle',
     netLost: false,
-    printIssues: new Map(),
-    claimingPrint: new Set(),
-    printBridgeAlerted: new Set()
+    printIssues: new Map(), // id commande -> { label, error } : tickets qui n'ont pas pu s'imprimer malgré les tentatives automatiques
+    // Impression de préparation H-45 des commandes planifiées (SBT-005).
+    claimingPrint: new Set(), // id commande en cours de réclamation (évite un double essai avant la réponse du serveur)
+    printBridgeAlerted: new Set() // id commande déjà signalée « imprimante non connectée » (une seule alerte, pas une par sondage)
   };
 
   const $ = sel => document.querySelector(sel);
@@ -262,13 +263,18 @@
     const d = toDate(o.scheduled_for);
     return d ? `${scheduledDayLabel(d)} à ${hm(d)}` : '';
   }
-  const SCHEDULED_SURFACE_MINUTES = 60;
+  const SCHEDULED_SURFACE_MINUTES = 60; // une commande programmée sort 1 heure avant l'heure programmée.
+  // Une commande programmée n'entre dans la file active qu'une heure avant l'heure choisie ;
+  // avant ça, elle reste en « Programmées ».
   function surfaced(o) {
     if (o.status !== 'new') return false;
     const sched = toDate(o.scheduled_for);
     if (!sched) return true;
     return sched.getTime() - Date.now() <= SCHEDULED_SURFACE_MINUTES * 60000;
   }
+  // Délai à envoyer à l'acceptation d'une commande programmée : l'heure est déjà fixée par le client,
+  // il n'y a rien à choisir. Calculé à partir de l'heure programmée (arrondi au choix valide le plus proche),
+  // jamais demandé au commerçant.
   function scheduledDelayMinutes(o) {
     const sched = toDate(o.scheduled_for);
     if (!sched) return state.defaultDelay;
@@ -280,6 +286,7 @@
   function norm(s) {
     return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
+  // Les commandes sont identifiées par le nom du client, jamais par un numéro seul.
   function customerLabel(o) {
     return (o && o.customer_name ? String(o.customer_name).trim() : '') || 'Client sans nom';
   }
@@ -307,16 +314,19 @@
   function openOrders() {
     return state.orders.filter(o => surfaced(o));
   }
+  // Programmées : acceptées nulle part encore, mais trop en avance pour entrer dans la file active.
   function scheduledOrders() {
     return state.orders
       .filter(o => o.status === 'new' && o.scheduled_for && !surfaced(o))
       .sort((a, b) => String(a.scheduled_for).localeCompare(String(b.scheduled_for)));
   }
+  // Recette du jour : commandes acceptées, qu'elles soient encore en préparation ou déjà prêtes.
   function recapOrders() {
     return state.orders
       .filter(o => (o.status === 'accepted' || o.status === 'ready') && o.service_day === state.serviceDay)
       .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
   }
+  // En préparation : acceptées du jour, pas encore marquées prêtes.
   function prepOrders() {
     return state.orders
       .filter(o => o.status === 'accepted' && o.service_day === state.serviceDay)
@@ -490,6 +500,8 @@
     renderAll();
     loadSettings();
     loadOpenMode();
+    // ordersLoaded reste faux jusqu'au premier sondage réel (applyOrders) : sinon les commandes déjà
+    // présentes au chargement sont annoncées comme « nouvelles » (vues comme arrivées après un état vide).
     poll();
   }
 
@@ -554,6 +566,7 @@
     } catch (e) { /* audio indisponible : l'alerte visuelle reste */ }
   }
 
+  // L'alerte sonne tant qu'une commande attend une décision, 30 secondes au plus sans nouvelle commande.
   const ALARM_MAX_MS = 30000;
   let alarmStartedAt = 0;
   let alarmExpired = false;
@@ -570,11 +583,16 @@
     playBeep();
   }
   function syncAlarm() {
+    // Une commande programmée pas encore sortie (surfaced) ne doit jamais faire sonner : le commerçant
+    // ne peut rien en faire tant qu'elle n'est pas dans la file active.
     const pending = state.authed && state.orders.some(o => o.status === 'new' && surfaced(o));
     if (!pending) alarmExpired = false;
     const shouldRing = pending && state.soundOn && !alarmExpired;
     if (shouldRing && !alarmTimer) {
       alarmStartedAt = Date.now();
+      // Si l'appli Android (tablette) est disponible, force le volume au maximum au début de la
+      // sonnerie : sur une tablette laissée en caisse, le volume média a pu être baissé entre deux
+      // commandes, la page web seule ne peut pas le remonter (seul le natif a accès au volume).
       if (window.AndroidPrinter && typeof window.AndroidPrinter.maximizeVolume === 'function') {
         try { window.AndroidPrinter.maximizeVolume(); } catch (e) { /* appli non à jour : tant pis */ }
       }
@@ -689,6 +707,7 @@
     const freshlyNew = state.ordersLoaded
       ? list.filter(o => o.status === 'new' && !prevIds.has(String(o.id)))
       : [];
+    // Une commande programmée loin dans le temps ne déclenche pas l'alerte sonore « à traiter maintenant ».
     const arrivals = freshlyNew.filter(o => surfaced(o));
     const scheduledArrivals = freshlyNew.filter(o => !surfaced(o));
     state.orders = list;
@@ -705,11 +724,16 @@
     checkDuePrintJobs(list);
   }
 
-  // ---------- Impression de préparation ----------
+  // ---------- Impression de préparation H-45 des commandes planifiées (SBT-005) ----------
+  // Indépendante du bouton manuel « Imprimer le ticket » (toujours disponible, jamais affecté par ce qui
+  // suit) : une consultation ou une réimpression manuelle ne doit jamais faire croire au système que
+  // l'impression de préparation a eu lieu — seule la réclamation ci-dessous peut faire avancer la tâche.
   async function checkDuePrintJobs(orders) {
     const dues = orders.filter(o => o.print_due && !state.claimingPrint.has(o.id));
     if (!dues.length) return;
     if (!hasAndroidPrinter()) {
+      // Imprimante non connectée : on NE réclame PAS la tâche (elle doit rester "pending" côté serveur,
+      // reprise dès que l'imprimante sera disponible) — une seule alerte par commande, pas une par sondage.
       const nouvelles = dues.filter(o => !state.printBridgeAlerted.has(o.id));
       if (nouvelles.length) {
         nouvelles.forEach(o => state.printBridgeAlerted.add(o.id));
@@ -864,6 +888,7 @@
     } catch (e) { /* le statut reste à sa dernière valeur connue */ }
   }
 
+  // Changement de mode : réservé à l'accès supérieur (code déjà saisi, state.superCode).
   async function saveOpenMode(mode) {
     if (state.savingOpenMode || !state.superUnlocked) return;
     state.savingOpenMode = true;
@@ -1410,6 +1435,7 @@
   }
 
   function renderPatron() {
+    // Un onglet verrouillé ne doit jamais rester affiché (ex. verrouillage pendant qu'il était ouvert).
     if (!state.superUnlocked && state.patronTab !== 'recap') state.patronTab = 'recap';
     const sig = state.patronTab + '|' + state.superUnlocked;
     if (sig !== patronSig) {
@@ -1445,6 +1471,8 @@
     total.textContent = eur(accepted.reduce((s, o) => s + (Number(o.total_cents) || 0), 0));
   }
 
+  // Clients : réservé à l'accès supérieur (code 1109 par défaut en local), recherche côté serveur,
+  // saisie avec un léger délai.
   let clientTimer = null;
   let clientReq = 0;
   async function loadCustomers() {
@@ -1457,6 +1485,8 @@
       const r = await api('owner_customers.php', { method: 'POST', body: { code: state.superCode, q } });
       if (req !== clientReq || r.unauth) return;
       if (!r.ok) {
+        // Le code supérieur a changé ou n'est plus valide entre-temps : on reverrouille plutôt que
+        // d'afficher une simple erreur réseau.
         if (r.data.error === 'invalid_super_code') { superLock('Accès supérieur invalide, reverrouillé.'); return; }
         throw new Error('http');
       }
@@ -1579,6 +1609,7 @@
     }
   }
 
+  // Copie et impression de la recette : seulement le total du jour, jamais le détail commande par commande.
   function recapPlainText() {
     const sum = recapOrders().reduce((s, o) => s + (Number(o.total_cents) || 0), 0);
     return [dayLabel(state.serviceDay), `TOTAL ${eur(sum)}`].join('\n');
@@ -1656,7 +1687,7 @@
   // (ex. « Kebab »), « Pâtes X », « Subitowich X », « Tex-Mex X », « Salade X », « Dessert X » pour le reste :
   // pas besoin de redeviner la catégorie, juste adapter ce préfixe déjà présent dans it.name.
   //  - Pizza (a une taille) : jamais « Pizza » devant, taille toujours renvoyée à part (voir `size`
-  //    ci-dessous) pour être alignée à droite de la ligne, jamais noyée dans le nom.
+  //    ci-dessous) pour être alignée à droite de la ligne (SBT-007), jamais noyée dans le nom.
   //  - « Subitowich » renommé « Panini » (demande explicite). Pâtes/Tex-Mex/Salade : préfixe inchangé.
   //  - Dessert : préfixe inchangé, mais traité à part (voir splitTicketItems, isTicketDessert ci-dessous).
   const TICKET_PREFIX_RENAME = { Subitowich: 'Panini' };
@@ -1672,10 +1703,10 @@
     if (m && TICKET_PREFIX_RENAME[m[1]]) return { main: `${TICKET_PREFIX_RENAME[m[1]]} ${m[2]}`, size: '' };
     return { main: name, size: '' };
   }
-  // Catégorie du catalogue enregistrée sur la ligne : fiable même si le nom change (contrairement à une
-  // détection par préfixe de nom, voir le renommage des boissons qui a justement cassé un éventuel repérage
-  // par « Boisson » en préfixe commun). Le dessert garde en plus son ancien repérage par préfixe, pour
-  // rester robuste même sans la catégorie (anciennes données).
+  // Catégorie du catalogue enregistrée sur la ligne (serveur/catalogue.js, catalogueCanonicalItems) : fiable
+  // même si le nom change (contrairement à une détection par préfixe de nom, voir le renommage des boissons
+  // SBT-010, qui a justement cassé un éventuel repérage par « Boisson » en préfixe commun). Le dessert garde
+  // en plus son ancien repérage par préfixe, pour rester robuste même sans la catégorie (anciennes données).
   function isTicketDessert(it) {
     return it.category === 'desserts' || (!it.variant && /^Dessert\s/.test(String(it.name || '')));
   }
@@ -1693,7 +1724,7 @@
   }
   // Sépare les articles courants (pizzas, pâtes, paninis, salades — lus par la personne qui prépare) des
   // Tex-Mex (mis en valeur dans leur propre encadré, juste en dessous), des desserts et des boissons
-  // (donnés par la personne à l'accueil, toujours en dernier), puis regroupe les premiers par
+  // (donnés par la personne à l'accueil, toujours en dernier — SBT-006/008), puis regroupe les premiers par
   // taille (tri stable : l'ordre d'origine est conservé entre deux articles de même taille).
   function splitTicketItems(items) {
     const plats = [], texmex = [], desserts = [], boissons = [];
@@ -1733,7 +1764,7 @@
   // Ticket de commande : en-tête petit (logo + nom), client/tél/heure compacts en haut, PUIS les
   // articles en très gros et gras (l'inverse de l'ancien ticket) pour une lecture en un coup d'œil en
   // cuisine, regroupés par taille (Solo avec Solo, Duo avec Duo…) avec un trait fin entre les tailles,
-  // la sauce piquante puis les Tex-Mex juste après (la cuisine doit les voir tout de suite),
+  // la sauce piquante puis les Tex-Mex juste après (SBT-008/009 : la cuisine doit les voir tout de suite),
   // le total toujours tout en bas, et les desserts puis les boissons dans leur propre bloc après le total
   // (c'est la personne à l'accueil qui les donne, pas celle qui prépare — ils ne doivent pas se mélanger).
   function ticketHtml(o) {
@@ -1899,7 +1930,7 @@
     if (line) lines.push(line);
     return lines.join('\n');
   }
-  // Ligne d'article avec taille alignée à droite (DUO/QUATTRO/XXL bien en vue, jamais noyés dans
+  // Ligne d'article avec taille alignée à droite (SBT-007 : DUO/QUATTRO/XXL bien en vue, jamais noyés dans
   // le nom). Tient sur une ligne dès que possible ; sinon le nom est écrit en entier d'abord (jamais tronqué,
   // jamais perdu — demande explicite), puis la taille sur sa propre ligne, toujours alignée à droite.
   function escItemLine(prefixAndName, size, width) {
@@ -2032,7 +2063,7 @@
 
     // Articles : le cœur du ticket — très gros, gras, bien espacés pour se voir de loin, regroupés par
     // taille (Solo avec Solo, Duo avec Duo…) avec un trait fin entre deux tailles différentes, taille
-    // toujours alignée à droite (jamais noyée dans le nom, jamais perdue si la ligne est trop longue).
+    // toujours alignée à droite (SBT-007 : jamais noyée dans le nom, jamais perdue si la ligne est trop longue).
     align(0);
     (o.items || []).forEach(it => {
       if (it.sizeBreakBefore) thinSep();
@@ -2043,7 +2074,7 @@
       blank(1);
     });
 
-    // Sauce piquante (livraison uniquement) : juste après les pizzas, avant le Tex-Mex, en gras.
+    // Sauce piquante (livraison uniquement, SBT-009) : juste après les pizzas, avant le Tex-Mex, en gras.
     if (o.hotSauce) {
       bold(true);
       text('SAUCE PIQUANTE : ' + o.hotSauce + '\n');
@@ -2051,7 +2082,7 @@
       blank(1);
     }
 
-    // Tex-Mex : encadré bien visible juste après les pizzas — la cuisine doit les repérer et les
+    // Tex-Mex : encadré bien visible juste après les pizzas (SBT-008) — la cuisine doit les repérer et les
     // lancer tout de suite, avant même de lire le reste du ticket.
     if (o.texmex && o.texmex.length) {
       const inner = Math.max(4, PRINT_WIDTH - 4);
@@ -2090,7 +2121,7 @@
 
     // Dessert puis boissons : blocs à part, après le total — donnés par la personne à l'accueil, pas par
     // celle qui prépare les pizzas ; ils ne doivent jamais se mélanger aux articles lus pendant la préparation.
-    // Boissons toujours en tout dernier.
+    // Boissons toujours en tout dernier (SBT-006).
     if (o.desserts && o.desserts.length) {
       blank(2); sep();
       align(1); bold(true); charSize(2, 2);
@@ -2420,6 +2451,8 @@
       }
       const removedIds = new Set(recapOrders().map(o => o.id));
       state.orders = state.orders.filter(o => !removedIds.has(o.id));
+      // Les commandes supprimées ne doivent plus laisser de trace ailleurs (sélection, envois en cours,
+      // incidents d'impression affichés) : sinon un incident resterait affiché pour une commande qui n'existe plus.
       removedIds.forEach(id => { state.sending.delete(id); state.printIssues.delete(id); });
       if (removedIds.has(state.selectedId)) state.selectedId = null;
       closeDialog();
@@ -2659,6 +2692,9 @@
 
   renderClock();
   setInterval(renderClock, 1000);
+  // Une bascule forcée (ouvrir/fermer maintenant) expire d'elle-même à la prochaine transition automatique :
+  // ce sondage lent tient la barre du haut et le panneau « Ouverture » à jour même si le commerçant ne les
+  // rouvre pas (ex. bascule posée en fin de service, qui doit redevenir "automatique" avant la réouverture).
   setInterval(() => { if (state.authed) loadOpenMode(); }, 60000);
   boot();
 })();
