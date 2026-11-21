@@ -26,7 +26,6 @@ import owner_recette_clear from './routes/owner_recette_clear.js';
 import owner_sessions from './routes/owner_sessions.js';
 import owner_sessions_revoke from './routes/owner_sessions_revoke.js';
 import owner_settings from './routes/owner_settings.js';
-import pickup_delay from './routes/pickup_delay.js';
 import schedule_slots from './routes/schedule_slots.js';
 
 export const ROUTES = {
@@ -54,6 +53,5 @@ export const ROUTES = {
   owner_sessions,
   owner_sessions_revoke,
   owner_settings,
-  pickup_delay,
   schedule_slots
 };

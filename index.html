@@ -33,7 +33,6 @@
 <script src="assets/js/icons.js" defer></script>
 <script src="assets/js/cart.js" defer></script>
 <script src="assets/js/order-launch.js" defer></script>
-<script src="assets/js/delay-module.js" defer></script>
 <script>
   try {
     if (sessionStorage.getItem('subitoIntroSeen') === '1') {
@@ -243,31 +242,6 @@
       <a class="btn-solid" href="compte.html">Créer mon compte</a>
       <a class="btn-outline" href="menu.html">Voir la carte</a>
     </div>
-  </section>
-
-  <section class="delay-module" aria-label="Délais actuels">
-    <p class="delay-module__eyebrow">Délai actuel</p>
-    <div class="delay-module__cards">
-      <div class="delay-card delay-card--pickup">
-        <span class="delay-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg></span>
-        <p class="delay-card__label">À emporter</p>
-        <p class="delay-card__value">
-          <span class="delay-card__approx" aria-hidden="true">≃</span>
-          <span class="delay-card__num" id="delayPickupNum">30</span>
-          <span class="delay-card__unit" id="delayPickupUnit">min</span>
-        </p>
-      </div>
-      <div class="delay-card delay-card--delivery">
-        <span class="delay-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg></span>
-        <p class="delay-card__label">Livraison</p>
-        <p class="delay-card__value">
-          <span class="delay-card__approx" aria-hidden="true">≃</span>
-          <span class="delay-card__num">1</span>
-          <span class="delay-card__unit">h</span>
-        </p>
-      </div>
-    </div>
-    <p class="delay-module__note">Estimations à titre indicatif, pour une commande passée maintenant.</p>
   </section>
 
   <section class="call-section call-section--tight">
