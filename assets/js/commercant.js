@@ -347,10 +347,15 @@
       .filter(o => (o.status === 'accepted' || o.status === 'ready') && o.service_day === state.serviceDay)
       .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
   }
-  // En préparation : acceptées du jour, pas encore marquées prêtes.
+  // En préparation : acceptées du jour, pas encore marquées prêtes, ET pas encore passé le délai annoncé.
+  // Une fois l'heure prévue dépassée, la commande disparaît d'ici (décision du 22/11/2026) : elle reste
+  // visible dans la Recette, qui garde tout le jour, délai dépassé ou non. Exception : délai "venez vite"
+  // (0 minute) n'a pas de vraie échéance à dépasser, jamais retiré par cette règle.
   function prepOrders() {
+    const now = Date.now();
     return state.orders
       .filter(o => o.status === 'accepted' && o.service_day === state.serviceDay)
+      .filter(o => o.delay_minutes === 0 || !o.ready_at || new Date(o.ready_at).getTime() > now)
       .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
   }
   function ensureOpenSelection() {
@@ -605,8 +610,13 @@
   }
   function syncAlarm() {
     // Une commande programmée pas encore sortie (surfaced) ne doit jamais faire sonner : le commerçant
-    // ne peut rien en faire tant qu'elle n'est pas dans la file active.
-    const pending = state.authed && state.orders.some(o => o.status === 'new' && surfaced(o));
+    // ne peut rien en faire tant qu'elle n'est pas dans la file active. Une demande d'annulation ou un
+    // ajout pas encore imprimé (print_pending) sonne au même titre qu'une commande neuve (décision du
+    // 22/11/2026) : ça reste une information urgente tant que le commerçant ne l'a pas vue passer.
+    const pending = state.authed && (
+      state.orders.some(o => o.status === 'new' && surfaced(o))
+      || state.orders.some(o => (o.addenda || []).some(a => a.print_pending))
+    );
     if (!pending) alarmExpired = false;
     const shouldRing = pending && state.soundOn && !alarmExpired;
     if (shouldRing && !alarmTimer) {
@@ -666,6 +676,42 @@
       ? `${list.length} nouvelles commandes : ${list.map(customerLabel).join(', ')}`
       : `Nouvelle commande de ${customerLabel(list[0])}`);
     notifyNew(list);
+  }
+
+  // Libellé affiché pour une demande d'annulation ou un ajout : exactement les mots demandés par le
+  // propriétaire (décision du 22/11/2026), jamais "AJOUT"/"ANNULATION" bruts comme sur le ticket imprimé.
+  function addendumAlertLabel(a) {
+    return a.kind === 'cancel' ? 'Demande d’annulation' : 'Rajout de commande';
+  }
+
+  // Une demande d'annulation (commande déjà acceptée) ou un ajout d'article sonne exactement comme une
+  // commande neuve (décision du 22/11/2026) : le commerçant doit le voir passer tout de suite, pas
+  // seulement par le ticket qui s'imprime. Jamais pour kind='modify' (désactivé, voir order_addendum_create.js).
+  function notifyAddendum(list) {
+    if (!document.hidden || !notifSupported() || Notification.permission !== 'granted') return;
+    const first = list[0];
+    const title = list.length > 1 ? `${list.length} commandes à vérifier` : addendumAlertLabel(first.addendum);
+    const opts = {
+      body: list.length > 1
+        ? list.map(({ addendum, order }) => `${addendumAlertLabel(addendum)} pour ${customerLabel(order)}`).join(' · ')
+        : `${addendumAlertLabel(first.addendum)} pour ${customerLabel(first.order)}`,
+      tag: 'subito-addendum', renotify: true, icon: '../assets/img/icons/icon-192.png'
+    };
+    const fallback = () => { try { new Notification(title, opts); } catch (e) { /* non pris en charge */ } };
+    if (swReg && typeof swReg.showNotification === 'function') swReg.showNotification(title, opts).catch(fallback);
+    else fallback();
+  }
+  function alertAddendum(list) {
+    if (!list.length) return;
+    rearmAlarm();
+    const activated = !navigator.userActivation || navigator.userActivation.hasBeenActive;
+    if (typeof navigator.vibrate === 'function' && activated) {
+      try { navigator.vibrate([250, 120, 250]); } catch (e) { /* ignoré */ }
+    }
+    announce(list.length > 1
+      ? `${list.length} commandes à vérifier : ${list.map(({ addendum, order }) => `${addendumAlertLabel(addendum)} pour ${customerLabel(order)}`).join(', ')}`
+      : `${addendumAlertLabel(list[0].addendum)} pour ${customerLabel(list[0].order)}`);
+    notifyAddendum(list);
   }
 
   // ---------- Interrogation des commandes ----------
@@ -731,12 +777,24 @@
     // Une commande programmée loin dans le temps ne déclenche pas l'alerte sonore « à traiter maintenant ».
     const arrivals = freshlyNew.filter(o => surfaced(o));
     const scheduledArrivals = freshlyNew.filter(o => !surfaced(o));
+    // Demandes d'annulation (commande déjà acceptée) et ajouts d'article fraîchement arrivés : même
+    // alerte qu'une commande neuve (décision du 22/11/2026). Jamais kind='modify' (désactivé).
+    const prevAddendumIds = new Set();
+    if (state.ordersLoaded) {
+      for (const o of state.orders) for (const a of (o.addenda || [])) prevAddendumIds.add(String(a.id));
+    }
+    const freshAddenda = state.ordersLoaded
+      ? list.flatMap(o => (o.addenda || [])
+          .filter(a => (a.kind === 'cancel' || a.kind === 'add') && !prevAddendumIds.has(String(a.id)))
+          .map(a => ({ addendum: a, order: o })))
+      : [];
     state.orders = list;
     state.ordersLoaded = true;
     ensureOpenSelection();
     syncAlarm();
     scheduleRender();
     alertNew(arrivals);
+    alertAddendum(freshAddenda);
     if (scheduledArrivals.length) {
       toast(scheduledArrivals.length > 1
         ? `${scheduledArrivals.length} nouvelles commandes programmées.`
