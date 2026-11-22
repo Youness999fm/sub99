@@ -50,7 +50,7 @@
       { name: "Savoyarde", ing: ["crème fraîche", "lardons", "pommes de terre", "oignons", "reblochons"] },
       { name: "Suisse", ing: ["crème fraîche", "jambon", "pommes de terre", "oignons", "fromage à raclette"] },
       { name: "Indienne", ing: ["base crème fraîche/curry", "fromage", "poulet", "oignons"] },
-      { name: "Carolina", ing: ["base barbecue", "fromage", "viande hachée", "poivrons"] }
+      { name: "Carolina", ing: ["sauce barbecue", "fromage", "viande hachée", "poivrons"] }
     ] },
     { key: 'pates', label: 'Pâtes', items: [
       { name: "Bolognaise", ing: ["sauce tomate", "viande hachée", "oignons"] },

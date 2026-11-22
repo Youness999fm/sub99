@@ -1080,14 +1080,14 @@
       "category": "pizzas",
       "kind": "pizza",
       "ingredients": [
-        "Base barbecue",
+        "Sauce barbecue",
         "fromage",
         "viande hachée",
         "poivrons"
       ],
       "availability": {
         "fixed": [
-          "base barbecue",
+          "sauce barbecue",
           "fromage",
           "viande hachée",
           "poivrons"
