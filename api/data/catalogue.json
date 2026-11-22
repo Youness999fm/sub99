@@ -1820,7 +1820,7 @@
     },
     {
       "name": "Canette Tropico",
-      "line_name": "Canette Tropico",
+      "line_name": "Boisson Canette Tropico",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1877,7 +1877,7 @@
     },
     {
       "name": "Maxi Coca",
-      "line_name": "Maxi Coca",
+      "line_name": "Boisson Maxi Coca",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1896,7 +1896,7 @@
     },
     {
       "name": "Maxi Fanta",
-      "line_name": "Maxi Fanta",
+      "line_name": "Boisson Maxi Fanta",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
@@ -1915,7 +1915,7 @@
     },
     {
       "name": "Maxi Tropico",
-      "line_name": "Maxi Tropico",
+      "line_name": "Boisson Maxi Tropico",
       "category": "boissons",
       "kind": "product",
       "ingredients": [],
