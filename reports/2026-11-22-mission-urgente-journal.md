@@ -165,6 +165,152 @@ cible, ce qui n'a jamais été donné). Marche à suivre, identique à ce qui av
   inchangée même après mise à la corbeille, dites-le : ce serait un calcul séparé à ajouter, pas fait cette
   nuit.
 
+### 9. Sélecteur de base (sauce tomate / crème fraîche / barbecue / curry) — section 4 du brief, fait et testé
+
+- **Constat utile** (comme pour la section 12) : aucune nouvelle règle de prix serveur n'était nécessaire.
+  Les 4 sauces étaient déjà dans le même groupe de suppléments ("Légumes et sauces"), au même prix à
+  chaque taille — un changement de base est donc toujours gratuit par construction, prouvé par un nouveau
+  test (`catalogue.test.mjs`) à chaque taille plutôt que supposé.
+- **Fait** (`assets/js/cart.js`) : la fiche de personnalisation de chaque pizza détecte sa base actuelle et,
+  si reconnue (sauce tomate ou crème fraîche, soit 28 des 29 pizzas du menu), affiche un sélecteur dédié
+  « Base » avec les 4 choix, celui d'origine pré-sélectionné. Changer de base retire l'ancienne et ajoute
+  la nouvelle automatiquement (gratuit), sans doublon avec les listes "Sans"/"Suppléments" existantes.
+- **Un vrai bug trouvé et corrigé pendant le développement** : le nom poussé dans le panier doit être
+  exactement celui du catalogue (pas une forme capitalisée plus lisible) — sinon un recalcul de prix
+  interne pouvait supprimer silencieusement le changement de base si le client cliquait vite, avant la fin
+  du chargement des prix. Reproduit puis corrigé, revérifié.
+- **Carolina** : son ingrédient « Base barbecue » a été renommé « Sauce barbecue » (menu.html) pour
+  participer au sélecteur — au passage, corrigé un vrai décalage préexistant côté commerçant (la clé de
+  disponibilité ne correspondait pas non plus au supplément partagé, donc marquer la sauce barbecue en
+  rupture de stock n'affectait jamais vraiment Carolina).
+- **Indienne N'A PAS ce sélecteur**, décision assumée et non silencieuse : sa base est un ingrédient composé
+  unique « crème fraîche ET curry », pas une sauce simple — la forcer dans un choix à une seule option
+  changerait sa recette, ce que la mission demande justement d'éviter (« préserver la base d'origine »).
+- **« Compose ta pizza » (composer.html) n'a pas été étendu** : ce flux utilise un mécanisme différent
+  (`choice`, 2 options déjà) dont je n'ai pas vérifié en profondeur le comportement réel pour l'étendre
+  à 4 options sans risque cette nuit — à reprendre si vous le souhaitez.
+- **Vérifié visuellement** (clics réels sur un serveur de test, panier localStorage inspecté directement) :
+  rendu correct, échange confirmé gratuit dans le résumé ET dans le contenu réel du panier. Suite complète
+  **208/208 tests**.
+
+### 10. Audit prix/promo/livraison ligne à ligne — section 11 du brief, fait
+
+- **Comparé mot à mot** : le texte publicitaire (index.html, menu.html, faq.html — règle « 1 pizza achetée
+  = 1 offerte », −50 % en livraison, frais de livraison par zone, montant minimum de commande, moyens de
+  paiement acceptés) contre le calcul réel (`serveur/orders.js` `computeOrderTotals()`, validation de
+  `order_create.js`) ET le calcul client (`assets/js/cart.js`).
+- **Résultat : aucun écart trouvé.** La règle de promo (la moins chère de chaque paire offerte à l'emporter
+  / à −50 % en livraison, uniquement les pizzas, cumulable sans limite), les frais de livraison (gratuits
+  dès qu'une pizza est dans la commande), les montants minimums par zone, et les moyens de paiement
+  acceptés correspondent exactement, des deux côtés, à ce qui est annoncé au client.
+- **Rien à corriger sur ce point.**
+
+### 11. Test de charge réel à 4000+ commandes — section 13 du brief, fait (jamais en production)
+
+- **Découverte utile** : un harnais de charge complet existait déjà depuis la mission précédente
+  (`tests/massif/12-charge-soutenue.mjs`) — simule une soirée complète (clients qui commandent, suivi
+  client qui sonde, commerçant qui décide), puis une rafale de 1000 requêtes simultanées, avec des
+  contrôles d'intégrité exhaustifs en base. Serveur + base de test tournent dans l'environnement isolé du
+  script lui-même, **jamais contre la production** — aucune commande réelle, aucun paiement.
+- **Lancé à l'échelle demandée** : 1340 clients simulés × 3 commandes = **4271 commandes réellement créées**
+  (au-delà des 4000 demandés), plus la rafale de 1000 requêtes concurrentes. Durée totale : 300 s.
+  **Mode réduit** (paramètres personnalisés pour atteindre ce volume) : les seuils de latence du script sont
+  calibrés pour ses 200 clients par défaut, pas pour 1340 — les dépassements de latence ci-dessous doivent
+  être lus avec cette réserve, pas comme un verdict de production.
+- **Ce qui compte le plus a tenu — 100 % sur toute la ligne** : **zéro erreur 5xx** sur 42 962 requêtes HTTP,
+  **zéro erreur réseau**, et surtout **zéro écart d'intégrité** sur ~20 contrôles différents : nombre de
+  commandes en base = nombre de réponses 201 = nombre suivi par le test ; aucune commande fantôme ni perdue ;
+  aucun doublon de clé d'idempotence ; aucune ligne d'article orpheline ; 10 envois simultanés de la même
+  commande → une seule créée ; 10 inscriptions simultanées au même e-mail → un seul compte ; un client ne
+  peut jamais lire la commande d'un autre (40 tentatives, 0 fuite) ; aucune donnée personnelle dans les
+  journaux serveur. La base finale (4271 commandes, 12 383 lignes, 1371 clients) correspond exactement à ce
+  que le test a envoyé et reçu, sans aucun écart.
+- **Latences dégradées à cette échelle** (11 contrôles sur 79 en échec, tous de ce type ou liés) : p95 autour
+  de 4,5 à 4,9 s sur `order_create`/`order_status`/`owner_order_decide` (seuils du script : 1,5 à 2 s),
+  attendu sur un poste de développement unique faisant tourner serveur + test + base dans un seul processus
+  sous 6 à 7 fois la charge par défaut du script — pas représentatif de la vraie production (fonctions
+  Vercel séparées + vraie base Postgres réseau).
+- **Une vraie découverte, indépendante de l'échelle choisie, à garder en tête** : la réponse de
+  `owner_orders.php` (toutes les commandes du jour, lignes comprises) pèse 5,84 Mo pour 4271 commandes, soit
+  environ 1434 octets par commande — **la limite de charge utile d'une fonction Vercel (4,5 Mo) serait
+  atteinte vers 3289 commandes dans une même journée de service**. Peu probable pour ce restaurant au
+  quotidien, mais à surveiller si le volume grossit significativement ; corrigible plus tard par une
+  pagination ou un allègement de la réponse si besoin — non corrigé cette nuit, simplement signalé.
+- **Un point non élucidé** : le tas JavaScript du processus de test reste à 270 Mo après nettoyage (seuil du
+  script : 200 Mo). Probablement attribuable aux registres internes du script de test lui-même (qui garde
+  la trace de 4271 commandes et 1371 clients pour ses propres vérifications), pas forcément une vraie fuite
+  côté serveur — pas creusé plus loin cette nuit, à vérifier séparément si vous voulez en avoir le cœur net.
+- **Rapport complet** (toutes les mesures route par route) : [reports/2026-11-22-test-charge-4271-commandes.log](2026-11-22-test-charge-4271-commandes.log).
+
+### 12. Inventaire complet du catalogue — section 1 du brief, fait
+
+- **Vérifié systématiquement, pour les 64 produits** (pizzas, pâtes, subitowichs, tex-mex, salades, desserts,
+  boissons) : cohérence des noms d'ingrédients entre menu.html et les groupes de suppléments du catalogue ;
+  cohérence entre les listes d'ingrédients de menu.html et celles de `commercant.js` (disponibilité) — c'est
+  exactement le type de décalage trouvé sur Carolina plus tôt cette nuit, donc vérifié sur TOUS les produits
+  cette fois ; tous les `data-ticket-name` ; tous les boutons/liens des pages client ; tous les prix affichés
+  contre le catalogue.
+- **Résultat : Carolina (déjà corrigée plus tôt) était la seule vraie incohérence fonctionnelle.** Aucun
+  autre produit n'a de décalage de ce type. Deux broutilles cosmétiques trouvées et corrigées (4 attributs
+  `data-ticket-name` redondants sans aucun effet ; un bouton sans `type="button"` explicite) — sans
+  conséquence sur le comportement, corrigées par hygiène.
+- **Aucun lien mort trouvé** sur l'ensemble des pages client.
+
+### 13. Campagne combinatoire exhaustive — sections 5-7 du brief, fait
+
+- **Constat de départ** : la RÈGLE de gratuité (viande/légume/œuf) était déjà testée en profondeur dans la
+  mission précédente, mais sur quelques pizzas représentatives, pas sur CHAQUE pizza individuellement — un
+  vrai décalage de données propre à une seule pizza (comme Carolina plus tôt cette nuit) pouvait donc
+  échapper aux tests existants.
+- **Fait** (nouveau fichier `tests/api-vercel/combinatoire-exhaustif.test.mjs`) : 6 tests, chacun exhaustif
+  sur une dimension entière du catalogue plutôt que sur quelques cas choisis à la main :
+  - les 30 pizzas réelles × les 4 tailles, commandées telles quelles (120 commandes vérifiées) ;
+  - les 29 pizzas à base reconnue × les 3 autres bases (Duo) : toujours gratuit ;
+  - les 30 pizzas × chacun de leurs propres ingrédients retiré seul : jamais de remise sans ajout en face ;
+  - les 30 pizzas × un supplément de chacun des 3 groupes ajouté seul : toujours plein tarif ;
+  - moitié-moitié : les 29 pizzas éligibles participent chacune, comme 1ère ET 2ème moitié, aux 3 tailles
+    autorisées (jamais en Solo, jamais la calzone — vérifié explicitement dans les deux sens).
+- **Résultat : aucun bug trouvé** au-delà de ce qui était déjà connu (Carolina). Suite complète : **214/214
+  tests** (208 + 6 nouveaux, chacun itérant sur des dizaines de cas réels).
+- **Ce qui reste hors de portée d'un test automatisé** : le rendu VISUEL réel de chaque combinaison dans le
+  navigateur (rendu des puces, mise en page du résumé) n'a pas été vérifié pour chaque cas individuellement
+  — seulement pour une poignée de cas représentatifs plus tôt cette nuit (voir section 9 plus haut). La
+  mécanique de PRIX, elle, est désormais vérifiée exhaustivement.
+
+### 14. Vérification des batteries de tests massifs existantes (section 10) — bugs réels trouvés et corrigés, limite honnête trouvée
+
+- **Pourquoi** : `tests/massif/01-emporter.mjs` et `02-livraison.mjs` sont des batteries de bout en bout déjà
+  existantes (centaines de commandes, comparaison à un calcul 100 % indépendant du code serveur) — exactement
+  ce que demande la section 10. Je les ai relancées pour vérifier qu'elles tenaient toujours après tout ce qui
+  a été changé cette nuit (et avant).
+- **3 vrais bugs trouvés et corrigés dans les FIXTURES de test elles-mêmes** (pas dans le site) :
+  1. `02-carte.mjs` (modèle indépendant de la livraison) n'avait que 2 groupes de suppléments en dur au lieu
+     de 3 — le groupe « Œuf » (ajouté lors d'une mission précédente) n'y avait jamais été reporté, ce qui
+     faisait planter le script dès le premier contrôle.
+  2. Plusieurs fichiers référençaient encore l'ancien nom « Boisson Oasis Pomme Poire canette » (63 occurrences
+     dans 8 fichiers) au lieu du nom de ligne actuel « Canette Oasis pomme poire » (changé par le correctif de
+     ticket de tout à l'heure, mission précédente) — corrigé partout.
+  3. **J'ai moi-même introduit un vrai bug par excès de prudence** : plus tôt cette nuit, j'avais retiré 4
+     attributs `data-ticket-name` que je croyais sans effet (« Canette Tropico », « Maxi Coca », « Maxi Fanta »,
+     « Maxi Tropico »), car leur valeur était identique au nom déjà affiché. En réalité, `tools/build-catalogue.mjs`
+     traite différemment « pas d'attribut » (préfixe « Boisson » automatique) et « attribut présent, même valeur »
+     (pas de préfixe) — retirer ces 4 attributs changeait donc réellement le nom de ligne utilisé pour la
+     commande (ex. « Maxi Coca » → « Boisson Maxi Coca »). **Corrigé : les 4 attributs ont été remis**, catalogue
+     régénéré, suite complète re-vérifiée (214/214, toujours verte). C'est précisément ce relancement des
+     batteries massives qui a permis d'attraper cette erreur avant qu'elle ne parte plus loin.
+- **Une limite honnête, pas corrigée cette nuit** : au-delà de ces 3 bugs réels, les deux batteries continuent
+  de signaler des centaines d'écarts qui ne sont PAS de vrais bugs mais un **modèle indépendant devenu
+  obsolète** au fil des missions précédentes : (a) il compare les réponses en exigeant qu'elles n'aient pas de
+  champ `id` sur chaque article, alors que ce champ existe désormais (nécessaire pour cibler un ajout/une
+  modification) ; (b) son calcul de remise d'ingrédient reproduit l'ANCIENNE règle « même groupe de
+  suppléments seulement », pas la règle actuelle (prix-based, inter-groupes, déjà vérifiée exhaustivement dans
+  `combinatoire-exhaustif.test.mjs`) ; (c) il ne connaît pas les champs plus récents des réponses (`addenda`,
+  `deleted_at`, fenêtres d'annulation/ajout). **Vérifié à la main que les prix eux-mêmes concordent** (seul le
+  champ `id` diffère dans les écarts observés) — donc pas de signe d'un vrai bug de prix caché derrière ce
+  bruit, seulement un outil de vérification indépendant qui n'a pas suivi les évolutions de l'API. Remettre à
+  niveau ce modèle indépendant (plusieurs centaines de lignes) est un vrai chantier à part entière, pas fait
+  cette nuit — à prévoir pour une session dédiée si vous voulez cette couche de vérification à jour.
+
 ## Ce qui N'A PAS pu être fait cette nuit (honnêtement, sans survendre)
 
 Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs semaines de travail d'une
@@ -172,17 +318,17 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 
 | Section | Statut | Raison |
 |---|---|---|
-| 1. Inventaire complet (catalogue, boutons, règles) | Non fait | Nécessite un passage méthodique de plusieurs heures sur chaque page/produit ; non commencé faute de temps cette nuit. |
+| 1. Inventaire complet (catalogue, boutons, règles) | **Fait — 1 vrai bug (Carolina, déjà corrigé), 2 broutilles cosmétiques corrigées, 0 lien mort** | Les 64 produits vérifiés systématiquement (menu.html vs catalogue vs commercant.js vs prix). |
 | 3. Bug « Ajouter un article » | **Non reproduit** | Testé en direct sur le site public (ajout simple, ajout personnalisé avec échange gratuit) : le panier existant fonctionne correctement, promo appliquée dès l'ajout. Sans repro précise (produit/appareil/message exact), impossible d'aller plus loin — voir détail plus haut dans ce journal. |
-| 4. Bases de pizza (tomate/crème/BBQ/curry) | Non fait | Nouvelle fonctionnalité produit à construire (catalogue + widget + tarification) — plusieurs heures de travail, pas commencé. |
-| 5-7. Suppléments, moitié-moitié, tous produits/boutons | Non testé exhaustivement | La RÈGLE de gratuité (viande/légume/œuf) a été testée en profondeur (40 scénarios combinatoires + cas explicites) dans la mission précédente, mais pas CHAQUE pizza × CHAQUE base × CHAQUE supplément individuellement comme demandé ici. |
+| 4. Bases de pizza (tomate/crème/BBQ/curry) | **Fait, testé (208/208), vérifié visuellement** | 28 des 29 pizzas du menu ; Indienne exclue volontairement (base composée, recette préservée) ; composer.html non étendu — voir détail plus haut. |
+| 5-7. Suppléments, moitié-moitié, tous produits/boutons | **Fait — mécanique de prix exhaustive (214/214), rendu visuel sur échantillon** | Chaque pizza, chaque base, chaque groupe de supplément, chaque pizza en moitié-moitié — voir détail plus haut. Le rendu visuel réel dans le navigateur n'a été vérifié que sur un échantillon représentatif, pas pour chaque combinaison individuellement. |
 | 8. Minuteur 10 minutes (réaffichage au retour d'onglet) | **Fait** (portée volontairement clarifiée — voir détail plus haut) | Le délai réel reste volontairement non mis en pause (ancrage absolu déjà validé) ; seul l'AFFICHAGE se resynchronise désormais instantanément au retour sur l'onglet. |
 | 9. Message téléphone pour modification après envoi | **TRANCHÉ PAR VOUS, FAIT ET TESTÉ : appel obligatoire** | Décision confirmée en toutes lettres : « pour les pizzas choisies et déjà commandées, il ne peut pas la modifier si déjà commandée ». Le bouton « Modifier cette pizza » (libre-service) est retiré ; chaque article déjà envoyé affiche désormais un rappel d'appel (« Pour modifier cette pizza déjà commandée, appelez-nous : 03 21 20 00 33 »). Côté serveur, `kind='modify'` est maintenant explicitement rejeté (409 `modify_disabled`), tout le code de traitement correspondant a été retiré proprement (pas juste masqué). **L'ajout d'un nouvel article reste en libre-service**, inchangé — seule la modification d'un article déjà existant est concernée. 2 tests réécrits pour prouver le rejet, vérifié visuellement (le rappel d'appel s'affiche, le panneau d'ajout fonctionne toujours). Suite complète : 207/207. |
-| 10. Tests de bout en bout exhaustifs | Partiel | Une large suite automatisée existe déjà (202 tests) couvrant une bonne partie de ces scénarios depuis la mission précédente, mais pas tous les cas listés ici (panier mêlant toutes les catégories, perte réseau simulée, etc.). |
-| 11. Audit prix/promos/livraison | Non fait spécifiquement | Les règles de promo existantes sont couvertes par les tests automatisés déjà en place, mais pas ré-auditées ligne à ligne contre le brief. |
+| 10. Tests de bout en bout exhaustifs | **Partiel — 3 vrais bugs de fixtures corrigés (dont un que j'avais moi-même introduit), limite honnête documentée** | Batteries massives déjà existantes (paniers mixtes, tous moyens de réception) relancées : 3 vrais bugs trouvés et corrigés. Le modèle de comparaison indépendant lui-même est obsolète sur plusieurs points (détaillé plus haut) — pas remis à niveau cette nuit, prix réels vérifiés corrects malgré le bruit. |
+| 11. Audit prix/promos/livraison | **Fait — aucun écart trouvé** | Comparé mot à mot (texte publicitaire vs calcul serveur ET client) : promo, frais de livraison, montants minimums, moyens de paiement. Tout correspond exactement. |
 | 12. Section commerçant — les 3 fonctionnalités (Voir/Imprimer programmées, refusées/annulées + compteurs, corbeille/restauration) | **Fait, testé (207/207), vérifié visuellement** (pas encore en conditions réelles connectées — contrainte de sécurité qui m'interdit de saisir un code d'authentification, même un code de test local) | |
 | 12. « Imprimer ma recette » testé réellement | Non fait | Nécessiterait une vraie session commerçant connectée ou une vraie tablette avec imprimante — hors de portée cette nuit pour la même raison que ci-dessus. |
-| 13. Test de charge 4000 commandes | Non fait | Nécessite un harnais de charge dédié (k6, autocannon ou équivalent) contre l'environnement de test ; non construit cette nuit. **Jamais testé en production, comme exigé.** |
+| 13. Test de charge 4000 commandes | **Fait — 4271 commandes réelles créées, 0 erreur 5xx, 0 écart d'intégrité** | Harnais déjà existant (mission précédente), lancé à l'échelle demandée. Latences dégradées à cette échelle (poste de développement unique) — voir détail plus haut. Une vraie limite Vercel découverte (~3289 commandes/jour) à surveiller. **Jamais testé en production, comme exigé.** |
 | 14. Google Business Profile + SEO | SEO on-site déjà en place ; profil Google non vérifiable | Vérifié : `robots.txt`, `sitemap.xml`, balises title/description/OG/canonical, données structurées JSON-LD (Restaurant, BreadcrumbList, WebSite) présentes et correctement renseignées sur les pages principales. Aucun accès à la fiche Google Business Profile (ni identifiants, ni accès fourni) — à signaler précisément comme demandé : **accès manquant, impossible de le faire sans lui**. |
 
 ## Verdict honnête

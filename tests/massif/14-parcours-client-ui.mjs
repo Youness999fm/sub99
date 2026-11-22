@@ -342,18 +342,18 @@ async function p04({ ui }) {
   controle('calzone Duo + garniture Poulet : ajoutée', a1.echecs.length === 0, json(a1.echecs));
   const a2 = await ajouterProduit(ui, { carte: 'Bolognaise', nomLigne: 'Pâtes Bolognaise', retraits: ['oignons'], note: 'Spaghettis' });
   controle('Pâtes Bolognaise sans oignons, « Spaghettis » : ajoutées', a2.echecs.length === 0, json(a2.echecs));
-  const a3 = await ajouterProduit(ui, { carte: 'Oasis Pomme Poire canette', nomLigne: 'Boisson Oasis Pomme Poire canette', qte: 2 });
-  controle('Boisson Oasis Pomme Poire canette ×2 (bouton Ajouter puis « + » du compteur)', a3.echecs.length === 0 && (await ui.texte({ sel: '.add-to-cart__qty', carte: 'Oasis Pomme Poire canette' })) === '2', json(a3.echecs));
+  const a3 = await ajouterProduit(ui, { carte: 'Oasis Pomme Poire canette', nomLigne: 'Canette Oasis pomme poire', qte: 2 });
+  controle('Canette Oasis pomme poire ×2 (bouton Ajouter puis « + » du compteur)', a3.echecs.length === 0 && (await ui.texte({ sel: '.add-to-cart__qty', carte: 'Oasis Pomme Poire canette' })) === '2', json(a3.echecs));
   const a4 = await ajouterProduit(ui, { carte: 'Tiramisubito Oreo', nomLigne: 'Dessert Tiramisubito Oreo' });
   controle('Dessert Tiramisubito Oreo : ajouté', a4.echecs.length === 0, json(a4.echecs));
   // Une boisson a 11 parfums : le client peut-il dire lequel ?
   const choixBoisson = (await ui.existe({ sel: '.pizza-widget__toggle', carte: 'Oasis Pomme Poire canette' })) || (await ui.existe({ sel: '.customize__note', carte: 'Oasis Pomme Poire canette', visible: false }));
-  controle('Boisson Oasis Pomme Poire canette (11 parfums sur la carte) : le client peut indiquer son parfum (choix ou demande libre)', choixBoisson, choixBoisson ? 'oui' : 'aucun champ ni bouton de choix : la commande part sans le parfum');
+  controle('Canette Oasis pomme poire (11 parfums sur la carte) : le client peut indiquer son parfum (choix ou demande libre)', choixBoisson, choixBoisson ? 'oui' : 'aucun champ ni bouton de choix : la commande part sans le parfum');
   let lignes = [a1.ligne, a2.ligne, a3.ligne, a4.ligne];
   let aff = await tiroirEtAffichage(ui, 'P04', lignes, 'pickup', null);
   await controleDebordement(ui, 'tiroir du panier');
   // Ordre d'affichage : produits sans taille d'abord, puis les tailles
-  controle('tiroir : produits sans taille d\'abord, la calzone (Duo) en dernier', json(aff.lignes.map((l) => l.nom)) === json(['Pâtes Bolognaise', 'Boisson Oasis Pomme Poire canette', 'Dessert Tiramisubito Oreo', 'Calzone (soufflée) — Poulet']), json(aff.lignes.map((l) => l.nom)));
+  controle('tiroir : produits sans taille d\'abord, la calzone (Duo) en dernier', json(aff.lignes.map((l) => l.nom)) === json(['Pâtes Bolognaise', 'Canette Oasis pomme poire', 'Dessert Tiramisubito Oreo', 'Calzone (soufflée) — Poulet']), json(aff.lignes.map((l) => l.nom)));
   // « + » sur les pâtes (ligne 1) puis « − »
   await ui.cliquer({ sel: '.cart-line__inc', index: 0 });
   lignes[1] = { ...lignes[1], qte: 2 };
@@ -512,8 +512,8 @@ async function p07({ ui }) {
   if (!(await inscriptionCheck(ui, c))) return;
   await ui.aller('/menu.html', { menu: true });
   const a1 = await ajouterPizza(ui, { carte: 'Subito', taille: 'Solo' });
-  const a2 = await ajouterProduit(ui, { carte: 'Oasis Pomme Poire canette', nomLigne: 'Boisson Oasis Pomme Poire canette' });
-  controle('Subito Solo et Boisson Oasis Pomme Poire canette ajoutées', a1.echecs.length === 0 && a2.echecs.length === 0, json([a1.echecs, a2.echecs]));
+  const a2 = await ajouterProduit(ui, { carte: 'Oasis Pomme Poire canette', nomLigne: 'Canette Oasis pomme poire' });
+  controle('Subito Solo et Canette Oasis pomme poire ajoutées', a1.echecs.length === 0 && a2.echecs.length === 0, json([a1.echecs, a2.echecs]));
   const lignes = [a1.ligne, a2.ligne];
   await ui.ouvrirTiroir();
   await ui.basculer('delivery');
@@ -640,7 +640,7 @@ async function p09({ ui }) {
   if (!(await inscriptionCheck(ui, c))) return;
   await ui.aller('/menu.html', { menu: true });
   const a1 = await ajouterPizza(ui, { carte: 'Subito', taille: 'Solo' });
-  const a2 = await ajouterProduit(ui, { carte: 'Oasis Pomme Poire canette', nomLigne: 'Boisson Oasis Pomme Poire canette' });
+  const a2 = await ajouterProduit(ui, { carte: 'Oasis Pomme Poire canette', nomLigne: 'Canette Oasis pomme poire' });
   const lignes = [a1.ligne, a2.ligne];
   const aff = await tiroirEtAffichage(ui, 'P09', lignes, 'pickup', null);
   const MSG = 'Connexion interrompue : votre commande n’a peut-être pas été reçue. Vous pouvez réessayer sans risque.';
@@ -758,7 +758,7 @@ async function p10({ ui, nav, p }) {
   try {
     await uiB.activer();
     await uiB.aller('/menu.html', { menu: true });
-    const b3 = await ajouterProduit(uiB, { carte: 'Oasis Pomme Poire canette', nomLigne: 'Boisson Oasis Pomme Poire canette' });
+    const b3 = await ajouterProduit(uiB, { carte: 'Oasis Pomme Poire canette', nomLigne: 'Canette Oasis pomme poire' });
     controle('2e onglet : une boisson est ajoutée au panier pendant que la connexion est en cours', b3.echecs.length === 0, json(b3.echecs));
     await ui.activer();
     const t4 = Date.now();

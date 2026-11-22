@@ -744,6 +744,24 @@ const SUBITO_CART_CONFIG = {
       .replace(/\*$/, "").trim();
   }
 
+  // Les 4 bases proposées (section 4 de la mission du 22/11/2026) : toutes dans le même groupe de
+  // suppléments "Légumes et sauces", donc déjà au même prix à chaque taille — un changement de base est
+  // ainsi toujours gratuit, sans règle spéciale à écrire (applySwapDiscount s'en charge comme pour
+  // n'importe quel autre échange). Une pizza dont la base n'est PAS un de ces 4 noms exacts (ex. Indienne,
+  // qui mélange crème fraîche ET curry en un seul ingrédient composé "Base crème fraîche/curry") n'obtient
+  // pas ce sélecteur : forcer un choix unique y changerait sa recette, ce que la mission demande justement
+  // d'éviter ("préserver la base d'origine").
+  // Casse EXACTE du catalogue (supplement_groups), jamais une forme « jolie » maison : un supplément
+  // ajouté avec un nom qui ne correspond pas au caractère près au catalogue se fait silencieusement
+  // supprimer par le recalcul de prix de rebuildExtras() (qui compare par égalité stricte, pas par
+  // normalizeIngredientName) dès qu'un changement de taille — ou le simple chargement initial encore en
+  // vol — déclenche ce recalcul. Seul capitalizeFirst() à l'affichage du bouton rend ça lisible.
+  const BASE_SAUCES = ["sauce tomate", "crème fraîche", "sauce barbecue", "sauce curry"];
+  const BASE_SAUCES_NORM = BASE_SAUCES.map(normalizeIngredientName);
+  function findBaseIngredient(ingredients) {
+    return (ingredients || []).find(function (ing) { return BASE_SAUCES_NORM.indexOf(normalizeIngredientName(ing)) !== -1; }) || null;
+  }
+
   function applySwapDiscount(removedList, extrasList, groups, sizeLabel) {
     const plain = function (list) { return list.map(function (ex) { return { name: ex.name, price: ex.price, qty: ex.qty }; }); };
     if (!groups || !groups.length || !sizeLabel) return plain(extrasList);
@@ -820,6 +838,12 @@ const SUBITO_CART_CONFIG = {
     function displayName() { return choice && filler ? productName + " — " + capitalizeFirst(filler) : productName; }
     const removed = [];
     const extras = []; // {name, price, qty, group}
+    // Base de la pizza (sauce tomate / crème fraîche / barbecue / curry) : null si cette pizza n'a pas une
+    // base simple reconnue (voir findBaseIngredient ci-dessus). currentBase démarre égal à l'ingrédient
+    // d'origine (aucun changement) ; choisir une autre base retire l'ancienne et ajoute la nouvelle comme
+    // un supplément (gratuit par construction, même groupe de prix).
+    const baseIngredient = findBaseIngredient(ingredients);
+    let currentBase = baseIngredient;
     let loadedGroups = []; // suppléments résolus pour la taille affichée
 
     // --- Taille : unique rangée, sert à l'ajout rapide ET à la personnalisation ---
@@ -965,6 +989,65 @@ const SUBITO_CART_CONFIG = {
     halfSection.appendChild(half1Row);
     halfSection.appendChild(half2Wrap);
 
+    // Base (sauce tomate / crème fraîche / barbecue / curry) : uniquement si cette pizza a une base
+    // simple reconnue (voir findBaseIngredient). Choisir une autre base retire l'ingrédient d'origine
+    // (removed) et ajoute la nouvelle base comme supplément (extras) — applySwapDiscount() la rend
+    // gratuite automatiquement, même mécanique que n'importe quel autre échange.
+    const baseSection = document.createElement("div");
+    baseSection.className = "customize__section";
+    const baseButtons = [];
+    if (baseIngredient) {
+      const baseTitle = document.createElement("p");
+      baseTitle.className = "customize__title";
+      baseTitle.innerHTML = SubitoIcons.svg("pizza") + " Base";
+      baseSection.appendChild(baseTitle);
+      const baseChips = document.createElement("div");
+      baseChips.className = "customize__chips";
+      BASE_SAUCES.forEach(function (sauceName) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "customize__chip customize__chip--base";
+        b.textContent = capitalizeFirst(sauceName);
+        const isActive = normalizeIngredientName(sauceName) === normalizeIngredientName(currentBase);
+        b.classList.toggle("is-active", isActive);
+        b.setAttribute("aria-pressed", isActive ? "true" : "false");
+        b.addEventListener("click", function () { selectBase(sauceName); });
+        baseButtons.push(b);
+        baseChips.appendChild(b);
+      });
+      baseSection.appendChild(baseChips);
+    } else {
+      baseSection.hidden = true;
+    }
+
+    /** Prix du groupe "Légumes et sauces" (toutes les bases) à la taille actuellement affichée. */
+    function baseGroupPrice() {
+      if (!size || !loadedGroups.length) return 0;
+      const group = loadedGroups.find(function (g) { return g.names.some(function (n) { return BASE_SAUCES_NORM.indexOf(normalizeIngredientName(n)) !== -1; }); });
+      return group ? (group.pricesBySize[size.label] || 0) : 0;
+    }
+
+    function selectBase(sauceName) {
+      if (normalizeIngredientName(sauceName) === normalizeIngredientName(currentBase)) return;
+      // Retire l'éventuelle base déjà choisie (removed + extras), avant d'appliquer la nouvelle.
+      const ri = removed.indexOf(baseIngredient);
+      if (ri !== -1) removed.splice(ri, 1);
+      for (let i = extras.length - 1; i >= 0; i--) {
+        if (BASE_SAUCES_NORM.indexOf(normalizeIngredientName(extras[i].name)) !== -1) extras.splice(i, 1);
+      }
+      currentBase = sauceName;
+      if (normalizeIngredientName(sauceName) !== normalizeIngredientName(baseIngredient)) {
+        removed.push(baseIngredient);
+        extras.push({ name: sauceName, price: baseGroupPrice(), qty: 1, group: "Légumes et sauces" });
+      }
+      baseButtons.forEach(function (b) {
+        const isActive = normalizeIngredientName(b.textContent) === normalizeIngredientName(currentBase);
+        b.classList.toggle("is-active", isActive);
+        b.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+      refresh();
+    }
+
     // Sans ingrédients
     const removeSection = document.createElement("div");
     removeSection.className = "customize__section";
@@ -988,6 +1071,8 @@ const SUBITO_CART_CONFIG = {
           other.ingredients.forEach(function (ing) { if (list.indexOf(ing) === -1) list.push(ing); });
         }
       }
+      // La base se retire uniquement via le sélecteur "Base" ci-dessus, jamais ici en double.
+      if (baseIngredient) list = list.filter(function (ing) { return ing !== baseIngredient; });
       // "Compose ta pizza" (base Marguerita) démarre sans aucun ingrédient
       // listé — rien à retirer. Sans ceci, la section "Sans" s'affichait
       // avec son titre mais aucune puce en dessous, comme un bloc vide
@@ -997,6 +1082,11 @@ const SUBITO_CART_CONFIG = {
       if (sig === removeChipsSignature) return;
       removeChipsSignature = sig;
       removed.length = 0;
+      // La liste d'ingrédients vient de changer (ex. choix de la 2e moitié) : removed[] a été vidé juste
+      // au-dessus, mais le choix de base (qui vit dans ce même tableau) doit survivre à la reconstruction.
+      if (baseIngredient && normalizeIngredientName(currentBase) !== normalizeIngredientName(baseIngredient)) {
+        removed.push(baseIngredient);
+      }
       removeChipsHolder.innerHTML = "";
       const row = chipRow("Sans", list, removed);
       row.addEventListener("customize:change", refresh);
@@ -1051,7 +1141,10 @@ const SUBITO_CART_CONFIG = {
           groupEl.innerHTML = '<p class="customize__extra-group-title">' + escapeHtml(group.title) + (price !== undefined ? " — " + formatPrice(price) + " / ingrédient" : "") + "</p>";
           const list = document.createElement("div");
           list.className = "customize__chips";
-          group.names.forEach(function (name) {
+          // Les 4 bases ont déjà leur propre sélecteur dédié ci-dessus (une seule à la fois a du sens) :
+          // ne pas les proposer une deuxième fois ici, pour une pizza qui a ce sélecteur.
+          const names = baseIngredient ? group.names.filter(function (n) { return BASE_SAUCES_NORM.indexOf(normalizeIngredientName(n)) === -1; }) : group.names;
+          names.forEach(function (name) {
             const chip = document.createElement("button");
             chip.type = "button";
             chip.className = "customize__chip customize__chip--extra";
@@ -1121,6 +1214,9 @@ const SUBITO_CART_CONFIG = {
     });
 
     function refresh() {
+      // Le prix d'un changement de base dépend de la taille (comme tout supplément) : masqué tant
+      // qu'aucune taille n'est choisie, même logique que la section Suppléments juste en dessous.
+      baseSection.hidden = !baseIngredient || !size;
       // Pas de catalogue de parfums sur cette page (ex. composer.html, qui ne
       // propose que la base Marguerita) : impossible de proposer une
       // deuxième moitié réelle, donc pas de section plutôt qu'une liste vide.
@@ -1186,6 +1282,7 @@ const SUBITO_CART_CONFIG = {
     }
 
     panel.appendChild(halfSection);
+    panel.appendChild(baseSection);
     panel.appendChild(removeSection);
     panel.appendChild(extrasSection);
     panel.appendChild(noteSection);

@@ -1145,6 +1145,15 @@
   text-decoration: none;
 }
 
+/* Base (sauce) : "actif" signifie "c'est la base actuelle", jamais un retrait — jamais le style barré
+   rouge des puces "Sans", qui signifierait l'inverse. */
+.customize__chip--base.is-active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  text-decoration: none;
+}
+
 .customize__chip:disabled {
   opacity: 0.45;
   cursor: not-allowed;

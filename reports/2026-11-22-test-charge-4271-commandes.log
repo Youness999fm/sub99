@@ -1,0 +1,199 @@
+[lanceur] tests/massif/12-charge-soutenue.mjs · port 38982 · journal C:\Users\youne\AppData\Local\Temp\subito-massif-logs\12-charge-soutenue-2026-11-22T11-53-02-584Z.log
+Batterie 12 — charge soutenue  [MODE RÉDUIT : résultat non officiel]
+Paramètres : 1340 clients x 3 commandes, fenêtre d'arrivée 120 s, rafale 1000, graine 20261119, port 38982, au plus 128 connexions TCP simultanées
+Mémoire au début : rss 340.9 Mo, tas 13.8 Mo ; boucle au repos : p50 16.1 ms, max 33.5 ms
+1340 comptes créés en 83.8 s (bcrypt coût 10 dans le processus) ; boucle : p99 71.9 ms, max 100.8 ms
+PASS  1340 comptes clients créés (201) — 1340/1340 en 201, p95 1343.8 ms
+PASS  inscriptions : aucune erreur (5xx, 4xx, réseau) — 5xx 0, 4xx 0, réseau 0
+
+=== PHASE 2 : service du soir ===
+Plan : 4020 commandes (2070 en livraison), 402 refus prévus (10 %)
+  [t+ 10 s] créées 309/4020 · patron : 0 finales, 235 décisions en cours · sondages client 453 · rss 458.4 Mo
+  [t+ 20 s] créées 671/4020 · patron : 18 finales, 517 décisions en cours · sondages client 1847 · rss 393.4 Mo
+  [t+ 30 s] créées 1014/4020 · patron : 97 finales, 743 décisions en cours · sondages client 3570 · rss 456.2 Mo
+  [t+ 40 s] créées 1317/4020 · patron : 265 finales, 940 décisions en cours · sondages client 5318 · rss 475.6 Mo
+  [t+ 50 s] créées 1554/4020 · patron : 547 finales, 972 décisions en cours · sondages client 7118 · rss 521 Mo
+  [t+ 60 s] créées 1906/4020 · patron : 835 finales, 918 décisions en cours · sondages client 8602 · rss 571.2 Mo
+  [t+ 70 s] créées 2264/4020 · patron : 1117 finales, 901 décisions en cours · sondages client 9976 · rss 564.6 Mo
+  [t+ 80 s] créées 2598/4020 · patron : 1373 finales, 1188 décisions en cours · sondages client 11359 · rss 611 Mo
+  [t+ 90 s] créées 2843/4020 · patron : 1690 finales, 1022 décisions en cours · sondages client 13026 · rss 587.7 Mo
+  [t+100 s] créées 3168/4020 · patron : 1963 finales, 1022 décisions en cours · sondages client 14484 · rss 601.1 Mo
+  [t+110 s] créées 3547/4020 · patron : 2307 finales, 996 décisions en cours · sondages client 15841 · rss 604.2 Mo
+  [t+120 s] créées 3922/4020 · patron : 2591 finales, 1035 décisions en cours · sondages client 17215 · rss 625 Mo
+  toutes les commandes envoyées après 122.9 s (4020 créées, 0 refusées)
+  [t+130 s] créées 4020/4020 · patron : 2964 finales, 1056 décisions en cours · sondages client 19177 · rss 617.4 Mo
+  [t+140 s] créées 4020/4020 · patron : 3381 finales, 639 décisions en cours · sondages client 21309 · rss 654.2 Mo
+  [t+150 s] créées 4020/4020 · patron : 3784 finales, 236 décisions en cours · sondages client 22613 · rss 610.2 Mo
+  [t+160 s] créées 4020/4020 · patron : 3986 finales, 34 décisions en cours · sondages client 23080 · rss 615.6 Mo
+  [t+170 s] créées 4020/4020 · patron : 4020 finales, 0 décisions en cours · sondages client 23149 · rss 627.5 Mo
+  soirée terminée après 172.9 s (patron fini à t+168.9 s, pages à t+172.2 s)
+PASS  soirée : 4020 commandes créées en 201 — 4020 en 201 sur 4020 envois, 0 refus
+PASS  soirée : réponses de création conformes (statut new, total, promo, frais, lignes, pas de doublon d'identifiant) — 0 écart(s)
+PASS  soirée : identifiants de commande tous distincts — 4020/4020
+PASS  soirée : le patron a décidé toutes les commandes jusqu'à « prête » ou « refusée » — 3618 prêtes + 402 refusées sur 4020
+PASS  soirée : exactement 10 % de refus (402) — 402 refusées
+PASS  soirée : toutes les décisions du patron en 200, replayed=false, statuts et dates cohérents — 0 écart(s)
+PASS  soirée : nombre d'appels owner_order_decide = 2 par commande acceptée + 1 par refus, tous en 2xx — 7638 appels (attendu 7638), 7638 en 2xx
+PASS  soirée : chaque page de suivi a vu l'état final de la dernière commande de son client, sans recharger — 1340/1340 pages à jour
+PASS  soirée : sondages client cohérents (pas de retour en arrière, pas de statut vu avant la décision, champs et dates cohérents, horloge serveur croissante) — 0 écart(s)
+PASS  soirée : aucun sondage client en échec (5xx, réseau, 4xx) — 0 commande(s) avec au moins un échec
+  propagation (décision du patron -> page du client) : acceptée n=3306 p50 5748.7 p95 10954.8 max 12992.8 ms ; prête n=2631 p50 4883.3 p95 11292.7 max 14206 ms ; refusée n=363 p95 10849.8 ms
+FAIL  soirée : un changement de statut apparaît sur la page du client en p95 <= 8 s, max <= 15 s (sondage 4 s / 5 s) — n=6300, p95 11069.1 ms, max 14206 ms
+  apparition chez le patron (envoi du client -> liste du patron) : n=4020 p50 6323.1 p95 11784.7 max 13756.1 ms
+FAIL  soirée : chaque commande apparaît chez le patron (p95 <= 7 s, max <= 15 s avec un sondage toutes les 4 s) — 4020/4020 vues, p95 11784.7 ms, max 13756.1 ms
+PASS  soirée : listes owner_orders cohérentes (pas de doublon, ordre chronologique, aucune commande perdue d'un sondage à l'autre, pas de retour de statut) — 0 écart(s)
+  patron : 30 sondages owner_orders (liste jusqu'à 4020 commandes), intervalle p50 5344.5 ms, max 8881.8 ms
+PASS  soirée : le patron n'a manqué aucun sondage (aucun échec, intervalle max <= 15 s) — 0 échec(s), intervalle max 8881.8 ms
+PASS  soirée : aucune exception dans les scénarios — 0
+
+Mesures de la soirée (durées client en ms ; 172.9 s)
+route                           n    2xx   4xx   5xx  rés. réess.      p50      p95      p99      max      moy   Ko max
+-----------------------------------------------------------------------------------------------------------------------
+order_status                23151  23151     0     0     0      0   2524.9   4548.1   4794.3   4872.1   2349.9        2
+owner_order_decide           7638   7638     0     0     0      0   3098.5   4617.8   4842.2   4911.6   2677.3        2
+order_create                 4020   4020     0     0     0      0   3411.6   4847.5   5080.4   5151.6   2871.1        2
+owner_orders                   30     30     0     0     0      0    678.5   4729.6   4879.8   4879.8   1750.6     5641
+owner_login                     1      1     0     0     0      0      6.8      6.8      6.8      6.8      6.8        0
+-----------------------------------------------------------------------------------------------------------------------
+TOTAL (ms ; Ko)             34840  34840     0     0     0      0   2725.5   4623.3   4841.5   5151.6   2481.3     5641
+  débit moyen de la soirée : 201.4 requêtes/s (34840 requêtes)
+  boucle d'événements pendant la soirée : moy 11 ms, p50 10.1 ms, p99 24.2 ms, max 48.5 ms, utilisation 16 %
+  mémoire : rss 629.3 Mo à la fin de soirée, pic 692.6 Mo pendant la soirée
+PASS  soirée : aucune erreur 5xx — 0 sur 34840 requêtes
+PASS  soirée : aucune erreur réseau (connexion coupée, délai) — 0 sur 34840 requêtes
+PASS  soirée : aucune réponse 4xx inattendue — 0 sur 34840 requêtes
+FAIL  soirée : order_create p95 < 2000 ms — p95 4847.5 ms (n=4020, p50 3411.6, p99 5080.4, max 5151.6)
+FAIL  soirée : order_create p99 < 4000 ms — p99 5080.4 ms
+FAIL  soirée : order_status p95 < 1500 ms — p95 4548.1 ms (n=23151, p50 2524.9, p99 4794.3, max 4872.1)
+FAIL  soirée : order_status p99 < 3000 ms — p99 4794.3 ms
+FAIL  soirée : owner_orders p95 < 3000 ms — p95 4729.6 ms (n=30, p50 678.5, p99 4879.8, max 4879.8)
+PASS  soirée : owner_orders p99 < 5000 ms — p99 4879.8 ms
+FAIL  soirée : owner_order_decide p95 < 2000 ms — p95 4617.8 ms (n=7638, p50 3098.5, p99 4842.2, max 4911.6)
+FAIL  soirée : owner_order_decide p99 < 4000 ms — p99 4842.2 ms
+PASS  soirée : retard de la boucle d'événements p99 < 1000 ms et max < 5000 ms — p99 24.2 ms, max 48.5 ms (au repos : 16.1 ms)
+
+=== PHASE 3 : rafale de requêtes simultanées ===
+PASS  préparation : 100 commandes supplémentaires créées, 30 acceptées avant la rafale — 100 créées, 30 acceptées
+Rafale : 1000 requêtes (20 types) lancées en même temps. Composition : order_status 260, customer_orders 100, customer_me 80, availability 100, owner_orders 30, owner_me 10, owner_settings 10, owner_availability 10, order_create_nouvelle 150, order_create_rejeu 20, order_create_double 10, decide_accept 30, decide_refuse 30, decide_ready 30, decide_rejeu 10, decide_course 30, customer_signup 30, signup_double 10, customer_login 30, customer_update_address 20
+  1000/1000 réponses reçues en 18.49 s (dernière vague partie à 18.6 ms, jusqu'à 1000 requêtes émises et pas encore terminées sur au plus 128 connexions TCP ; moitié des réponses à 8704.7 ms), 54.1 requêtes/s
+  erreurs de connexion locales reprises pendant la rafale : 0 (aucune sur toute l'exécution ; requêtes jamais arrivées au serveur, donc sans risque de doublon) ; abandons : 0
+PASS  rafale : 10 envois simultanés de la même clé d'idempotence = 1 seule commande (1 en 201, 9 rejeux en 200) — 1 en 201, 9 rejeux, 1 identifiant(s) distinct(s), statuts 201,200,200,200,200,200,200,200,200,200
+PASS  rafale : 10 commandes recevant en même temps « accepter 30 », « refuser » et « accepter 40 » : une seule décision retenue, les 2 autres en 409 already_decided — 30 ordres, 9 commandes acceptées / 1 refusées
+PASS  rafale : 10 inscriptions simultanées avec le même e-mail = 1 seul compte (1 en 201, 9 en 409 email_taken) — 1 en 201, 9 en 409, statuts 201,409,409,409,409,409,409,409,409,409
+PASS  rafale : availability (100 requêtes) toutes conformes — ok
+PASS  rafale : customer_login (30 requêtes) toutes conformes — ok
+PASS  rafale : customer_me (80 requêtes) toutes conformes — ok
+PASS  rafale : customer_orders (100 requêtes) toutes conformes — ok
+PASS  rafale : customer_signup (30 requêtes) toutes conformes — ok
+PASS  rafale : customer_update_address (20 requêtes) toutes conformes — ok
+PASS  rafale : decide_accept (30 requêtes) toutes conformes — ok
+PASS  rafale : decide_ready (30 requêtes) toutes conformes — ok
+PASS  rafale : decide_refuse (30 requêtes) toutes conformes — ok
+PASS  rafale : decide_rejeu (10 requêtes) toutes conformes — ok
+PASS  rafale : order_create_nouvelle (150 requêtes) toutes conformes — ok
+PASS  rafale : order_create_rejeu (20 requêtes) toutes conformes — ok
+PASS  rafale : order_status (260 requêtes) toutes conformes — ok
+PASS  rafale : owner_availability (10 requêtes) toutes conformes — ok
+PASS  rafale : owner_me (10 requêtes) toutes conformes — ok
+PASS  rafale : owner_orders (30 requêtes) toutes conformes — ok
+PASS  rafale : owner_settings (10 requêtes) toutes conformes — ok
+PASS  rafale : 1000 requêtes simultanées toutes terminées — 1000/1000
+PASS  rafale : aucune erreur 5xx — 0 sur 1000
+PASS  rafale : aucune erreur réseau (les erreurs de connexion locales du poste sont reprises, voir plus haut) — 0 sur 1000
+PASS  rafale : aucune réponse 4xx inattendue (seuls les 409 des courses voulues) — 29 en 4xx pour 29 conflit(s) voulu(s)
+PASS  rafale : les 1000 requêtes sont servies en moins de 60 s — 18.49 s
+PASS  rafale : latence p99 < 45 s (toutes routes, 1000 requêtes en même temps) — p50 8691.8 ms, p95 17692.7 ms, p99 18290.3 ms, max 18467.8 ms
+
+Mesures de la rafale (durées client en ms ; 18.49 s)
+route                           n    2xx   4xx   5xx  rés. réess.      p50      p95      p99      max      moy   Ko max
+-----------------------------------------------------------------------------------------------------------------------
+order_status                  260    260     0     0     0      0   8622.4  17702.6  18280.4  18289.3   8953.8        2
+order_create                  180    180     0     0     0      0   9546.4  18180.7  18464.8  18467.8   9842.8        2
+owner_order_decide            130    110    20     0     0      0   9293.6  17276.2  18440.4    18444   9138.6        2
+availability                  100    100     0     0     0      0   7805.1  16793.7  17202.9  17359.3   7881.5        0
+customer_orders               100    100     0     0     0      0   8258.2  16974.3  18196.4  18269.9     9158        6
+customer_me                    80     80     0     0     0      0     8607  15614.7  17695.1  17695.1   8138.3        0
+customer_signup                40     31     9     0     0      0   8145.4  17788.7    18242    18242   9810.4        0
+owner_orders                   30     30     0     0     0      0   8770.9    18400  18440.3  18440.3   9228.8     5974
+customer_login                 30     30     0     0     0      0  11136.1  18290.3  18444.6  18444.6  11175.5        0
+customer_update_address        20     20     0     0     0      0   7870.9  17357.5  18269.1  18269.1   8297.7        0
+owner_availability             10     10     0     0     0      0   6612.6  15597.9  15597.9  15597.9   8308.4        0
+owner_me                       10     10     0     0     0      0   6596.7  16946.7  16946.7  16946.7   8340.7        0
+owner_settings                 10     10     0     0     0      0   6116.1  15656.1  15656.1  15656.1   7442.4        0
+-----------------------------------------------------------------------------------------------------------------------
+TOTAL (ms ; Ko)              1000    971    29     0     0      0   8691.8  17692.7  18290.3  18467.8   9054.1     5974
+  boucle d'événements pendant la rafale : moy 19.3 ms, p50 15.8 ms, p99 73.3 ms, max 111.2 ms, utilisation 43 %
+  mémoire : rss 630.3 Mo avant, 1138.3 Mo après, pic 1131.1 Mo pendant la rafale
+
+=== PHASE 4 : intégrité finale ===
+PASS  intégrité : nombre de commandes en base = nombre de réponses 201 — 4271 en base, 4271 réponses 201, 4271 suivies par le test
+PASS  intégrité : toutes les commandes de la base sont connues du test (ni commande fantôme, ni commande perdue) — 4271 en base, 4271 dans le registre du test
+PASS  intégrité : identifiants de la base = identifiants reçus du serveur — 0 en base non reçue(s), 0 reçue(s) absente(s) de la base
+  base : 4271 commandes (ready 3648, refused 433, accepted 39, new 151), 12383 lignes d'articles, 1371 clients
+PASS  intégrité : comptes clients en base = comptes créés (ceux de la soirée + inscriptions de la rafale + 1 pour l'e-mail inscrit en double), aucun e-mail en double — 1371 comptes (attendu 1371), 1 pour l'e-mail inscrit 10 fois en même temps, 0 e-mail(s) en double
+PASS  intégrité : aucun doublon (client, clé d'idempotence) — 0 doublon(s)
+PASS  intégrité : lignes d'articles sans doublon, sans orpheline, présentes pour chaque commande — 0 doublon(s), 0 orpheline(s), 0 commande(s) sans ligne
+PASS  intégrité : nombre de commandes par client identique en base et chez le test — 0 client(s) en écart sur 1340
+PASS  intégrité : 4271 commandes en base, statut final et dates cohérents (new / accepted / ready / refused, created_at <= accepted_at <= prepared_at, délai, total, service_day, montants et lignes identiques à l'envoi) — aucun écart
+PASS  intégrité : accepted_at <= prepared_at sur toutes les commandes prêtes — 3648 commandes prêtes, 0 en écart
+  « prête » en base : 3648 commandes ; durée acceptée -> prête (secondes) : min 1, max 25
+PASS  intégrité : une clé d'idempotence = une commande — 4271 clés, 4271 commandes
+PASS  intégrité : owner_orders renvoie toutes les commandes du jour (un seul jour de service) — 4271 renvoyées, 4271 attendues, 0 manquante(s), 0 en trop, 5983 Ko
+FAIL  charge : la réponse de owner_orders (toute la journée, lignes comprises) reste sous 4,5 Mo (limite de charge utile d'une fonction Vercel) — 5.84 Mo pour 4271 commandes, soit 1434 octets par commande : la limite serait atteinte vers 3289 commandes dans la journée
+PASS  intégrité : chaque commande de owner_orders reprend exactement statut, total et dates de la base — 0 écart(s) sur 4271
+PASS  intégrité : owner_orders trié par date puis identifiant — ordre respecté
+PASS  intégrité : order_status de chacune des 4271 commandes = base (statut, délai, dates, total), lu par son client — aucun écart
+PASS  intégrité : customer_orders de chacun des 1340 clients = ses commandes en base (ordre, statuts) — aucun écart
+PASS  intégrité : un client ne peut pas lire la commande d'un autre (404) — 40 lectures croisées, 0 fuite(s)
+PASS  journal du serveur : aucune erreur 5xx / server_error — 0 ligne(s)
+PASS  journal du serveur : aucune donnée personnelle (e-mail, nom, adresse, mot de passe) — 0 ligne(s)
+
+Mémoire du processus (serveur + test + base dans un seul processus) :
+  début (site démarré)       rss   340.9 Mo   tas JS    13.8 Mo   externe    4.2 Mo
+  après inscriptions         rss   383.1 Mo   tas JS    25.2 Mo   externe    4.5 Mo
+  milieu de soirée           rss   564.6 Mo   tas JS    51.8 Mo   externe    5.1 Mo
+  fin de soirée              rss   629.3 Mo   tas JS    46.4 Mo   externe   15.3 Mo
+  avant la rafale            rss   630.3 Mo   tas JS    52.2 Mo   externe   15.8 Mo
+  après la rafale            rss  1138.3 Mo   tas JS   279.6 Mo   externe    354 Mo
+  fin (après nettoyage)      rss  1118.7 Mo   tas JS   270.2 Mo   externe  363.9 Mo
+  pic de rss sur toute l'exécution : 1191.7 Mo ; pic du tas JS : 348.5 Mo
+PASS  mémoire : pic de rss < 1200 Mo — 1191.7 Mo (début 340.9 Mo, fin 1118.7 Mo)
+PASS  mémoire : croissance du rss entre le début et la fin < 800 Mo — +777.9 Mo
+FAIL  mémoire : tas JS après nettoyage < 200 Mo (pas de fuite côté JavaScript) — 270.2 Mo après nettoyage (début 13.8 Mo)
+PASS  durée totale du script < 420 s — 299.9 s
+
+Bilan par route, toutes phases (inscriptions, soirée, préparation, rafale, vérifications ; durées client en ms)
+route                           n    2xx   4xx   5xx  rés. réess.      p50      p95      p99      max      moy   Ko max
+-----------------------------------------------------------------------------------------------------------------------
+order_status                27722  27682    40     0     0      0   1818.4   4541.4   4833.2  18289.3   2054.7        2
+owner_order_decide           7798   7778    20     0     0      0   3116.1   4643.7   7240.5    18444   2774.8        2
+order_create                 4300   4300     0     0     0      0   3422.1   4933.3  13761.2  18467.8   3097.8        2
+customer_orders              1440   1440     0     0     0      0     56.9   5117.2  15870.7  18269.9    689.1        7
+customer_signup              1380   1371     9     0     0      0   1239.3   1347.3  13329.7    18242   1499.1        0
+availability                  100    100     0     0     0      0   7805.1  16793.7  17202.9  17359.3   7881.5        0
+customer_me                    80     80     0     0     0      0     8607  15614.7  17695.1  17695.1   8138.3        0
+owner_orders                   61     61     0     0     0      0   3715.3    15741  18440.3  18440.3     5406     5983
+customer_login                 30     30     0     0     0      0  11136.1  18290.3  18444.6  18444.6  11175.5        0
+customer_update_address        20     20     0     0     0      0   7870.9  17357.5  18269.1  18269.1   8297.7        0
+owner_availability             10     10     0     0     0      0   6612.6  15597.9  15597.9  15597.9   8308.4        0
+owner_me                       10     10     0     0     0      0   6596.7  16946.7  16946.7  16946.7   8340.7        0
+owner_settings                 10     10     0     0     0      0   6116.1  15656.1  15656.1  15656.1   7442.4        0
+owner_login                     1      1     0     0     0      0      6.8      6.8      6.8      6.8      6.8        0
+-----------------------------------------------------------------------------------------------------------------------
+TOTAL (ms ; Ko)             42962  42893    69     0     0      0   2044.3   4653.4   9616.8  18467.8   2269.3     5983
+
+Total : 42962 requêtes HTTP, 0 en 5xx, 0 erreurs réseau, 69 en 4xx.
+
+Résumé : 79 contrôles, 68 PASS, 11 FAIL, durée 299.9 s [MODE RÉDUIT : non officiel]
+Contrôles en échec :
+  FAIL  soirée : un changement de statut apparaît sur la page du client en p95 <= 8 s, max <= 15 s (sondage 4 s / 5 s) — n=6300, p95 11069.1 ms, max 14206 ms
+  FAIL  soirée : chaque commande apparaît chez le patron (p95 <= 7 s, max <= 15 s avec un sondage toutes les 4 s) — 4020/4020 vues, p95 11784.7 ms, max 13756.1 ms
+  FAIL  soirée : order_create p95 < 2000 ms — p95 4847.5 ms (n=4020, p50 3411.6, p99 5080.4, max 5151.6)
+  FAIL  soirée : order_create p99 < 4000 ms — p99 5080.4 ms
+  FAIL  soirée : order_status p95 < 1500 ms — p95 4548.1 ms (n=23151, p50 2524.9, p99 4794.3, max 4872.1)
+  FAIL  soirée : order_status p99 < 3000 ms — p99 4794.3 ms
+  FAIL  soirée : owner_orders p95 < 3000 ms — p95 4729.6 ms (n=30, p50 678.5, p99 4879.8, max 4879.8)
+  FAIL  soirée : owner_order_decide p95 < 2000 ms — p95 4617.8 ms (n=7638, p50 3098.5, p99 4842.2, max 4911.6)
+  FAIL  soirée : owner_order_decide p99 < 4000 ms — p99 4842.2 ms
+  FAIL  charge : la réponse de owner_orders (toute la journée, lignes comprises) reste sous 4,5 Mo (limite de charge utile d'une fonction Vercel) — 5.84 Mo pour 4271 commandes, soit 1434 octets par commande : la limite serait atteinte vers 3289 commandes dans la journée
+  FAIL  mémoire : tas JS après nettoyage < 200 Mo (pas de fuite côté JavaScript) — 270.2 Mo après nettoyage (début 13.8 Mo)

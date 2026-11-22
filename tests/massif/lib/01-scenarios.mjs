@@ -262,7 +262,7 @@ export function famNotes(r) {
     out.push(commande(`H-note-${nom}`, 'notes', [L(r, p, TAILLES[i % 4], { note: NOTES[nom] })]));
   });
   // remarques de 300 caractères exactement sur un produit sans taille et sur une moitié-moitié
-  out.push(commande('H-note-emoji300-produit', 'notes', [L(r, produit('Boisson Oasis Pomme Poire canette'), '', { note: NOTES.emoji300, qty: 3 })]));
+  out.push(commande('H-note-emoji300-produit', 'notes', [L(r, produit('Canette Oasis pomme poire'), '', { note: NOTES.emoji300, qty: 3 })]));
   out.push(commande('H-note-accents300-moitie', 'notes', [L(r, pizza('Pollame'), 'XXL', { note: NOTES.accents300, moitie: pizza('Savoyarde') })]));
   // une ligne par type de remarque, dans la même commande
   out.push(commande('H-note-toutes-en-une', 'notes', cles.map((nom, i) => L(r, i % 2 ? PIZZAS[(i * 5) % PIZZAS.length] : PRODUITS[i % PRODUITS.length], i % 2 ? TAILLES[i % 4] : '', { note: NOTES[nom] }))));
@@ -291,7 +291,7 @@ export function famLimites(r) {
     L(r, pizza('Carnivora'), 'XXL', { qty: 20 }), L(r, pizza('Régina'), 'Duo', { qty: 20 }), L(r, pizza('Napolitaine'), 'Solo', { qty: 20 })
   ]));
   out.push(commande('I-60articles-sans-pizza', 'limites', [
-    L(r, produit('Boisson Oasis Pomme Poire canette'), '', { qty: 20 }), L(r, produit('Maxi Coca'), '', { qty: 20 }), L(r, produit('Dessert Tiramisubito Oreo'), '', { qty: 20 })
+    L(r, produit('Canette Oasis pomme poire'), '', { qty: 20 }), L(r, produit('Maxi Coca'), '', { qty: 20 }), L(r, produit('Dessert Tiramisubito Oreo'), '', { qty: 20 })
   ]));
   // 40 lignes qui portent chacune une remarque de 300 caractères (accents)
   out.push(commande('I-40lignes-notes300', 'limites', lignes40(() => 1).map((l0, i) => L(r, l0.produit, l0.taille, { garniture: l0.garniture, note: i % 2 ? NOTES.accents300 : NOTES.mixte300 }))));
@@ -330,7 +330,7 @@ export function famPromo(r) {
     out.push(commande(`J-${n}pizzas-v3-quantites`, 'promo', distinctes(QTES.length).map((p, i) => L(r, p, SOLO_DUO[(i * 2 + n) % 6], { qty: QTES[i] }))));
     // v4 : mêlées à des produits sans taille (hors promotion)
     out.push(commande(`J-${n}pizzas-v4-produits`, 'promo', [
-      L(r, produit('Boisson Oasis Pomme Poire canette'), '', { qty: 2 }),
+      L(r, produit('Canette Oasis pomme poire'), '', { qty: 2 }),
       ...distinctes(n).map((p, i) => L(r, p, SOLO_DUO[(i + 1) % 6])),
       L(r, produit('Dessert Calzone Nutella'), ''), L(r, produit('Pâtes Carbonara'), '', { qty: 2 })
     ]));
@@ -359,7 +359,7 @@ export function famPromo(r) {
 /** Commandes valides mais bourrées de champs parasites : ils ne doivent avoir AUCUN effet (statut, jour, paiement, adresse…). */
 export function famParasites(r) {
   const out = [];
-  const base = () => [L(r, pizza('Régina'), 'Duo'), L(r, produit('Boisson Oasis Pomme Poire canette'), '', { qty: 2 })];
+  const base = () => [L(r, pizza('Régina'), 'Duo'), L(r, produit('Canette Oasis pomme poire'), '', { qty: 2 })];
   out.push(commande('K-statut-id-jour', 'parasites', base(), { extra: {
     id: 424242, status: 'ready', service_day: '1999-01-01', created_at: '2000-01-01T00:00:00Z', accepted_at: '2000-01-01T00:00:00Z',
     prepared_at: '2000-01-01T00:00:00Z', refused_at: null, delay_minutes: 20, ready_at: '2000-01-01T00:00:00Z',

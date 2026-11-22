@@ -40,7 +40,7 @@ const PRODUITS = {
   'Salade Exotique': 750, 'Salade Niçoise': 750, 'Salade Printanière': 750, 'Salade Di Roma': 750,
   'Dessert Tiramisubito Spéculoos': 350, 'Dessert Tiramisubito Oreo': 350, "Dessert Tiramisubito M&M's": 350,
   'Dessert Calzone Nutella': 650, 'Dessert Part de Tarte au Daim': 300,
-  'Boisson Oasis Pomme Poire canette': 150, 'Canette Fanta': 150, 'Canette Coca': 150,
+  'Canette Oasis pomme poire': 150, 'Canette Fanta': 150, 'Canette Coca': 150,
   'Canette Coca zéro': 150, 'Canette Tropico': 150, 'Canette Lipton': 150,
   'Canette Oasis PCF': 150,
   'Maxi Coca': 300, 'Maxi Fanta': 300, 'Maxi Tropico': 300
@@ -54,6 +54,10 @@ const SUPPLEMENTS = [
   {
     noms: ['Viande hachée', 'mortadelle', 'merguez', 'chorizo', 'kebab', 'jambon', 'lardons', 'poulet', 'anchois', 'thon', 'parmesan', 'brie', 'chèvre', 'bleu', 'reblochon'],
     prix: { Solo: 150, Duo: 200, Quatro: 300, XXL: 400 }
+  },
+  {
+    noms: ['Œuf'],
+    prix: { Solo: 100, Duo: 100, Quatro: 200, XXL: 200 }
   }
 ];
 
@@ -94,13 +98,14 @@ export function carteImpaire(rng, catalogue = lireCatalogueFichier()) {
   c.composer.prix = { Solo: 899, Duo: 1299, Quatro: 1749, XXL: 2549 };
   c.supplements[0].prix = { Solo: 101, Duo: 149, Quatro: 251, XXL: 349 };
   c.supplements[1].prix = { Solo: 149, Duo: 201, Quatro: 299, XXL: 401 };
+  c.supplements[2].prix = { Solo: 99, Duo: 99, Quatro: 199, XXL: 199 };
   const noms = Object.keys(c.produits);
   noms.forEach((n, i) => {
     // un décalage de -3 à +3 centimes, propre à chaque produit
     c.produits[n] = PRODUITS[n] + ((i * 3 + 1) % 7) - 3;
   });
   // Quelques prix de repère pour atteindre n'importe quel centime : boisson à 149, grande bouteille à 301.
-  c.produits['Boisson Oasis Pomme Poire canette'] = 149;
+  c.produits['Oasis Pomme Poire canette'] = 149;
   c.produits['Maxi Coca'] = 301;
   return c;
 }

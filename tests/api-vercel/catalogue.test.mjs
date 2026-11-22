@@ -209,6 +209,37 @@ test('remise de substitution : prix calculé comme cart.js (applySwapDiscount)',
   assert.equal((await order([half])).status, 201);
 });
 
+// Section 4 de la mission du 22/11/2026 : 4 bases proposées (tomate/crème fraîche/barbecue/curry) sur
+// "Personnaliser ma pizza" (assets/js/cart.js, buildPizzaWidget). Implémenté entièrement au-dessus du
+// mécanisme d'échange existant (removed + extras + applySwapDiscount) : aucune route ni règle de prix
+// nouvelle côté serveur — ce test le prouve plutôt que de le supposer, à toutes les tailles, puisque les 4
+// sauces partagent un seul groupe de suppléments ("Légumes et sauces") avec un prix identique chacune.
+test('changement de base (tomate/crème fraîche/barbecue/curry) : toujours gratuit, à toutes les tailles', async () => {
+  const prices = { Solo: 1100, Duo: 1600, Quatro: 2300, XXL: 3300 };
+  for (const variant of Object.keys(prices)) {
+    const r = await order([line('Régina', variant, prices[variant], {
+      removed: ['Sauce tomate'], extras: [{ name: 'sauce curry', price_cents: 0, qty: 1 }]
+    })]);
+    assert.equal(r.status, 201, `${variant} : ${r.text}`);
+    assert.equal(r.json.order.items[0].unit_price_cents, prices[variant]);
+  }
+
+  // Carolina (menu.html renommé « Base barbecue » -> « Sauce barbecue » le 22/11/2026, pour que cette
+  // pizza participe au même sélecteur) : son barbecue d'origine retiré, curry ajouté, toujours gratuit.
+  const carolina = catalogue.products.find((p) => p.name === 'Carolina');
+  assert.equal(carolina.ingredients[0], 'Sauce barbecue', 'le catalogue doit refléter le renommage du menu');
+  const carolinaPrice = carolina.prices_by_size.Duo;
+  const rCarolina = await order([line('Carolina', 'Duo', carolinaPrice, {
+    removed: ['Sauce barbecue'], extras: [{ name: 'sauce tomate', price_cents: 0, qty: 1 }]
+  })]);
+  assert.equal(rCarolina.status, 201, rCarolina.text);
+
+  // Indienne garde sa base composée telle quelle (pas de sélecteur, décision assumée) : son ingrédient
+  // "Base crème fraîche/curry" n'est volontairement reconnu par aucun des 4 noms de base.
+  const indienne = catalogue.products.find((p) => p.name === 'Indienne');
+  assert.equal(indienne.ingredients[0], 'Base crème fraîche/curry');
+});
+
 // ---------------------------------------------------------------- négatifs
 test('prix faux d\'un centime : 422 price_mismatch_line avec l\'index, rien d\'enregistré', async () => {
   const before = countOrders();
