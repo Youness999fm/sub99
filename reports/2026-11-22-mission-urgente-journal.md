@@ -256,6 +256,27 @@ cible, ce qui n'a jamais été donné). Marche à suivre, identique à ce qui av
   conséquence sur le comportement, corrigées par hygiène.
 - **Aucun lien mort trouvé** sur l'ensemble des pages client.
 
+### 13. Campagne combinatoire exhaustive — sections 5-7 du brief, fait
+
+- **Constat de départ** : la RÈGLE de gratuité (viande/légume/œuf) était déjà testée en profondeur dans la
+  mission précédente, mais sur quelques pizzas représentatives, pas sur CHAQUE pizza individuellement — un
+  vrai décalage de données propre à une seule pizza (comme Carolina plus tôt cette nuit) pouvait donc
+  échapper aux tests existants.
+- **Fait** (nouveau fichier `tests/api-vercel/combinatoire-exhaustif.test.mjs`) : 6 tests, chacun exhaustif
+  sur une dimension entière du catalogue plutôt que sur quelques cas choisis à la main :
+  - les 30 pizzas réelles × les 4 tailles, commandées telles quelles (120 commandes vérifiées) ;
+  - les 29 pizzas à base reconnue × les 3 autres bases (Duo) : toujours gratuit ;
+  - les 30 pizzas × chacun de leurs propres ingrédients retiré seul : jamais de remise sans ajout en face ;
+  - les 30 pizzas × un supplément de chacun des 3 groupes ajouté seul : toujours plein tarif ;
+  - moitié-moitié : les 29 pizzas éligibles participent chacune, comme 1ère ET 2ème moitié, aux 3 tailles
+    autorisées (jamais en Solo, jamais la calzone — vérifié explicitement dans les deux sens).
+- **Résultat : aucun bug trouvé** au-delà de ce qui était déjà connu (Carolina). Suite complète : **214/214
+  tests** (208 + 6 nouveaux, chacun itérant sur des dizaines de cas réels).
+- **Ce qui reste hors de portée d'un test automatisé** : le rendu VISUEL réel de chaque combinaison dans le
+  navigateur (rendu des puces, mise en page du résumé) n'a pas été vérifié pour chaque cas individuellement
+  — seulement pour une poignée de cas représentatifs plus tôt cette nuit (voir section 9 plus haut). La
+  mécanique de PRIX, elle, est désormais vérifiée exhaustivement.
+
 ## Ce qui N'A PAS pu être fait cette nuit (honnêtement, sans survendre)
 
 Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs semaines de travail d'une
@@ -266,7 +287,7 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 | 1. Inventaire complet (catalogue, boutons, règles) | **Fait — 1 vrai bug (Carolina, déjà corrigé), 2 broutilles cosmétiques corrigées, 0 lien mort** | Les 64 produits vérifiés systématiquement (menu.html vs catalogue vs commercant.js vs prix). |
 | 3. Bug « Ajouter un article » | **Non reproduit** | Testé en direct sur le site public (ajout simple, ajout personnalisé avec échange gratuit) : le panier existant fonctionne correctement, promo appliquée dès l'ajout. Sans repro précise (produit/appareil/message exact), impossible d'aller plus loin — voir détail plus haut dans ce journal. |
 | 4. Bases de pizza (tomate/crème/BBQ/curry) | **Fait, testé (208/208), vérifié visuellement** | 28 des 29 pizzas du menu ; Indienne exclue volontairement (base composée, recette préservée) ; composer.html non étendu — voir détail plus haut. |
-| 5-7. Suppléments, moitié-moitié, tous produits/boutons | Non testé exhaustivement | La RÈGLE de gratuité (viande/légume/œuf) a été testée en profondeur (40 scénarios combinatoires + cas explicites) dans la mission précédente, mais pas CHAQUE pizza × CHAQUE base × CHAQUE supplément individuellement comme demandé ici. |
+| 5-7. Suppléments, moitié-moitié, tous produits/boutons | **Fait — mécanique de prix exhaustive (214/214), rendu visuel sur échantillon** | Chaque pizza, chaque base, chaque groupe de supplément, chaque pizza en moitié-moitié — voir détail plus haut. Le rendu visuel réel dans le navigateur n'a été vérifié que sur un échantillon représentatif, pas pour chaque combinaison individuellement. |
 | 8. Minuteur 10 minutes (réaffichage au retour d'onglet) | **Fait** (portée volontairement clarifiée — voir détail plus haut) | Le délai réel reste volontairement non mis en pause (ancrage absolu déjà validé) ; seul l'AFFICHAGE se resynchronise désormais instantanément au retour sur l'onglet. |
 | 9. Message téléphone pour modification après envoi | **TRANCHÉ PAR VOUS, FAIT ET TESTÉ : appel obligatoire** | Décision confirmée en toutes lettres : « pour les pizzas choisies et déjà commandées, il ne peut pas la modifier si déjà commandée ». Le bouton « Modifier cette pizza » (libre-service) est retiré ; chaque article déjà envoyé affiche désormais un rappel d'appel (« Pour modifier cette pizza déjà commandée, appelez-nous : 03 21 20 00 33 »). Côté serveur, `kind='modify'` est maintenant explicitement rejeté (409 `modify_disabled`), tout le code de traitement correspondant a été retiré proprement (pas juste masqué). **L'ajout d'un nouvel article reste en libre-service**, inchangé — seule la modification d'un article déjà existant est concernée. 2 tests réécrits pour prouver le rejet, vérifié visuellement (le rappel d'appel s'affiche, le panneau d'ajout fonctionne toujours). Suite complète : 207/207. |
 | 10. Tests de bout en bout exhaustifs | Partiel | Une large suite automatisée existe déjà (202 tests) couvrant une bonne partie de ces scénarios depuis la mission précédente, mais pas tous les cas listés ici (panier mêlant toutes les catégories, perte réseau simulée, etc.). |
