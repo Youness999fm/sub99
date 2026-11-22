@@ -198,11 +198,33 @@
   };
 
   let toastTimer = null;
-  function toast(msg) {
+  function toast(msg, durationMs) {
     el.toast.textContent = msg;
     el.toast.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.toast.hidden = true; }, 4000);
+    toastTimer = setTimeout(() => { el.toast.hidden = true; }, durationMs || 4000);
+  }
+  // Bandeau d'erreur persistant (contrairement au toast, ne disparaît jamais tout seul) : une erreur dans
+  // une section du rendu ne doit plus jamais rester invisible (console.error seul, décision du 22/11/2026
+  // après plusieurs signalements « rien ne s'affiche » impossibles à diagnostiquer à distance sans preuve).
+  const renderErrorsShown = new Set();
+  function reportRenderError(section, err) {
+    const msg = err && err.message ? err.message : String(err);
+    console.error('Rendu commerçant [' + section + '] :', err);
+    const key = section + ':' + msg;
+    if (renderErrorsShown.has(key)) return; // une seule fois par erreur distincte, jamais un spam à chaque rendu.
+    renderErrorsShown.add(key);
+    let bar = document.getElementById('render-error-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'render-error-bar';
+      bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#b00020;color:#fff;'
+        + 'font:13px/1.4 sans-serif;padding:8px 12px;white-space:pre-wrap;max-height:40vh;overflow:auto;';
+      document.body.appendChild(bar);
+    }
+    const line = document.createElement('div');
+    line.textContent = '⚠ Erreur d\'affichage (' + section + ') : ' + msg;
+    bar.appendChild(line);
   }
   function alertMsg(msg) {
     toast(msg);
@@ -717,9 +739,14 @@
     if (typeof navigator.vibrate === 'function' && activated) {
       try { navigator.vibrate([250, 120, 250]); } catch (e) { /* ignoré */ }
     }
-    announce(list.length > 1
+    const msg = list.length > 1
       ? `${list.length} commandes à vérifier : ${list.map(({ addendum, order }) => `${addendumAlertLabel(addendum)} pour ${customerLabel(order)}`).join(', ')}`
-      : `${addendumAlertLabel(list[0].addendum)} pour ${customerLabel(list[0].order)}`);
+      : `${addendumAlertLabel(list[0].addendum)} pour ${customerLabel(list[0].order)}`;
+    announce(msg);
+    // Toast en plus de la sonnerie/bandeau dédié (décision du 22/11/2026) : ce canal ne dépend ni du rendu
+    // (renderCancelRequests peut échouer sans l'empêcher, voir renderStep ci-dessous) ni du son (coupé ou
+    // non) — un repère visuel garanti tant que la tâche JS n'est pas complètement bloquée.
+    toast('⚠ ' + msg, 15000);
     notifyAddendum(list);
   }
 
@@ -1945,33 +1972,42 @@
   }
 
   // ---------- Rendu global ----------
+  // Chaque section est isolée (décision du 22/11/2026) : une exception dans l'une (ex. renderCancelRequests)
+  // ne doit plus jamais geler silencieusement les autres (ex. renderQueue, renderPrep) jusqu'au prochain
+  // rechargement — c'était invisible auparavant (un seul try/catch autour de tout renderAll()), impossible
+  // à diagnostiquer à distance. Voir reportRenderError() ci-dessus pour la preuve visible qui en résulte.
+  function renderStep(name, fn) {
+    try { fn(); } catch (err) { reportRenderError(name, err); }
+  }
   function renderAll() {
     if (!state.authed) return;
-    renderViews();
-    const dd = document.getElementById('default-delay-btn');
-    if (dd) dd.textContent = 'Délai par défaut · ' + delayLabel(state.defaultDelay);
-    const sb = document.getElementById('sound-btn');
-    if (sb) sb.textContent = state.soundOn ? 'Couper le son' : 'Réactiver le son';
-    // Statut en lecture seule (le réglage se fait dans Espace patron > Ouverture, derrière l'accès supérieur) :
-    // visible d'un coup d'œil dans la barre du haut, sans avoir à ressaisir le code.
-    const ob = document.getElementById('store-open-btn');
-    if (ob) {
-      const force = state.openMode !== 'auto';
-      ob.textContent = state.openModeOuvert ? (force ? 'Ouvert (forcé)' : 'Ouvert') : (force ? 'Fermé (forcé)' : 'Fermé');
-      ob.classList.toggle('is-open', state.openModeOuvert);
-      ob.classList.toggle('is-closed', !state.openModeOuvert);
-      ob.classList.toggle('is-forced', force);
-    }
-    renderNotifSlot();
-    renderCancelRequests();
-    renderRefused();
-    renderQueue();
-    renderScheduled();
-    renderPrep();
-    renderDetail();
-    if (state.view === 'avail') renderAvail();
-    if (state.view === 'patron') renderPatron();
-    syncAlarm();
+    renderStep('renderViews', renderViews);
+    renderStep('barre-haut', () => {
+      const dd = document.getElementById('default-delay-btn');
+      if (dd) dd.textContent = 'Délai par défaut · ' + delayLabel(state.defaultDelay);
+      const sb = document.getElementById('sound-btn');
+      if (sb) sb.textContent = state.soundOn ? 'Couper le son' : 'Réactiver le son';
+      // Statut en lecture seule (le réglage se fait dans Espace patron > Ouverture, derrière l'accès supérieur) :
+      // visible d'un coup d'œil dans la barre du haut, sans avoir à ressaisir le code.
+      const ob = document.getElementById('store-open-btn');
+      if (ob) {
+        const force = state.openMode !== 'auto';
+        ob.textContent = state.openModeOuvert ? (force ? 'Ouvert (forcé)' : 'Ouvert') : (force ? 'Fermé (forcé)' : 'Fermé');
+        ob.classList.toggle('is-open', state.openModeOuvert);
+        ob.classList.toggle('is-closed', !state.openModeOuvert);
+        ob.classList.toggle('is-forced', force);
+      }
+    });
+    renderStep('renderNotifSlot', renderNotifSlot);
+    renderStep('renderCancelRequests', renderCancelRequests);
+    renderStep('renderRefused', renderRefused);
+    renderStep('renderQueue', renderQueue);
+    renderStep('renderScheduled', renderScheduled);
+    renderStep('renderPrep', renderPrep);
+    renderStep('renderDetail', renderDetail);
+    if (state.view === 'avail') renderStep('renderAvail', renderAvail);
+    if (state.view === 'patron') renderStep('renderPatron', renderPatron);
+    renderStep('syncAlarm', syncAlarm);
   }
 
   let renderPending = false;
