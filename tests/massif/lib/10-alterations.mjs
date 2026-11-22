@@ -246,7 +246,7 @@ export const ALTERATIONS = [
     appliquer(r, idx, b) {
       const i = r.choix(indices(b, estDuoDemi));
       const p = b.calcul.lignes[i].produit;
-      const f2 = valeur(r, ['Hawaïenne', 'Margherita', 'Pizza Licorne', 'Boisson Oasis Pomme Poire canette', 'Pâtes Bolognaise', 'Calzone Nutella']);
+      const f2 = valeur(r, ['Hawaïenne', 'Margherita', 'Pizza Licorne', 'Canette Oasis pomme poire', 'Pâtes Bolognaise', 'Calzone Nutella']);
       b.corps.items[i].half = { flavor1: p.name, flavor2: f2 };
       return { att: inconnu(f2), desc: `ligne ${i} : moitié « ${f2} »` };
     }

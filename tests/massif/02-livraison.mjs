@@ -397,7 +397,7 @@ async function partie1() {
       console.log(`  >> ${ville} : aucun panier de la carte n'a un total brut au-dessus du minimum et un total après promotion en dessous (cas sans objet)`);
     }
     // C. À emporter : ni minimum ni frais dans la même zone.
-    const e1 = await commander(b, { mode: 'pickup', specs: [{ type: 'produit', nom: 'Boisson Oasis Pomme Poire canette' }] });
+    const e1 = await commander(b, { mode: 'pickup', specs: [{ type: 'produit', nom: 'Canette Oasis pomme poire' }] });
     verifierCreation(`${etiq} · à emporter, 1 boisson (150) : acceptée sans minimum ni frais`, e1);
   }
 }
@@ -455,7 +455,7 @@ async function partie2() {
     ['3 suppléments sur une Quatro', [{ type: 'pizza', nom: 'Kebab', taille: 'Quatro', extras: ['jambon', 'Champignons', 'olives'] }]],
     ['retrait + supplément gratuit du même groupe (Duo)', [{ type: 'pizza', nom: 'Végétarienne', taille: 'Duo', retraits: ['oignons'], extras: ['olives', 'thon'] }]],
     ['3 XXL (une ligne) avec remarque', [{ type: 'pizza', nom: 'Subito', taille: 'XXL', qty: 3, note: "Merci ! L'étage 3 😀\nSonner 2 fois" }]],
-    ['pâtes, salades, desserts, boissons (sans pizza) en quantités', [{ type: 'produit', nom: 'Pâtes Saumon', qty: 2 }, { type: 'produit', nom: 'Salade Niçoise', qty: 3 }, { type: 'produit', nom: 'Dessert Calzone Nutella', qty: 2 }, { type: 'produit', nom: 'Boisson Oasis Pomme Poire canette', qty: 5 }]]
+    ['pâtes, salades, desserts, boissons (sans pizza) en quantités', [{ type: 'produit', nom: 'Pâtes Saumon', qty: 2 }, { type: 'produit', nom: 'Salade Niçoise', qty: 3 }, { type: 'produit', nom: 'Dessert Calzone Nutella', qty: 2 }, { type: 'produit', nom: 'Canette Oasis pomme poire', qty: 5 }]]
   ];
   for (const [nom, specs] of types) {
     const r = await commander(choisirClient([h2]), { specs, moyens: ['cash', 'card'], billet: 100 });
@@ -579,7 +579,7 @@ async function partie4() {
   verifierRefus('ville mais pas de rue, livraison : 422 address_required', t4, { statut: 422, code: 'address_required' });
   const t5 = await changerAdresse(c1, '  12   rue   des   Écoles  ', 'Rouvroy');
   egal('rue avec espaces multiples : enregistrée nettoyée', [t5.rep.status, t5.rep.json?.customer?.street], [200, '12 rue des Écoles']);
-  const t6 = await commander(c1, { specs: [...specsPizza, { type: 'produit', nom: 'Boisson Oasis Pomme Poire canette' }], moyens: ['ticket'] });
+  const t6 = await commander(c1, { specs: [...specsPizza, { type: 'produit', nom: 'Canette Oasis pomme poire' }], moyens: ['ticket'] });
   verifierCreation('rue normalisée + ville Rouvroy : livraison acceptée, adresse de la commande = rue nettoyée', t6);
   const t7 = await changerAdresse(c1, '', '');
   egal('adresse effacée (ville vide) : rue et ville null', [t7.rep.status, t7.rep.json?.customer?.street, t7.rep.json?.customer?.city], [200, null, null]);
@@ -892,7 +892,7 @@ async function scenarioRafale(c) {
 
   // 1. sous le minimum
   ev('sous-minimum', await commander(c, {
-    specs: [{ type: 'produit', nom: r.choix(['Boisson Oasis Pomme Poire canette', 'Tex-Mex Wings (5 pièces)', 'Subitowich Rome', 'Pâtes Saumon', 'Salade Niçoise']) }],
+    specs: [{ type: 'produit', nom: r.choix(['Canette Oasis pomme poire', 'Tex-Mex Wings (5 pièces)', 'Subitowich Rome', 'Pâtes Saumon', 'Salade Niçoise']) }],
     moyens: moyens(), billet: r.choix(K.BILLETS), enregistrer: false
   }));
   // 2. première commande valide, puis rejeu et conflit
@@ -1058,7 +1058,7 @@ async function partie9() {
   x.tentatives = 20;
   egal('limite · la 21e commande dans les 10 minutes : 429 too_many_attempts, attente de 600 s (horloge figée)',
     [r21.rep.status, r21.rep.json?.error, r21.rep.json?.retry_after_seconds, r21.rep.headers.get('retry-after')], [429, 'too_many_attempts', 600, '600']);
-  const e21 = await commander(x, { mode: 'pickup', specs: [{ type: 'produit', nom: 'Boisson Oasis Pomme Poire canette' }], enregistrer: false, rejeu: true });
+  const e21 = await commander(x, { mode: 'pickup', specs: [{ type: 'produit', nom: 'Canette Oasis pomme poire' }], enregistrer: false, rejeu: true });
   egal('limite · même limite pour une commande à emporter (même client)', [e21.rep.status, e21.rep.json?.error], [429, 'too_many_attempts']);
   const rj = await commander(x, { specs: premiere.specs, moyens: ['card'], cle: crees[0].cle, rejeu: true, enregistrer: false });
   egal('limite · rejeu d\'une commande existante pendant le verrou : 200 replayed (jamais refusé)',

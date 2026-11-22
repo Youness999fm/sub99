@@ -70,7 +70,7 @@ async function phaseTemps() {
       'Neptune (thon)': () => ligne('Neptune', 'Solo'),
       'Calzone — Thon': () => ligne('Calzone (soufflée) — Thon', 'Solo'),
       'Chèvre miel (miel)': () => ligne('Chèvre miel', 'Solo'),
-      'Boisson Oasis Pomme Poire canette': () => ligne('Boisson Oasis Pomme Poire canette', ''),
+      'Canette Oasis pomme poire': () => ligne('Canette Oasis pomme poire', ''),
       'Tiramisubito Oreo': () => ligne('Dessert Tiramisubito Oreo', ''),
       'Végétarienne (témoin)': () => ligne('Végétarienne', 'Solo')
     };
@@ -158,9 +158,9 @@ async function phaseTemps() {
     await ouvrir();
     await pose(patron, 'pizza', 'Régina', 'out_today');
     await pose(patron, 'ingredient', 'thon', 'out_today');
-    await pose(patron, 'product', 'Boisson Oasis Pomme Poire canette', 'out_today');
-    const AUJ = [`pizza|Régina|out_today|${N}`, `ingredient|thon|out_today|${N}`, `product|Boisson Oasis Pomme Poire canette|out_today|${N}`];
-    const REFUS_AUJ = ['Régina', 'Neptune (thon)', 'Calzone — Thon', 'Boisson Oasis Pomme Poire canette'];
+    await pose(patron, 'product', 'Canette Oasis pomme poire', 'out_today');
+    const AUJ = [`pizza|Régina|out_today|${N}`, `ingredient|thon|out_today|${N}`, `product|Canette Oasis pomme poire|out_today|${N}`];
+    const REFUS_AUJ = ['Régina', 'Neptune (thon)', 'Calzone — Thon', 'Canette Oasis pomme poire'];
     await etape('Scénario complet, soirée 20:00 : pizza, ingrédient et produit en out_today', Z(N, '19:00:00'), N,
       { pizzas: ['Kebab', 'Régina'], ingredients: ['miel', 'thon'], patron: [...MANUELLES, ...AUJ], refuses: [...REFUS_MANUEL, ...REFUS_AUJ] });
     await etape('Scénario complet, 23:59:59 (dernière seconde)', Z(N, '22:59:59'), N,
@@ -392,7 +392,7 @@ async function apiMatrice() {
   await verifier('pizza hors service (out_today) : Kebab refusée, nommée', [ligne('Kebab', 'Solo')], { noms: ['Kebab'], ingredients: [] });
   await verifier('une autre pizza passe (Campione)', [ligne('Campione', 'Solo')], { accepte: true });
   await verifier('panier mêlé : seules les deux lignes hors service sont nommées, rien n\'est enregistré',
-    [ligne('Régina', 'Solo'), ligne('Campione', 'Duo'), ligne('Kebab', 'Quatro'), ligne('Neptune', 'Solo'), ligne('Boisson Oasis Pomme Poire canette', '', { qty: 2 })], { noms: ['Régina', 'Kebab'], ingredients: [] });
+    [ligne('Régina', 'Solo'), ligne('Campione', 'Duo'), ligne('Kebab', 'Quatro'), ligne('Neptune', 'Solo'), ligne('Canette Oasis pomme poire', '', { qty: 2 })], { noms: ['Régina', 'Kebab'], ingredients: [] });
   await verifier('nom envoyé en minuscules : refusé, nom renvoyé tel qu\'envoyé', [ligne('régina', 'Solo')], { noms: ['régina'], ingredients: [] });
   await verifier('nom envoyé en capitales sans accent : refusé', [ligne('REGINA', 'Solo')], { noms: ['REGINA'], ingredients: [] });
   await verifier('livraison : le refus de disponibilité passe avant l\'adresse et le minimum', [ligne('Régina', 'XXL')], { noms: ['Régina'], ingredients: [] }, { mode: 'delivery', ville: 'Hénin-Beaumont', paiements: ['card'] });
@@ -485,19 +485,19 @@ async function apiMatrice() {
   await pose(patron, 'product', 'Wings', 'out_manual');
   await verifier('produit « Wings » sans parenthèse : couvre « Wings (5 pièces) »', [ligne('Tex-Mex Wings (5 pièces)', '')], { noms: ['Tex-Mex Wings (5 pièces)'], ingredients: [] });
   reinit();
-  await pose(patron, 'product', 'Boisson Oasis Pomme Poire canette', 'out_manual');
-  await verifier('produit « Boisson Oasis Pomme Poire canette » : refusé (quantité 2)', [ligne('Boisson Oasis Pomme Poire canette', '', { qty: 2 })], { noms: ['Boisson Oasis Pomme Poire canette'], ingredients: [] });
+  await pose(patron, 'product', 'Canette Oasis pomme poire', 'out_manual');
+  await verifier('produit « Canette Oasis pomme poire » : refusé (quantité 2)', [ligne('Canette Oasis pomme poire', '', { qty: 2 })], { noms: ['Canette Oasis pomme poire'], ingredients: [] });
   await verifier('… une autre boisson passe', [ligne('Maxi Coca', '')], { accepte: true });
-  await verifier('… un nom de produit différent n\'est pas une correspondance approximative (seul « Oasis Pomme Poire » reste refusé)', [ligne('Maxi Coca', ''), ligne('Boisson Oasis Pomme Poire canette', '')], { noms: ['Boisson Oasis Pomme Poire canette'], ingredients: [] });
+  await verifier('… un nom de produit différent n\'est pas une correspondance approximative (seul « Oasis Pomme Poire » reste refusé)', [ligne('Maxi Coca', ''), ligne('Canette Oasis pomme poire', '')], { noms: ['Canette Oasis pomme poire'], ingredients: [] });
   reinit();
   await pose(patron, 'ingredient', 'poulet', 'out_manual');
   await verifier('ingrédient « poulet » : Tex-Mex Wings refusé (fixe de la tablette)', [ligne('Tex-Mex Wings (5 pièces)', '')], { noms: ['Tex-Mex Wings (5 pièces)'], ingredients: ['poulet'] });
   await verifier('ingrédient « poulet » : Subitowich Milano refusé', [ligne('Subitowich Milano', '')], { noms: ['Subitowich Milano'], ingredients: ['poulet'] });
   await verifier('ingrédient « poulet » : pizza Chicken refusée', [ligne('Chicken', 'Solo')], { noms: ['Chicken'], ingredients: ['poulet'] });
-  await verifier('ingrédient « poulet » : les boissons passent (aucun ingrédient fixe)', [ligne('Boisson Oasis Pomme Poire canette', '')], { accepte: true });
+  await verifier('ingrédient « poulet » : les boissons passent (aucun ingrédient fixe)', [ligne('Canette Oasis pomme poire', '')], { accepte: true });
   reinit();
   await pose(patron, 'ingredient', 'coca cola', 'out_manual');
-  await verifier('ingrédient hors tablette (« coca cola ») : aucun effet sur la boisson', [ligne('Boisson Oasis Pomme Poire canette', '')], { accepte: true });
+  await verifier('ingrédient hors tablette (« coca cola ») : aucun effet sur la boisson', [ligne('Canette Oasis pomme poire', '')], { accepte: true });
 
   // -- correspondance des noms : accents, casse, parenthèses, apostrophes ----------------------------------------------
   reinit();
@@ -735,7 +735,7 @@ async function apiRejeu() {
   const { patron } = S;
   reinit();
   const c = client();
-  const lignes = [ligne('Régina', 'Solo'), ligne('Boisson Oasis Pomme Poire canette', '')];
+  const lignes = [ligne('Régina', 'Solo'), ligne('Canette Oasis pomme poire', '')];
   const b = corps(lignes, { cle: 'rejeu-' + Date.now().toString(36) + '-a' });
   let r1 = await c.post('order_create.php', b);
   ctl('commande valide : 201', r1.status === 201, resume({ ...r1, rep: r1 }));
@@ -780,7 +780,7 @@ async function apiRafaleStable() {
   await pose(patron, 'ingredient', 'champignons', 'out_manual');
   await pose(patron, 'ingredient', 'thon', 'out_today');
   await pose(patron, 'product', 'Bolognaise', 'out_manual');
-  await pose(patron, 'product', 'Boisson Oasis Pomme Poire canette', 'out_today');
+  await pose(patron, 'product', 'Canette Oasis pomme poire', 'out_today');
   // Chaque « modèle » : lignes, verdict attendu, noms attendus.
   const M = [
     { id: 'ok-1', lignes: () => [ligne('Kebab', 'Duo'), ligne('Pâtes Carbonara', ''), ligne('Maxi Coca', '')], att: null },
@@ -792,7 +792,7 @@ async function apiRafaleStable() {
     { id: 'ko-supplement', lignes: () => [ligne('Kebab', 'Duo', { extras: ['thon'] })], att: { noms: ['thon'], ing: ['thon'] } },
     { id: 'ko-calzone', lignes: () => [ligne('Calzone (soufflée) — Thon', 'Duo'), ligne('Calzone (soufflée) — Poulet', 'Duo')], att: { noms: ['Calzone (soufflée) — Thon'], ing: ['thon'] } },
     { id: 'ko-moitie', lignes: () => [ligne('Kebab', 'Duo', { half: ['Kebab', 'Régina'] })], att: { noms: ['Régina'], ing: ['champignons'] } },
-    { id: 'ko-produit', lignes: () => [ligne('Pâtes Bolognaise', ''), ligne('Boisson Oasis Pomme Poire canette', '', { qty: 3 })], att: { noms: ['Pâtes Bolognaise', 'Boisson Oasis Pomme Poire canette'], ing: [] } },
+    { id: 'ko-produit', lignes: () => [ligne('Pâtes Bolognaise', ''), ligne('Canette Oasis pomme poire', '', { qty: 3 })], att: { noms: ['Pâtes Bolognaise', 'Canette Oasis pomme poire'], ing: [] } },
     { id: 'ko-multiple', lignes: () => [ligne('Régina', 'Solo'), ligne('Campione', 'Duo'), ligne('Neptune', 'Solo'), ligne('Pâtes Bolognaise', ''), ligne('Kebab', 'Solo', { extras: ['champignons'] }), ligne('Carnivora', 'Duo')], att: { noms: ['Régina', 'Campione', 'Neptune', 'Pâtes Bolognaise', 'champignons'], ing: ['champignons', 'thon'] } },
     { id: 'ko-livraison', lignes: () => [ligne('Régina', 'XXL'), ligne('Kebab', 'Duo')], att: { noms: ['Régina'], ing: ['champignons'] }, livraison: true }
   ];
@@ -822,7 +822,7 @@ async function apiRafaleStable() {
   mesure('rafale figée', `${res.length} commandes en ${Math.round(dt)} ms (${Math.round(dt / res.length)} ms / commande)`);
   // Relecture de la base : aucune ligne enregistrée (nom, moitié, supplément) n'est bloquée par l'état figé.
   const bd = S.site.db.prepare('SELECT i.name, i.half_json, i.extras_json FROM order_items i WHERE i.order_id > ?').all(maxId0);
-  const OUT = { pizzas: ['Régina', 'Napolitaine'], produits: ['Bolognaise', 'Boisson Oasis Pomme Poire canette'], ingredients: ['champignons', 'thon'] };
+  const OUT = { pizzas: ['Régina', 'Napolitaine'], produits: ['Bolognaise', 'Canette Oasis pomme poire'], ingredients: ['champignons', 'thon'] };
   const interdits = bd.map((x) => [x, ligneStockeeCauses(x, OUT)]).filter(([, c]) => c.length);
   ctl(`relecture de la base : les ${bd.length} lignes enregistrées par la rafale sont toutes légitimes (nom, moitié, suppléments)`, interdits.length === 0, interdits.slice(0, 4).map(([x, c]) => `${x.name} : ${c}`));
   reinit();
@@ -838,7 +838,7 @@ const ENTREES = {
   F2: { kind: 'pizza', name: 'Napolitaine', hors: 'out_today', pauseMin: 3, pauseMax: 25 },
   F3: { kind: 'ingredient', name: 'artichauts', hors: 'out_manual', pauseMin: 150, pauseMax: 420 },
   F4: { kind: 'ingredient', name: 'thon', hors: 'out_today', pauseMin: 4, pauseMax: 30 },
-  F5: { kind: 'product', name: 'Boisson Oasis Pomme Poire canette', hors: 'out_manual', pauseMin: 100, pauseMax: 350 },
+  F5: { kind: 'product', name: 'Canette Oasis pomme poire', hors: 'out_manual', pauseMin: 100, pauseMax: 350 },
   F6: { kind: 'product', name: 'Tiramisubito Oreo', hors: 'out_today', pauseMin: 6, pauseMax: 40 }
 };
 const STABLES = [
@@ -869,7 +869,7 @@ const MODELES = [
   { id: 'F4-nep', f: () => ligne('Neptune', 'Duo'), b: { F4: { nom: 'Neptune', ing: 'thon' } } },
   { id: 'F4-calz', f: () => ligne('Calzone (soufflée) — Thon', 'Solo'), b: { F4: { nom: 'Calzone (soufflée) — Thon', ing: 'thon' } } },
   { id: 'F4-rome', f: () => ligne('Subitowich Rome', ''), b: { F4: { nom: 'Subitowich Rome', ing: 'thon' } } },
-  { id: 'F5-boi', f: () => ligne('Boisson Oasis Pomme Poire canette', '', { qty: 2 }), b: { F5: { nom: 'Boisson Oasis Pomme Poire canette' } } },
+  { id: 'F5-boi', f: () => ligne('Canette Oasis pomme poire', '', { qty: 2 }), b: { F5: { nom: 'Canette Oasis pomme poire' } } },
   { id: 'F6-oreo', f: () => ligne('Dessert Tiramisubito Oreo', ''), b: { F6: { nom: 'Dessert Tiramisubito Oreo' } } },
   { id: 'F1F3-reg-art', f: () => ligne('Régina', 'Duo', { extras: ['artichauts'] }), b: { F1: { nom: 'Régina' }, F3: { nom: 'artichauts', ing: 'artichauts' } } },
   // stables hors service : toujours refusées
