@@ -4,9 +4,10 @@ import { allowMethods, readJsonBody, fail, ok } from '../core.js';
 import { one, transaction, estViolationUnique } from '../db.js';
 import { requireCustomer } from '../auth.js';
 import { throttleGuard, throttleHit } from '../throttle.js';
-import { DELIVERY_ZONES, nowUtc, serviceDay, utcToEpoch } from '../util.js';
-import { libelleHeure, etatOuverture } from '../horaires.js';
+import { DELIVERY_ZONES, nowUtc, serviceDay, utcAt, utcToEpoch } from '../util.js';
+import { libelleHeure, etatOuverture, ouvertureDuJour } from '../horaires.js';
 import { creneauValide } from '../planification.js';
+import { creerTacheImpressionADate } from '../impression.js';
 import {
   validateOrderBody, orderPayloadHash, orderEnforceCatalogue, computeOrderTotals, orderViews, orderLoad, phpTrim
 } from '../orders.js';
@@ -42,6 +43,13 @@ export default async function orderCreate(c) {
   const existing = await one('SELECT * FROM orders WHERE customer_id = ? AND idempotency_key = ?', [customerId, o.idempotency_key]);
   if (existing !== null) return replayOrConflict(existing);
 
+  // Acceptation automatique d'une commande planifiée déposée hors service (décision du 22/11/2026) : le
+  // commerçant n'est pas là pour l'accepter lui-même, la commande est donc directement confirmée au client ;
+  // le ticket, lui, ne sort qu'une seule fois, exactement à l'ouverture du jour demandé (voir plus bas),
+  // jamais un compte à rebours avant l'heure de retrait/livraison (réservé aux commandes acceptées par le
+  // commerçant lui-même pendant le service, voir owner_order_decide.js).
+  let autoAcceptee = false;
+  let creneauPourTicket = null;
   if (o.scheduled_for === null) {
     // Commande « dès que possible » : fermeture manuelle (FORCE_CLOSED) OU hors créneau automatique (AUTO) ->
     // aucune commande nouvelle (personne ne la verrait). Jamais appliqué aux commandes planifiées (SBT-003) :
@@ -61,6 +69,9 @@ export default async function orderCreate(c) {
     if (!creneauValide(utcToEpoch(o.scheduled_for))) {
       fail(422, 'invalid_schedule', "L'horaire choisi n'est plus disponible. Choisissez-en un autre.");
     }
+    const etat = await etatOuverture();
+    autoAcceptee = !etat.ouvert;
+    creneauPourTicket = etat.creneau;
   }
 
   // Limitation de débit : seules les commandes CRÉÉES sont comptées (dans la transaction ci-dessous). Un rejeu
@@ -117,6 +128,14 @@ export default async function orderCreate(c) {
     });
   }
 
+  // Délai annoncé au client pour une acceptation automatique (personne au comptoir pour en choisir un) :
+  // le même réglage que celui proposé au commerçant pour une acceptation manuelle (owner_settings.php).
+  let delayAuto = null;
+  if (autoAcceptee) {
+    const delayRow = await one('SELECT svalue FROM settings WHERE skey = ?', ['default_delay_minutes']);
+    delayAuto = delayRow !== null && /^[0-9]+$/.test(String(delayRow.svalue)) ? Number(delayRow.svalue) : 30;
+  }
+
   // 9. Insertion dans une transaction (la commande et ses lignes, ou rien)
   const now = nowUtc();
   let orderId;
@@ -128,15 +147,15 @@ export default async function orderCreate(c) {
             delivery_street, delivery_city, delivery_housing_type, payment_methods, cash_change_for, hot_sauce,
             products_cents, promo_cents, delivery_fee_cents, total_cents, delay_minutes,
             created_at, accepted_at, refused_at, service_day, scheduled_for)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
         [
-          customerId, o.idempotency_key, payloadHash, 'new', o.mode,
+          customerId, o.idempotency_key, payloadHash, autoAcceptee ? 'accepted' : 'new', o.mode,
           String(customer.first_name), String(customer.last_name),
           String(customer.phone), String(customer.email),
           street, city, housingType, JSON.stringify(o.payment_methods), o.cash_change_for,
           o.hot_sauce === null ? null : (o.hot_sauce ? 1 : 0),
-          t.products_cents, t.promo_cents, t.delivery_fee_cents, t.total_cents,
-          now, serviceDay(), o.scheduled_for
+          t.products_cents, t.promo_cents, t.delivery_fee_cents, t.total_cents, delayAuto,
+          now, autoAcceptee ? now : null, serviceDay(), o.scheduled_for
         ]
       );
       for (let pos = 0; pos < o.items.length; pos++) {
@@ -165,6 +184,16 @@ export default async function orderCreate(c) {
     const concurrent = await one('SELECT * FROM orders WHERE customer_id = ? AND idempotency_key = ?', [customerId, o.idempotency_key]);
     if (concurrent === null) throw e;
     return replayOrConflict(concurrent);
+  }
+
+  // Ticket de la commande planifiée acceptée automatiquement : une seule échéance, l'ouverture du jour
+  // demandé par le client (jamais H-45 avant l'heure de retrait/livraison). Tolère l'absence de la table
+  // print_jobs (migration pas encore appliquée) : la commande reste valable, seul le ticket est perdu.
+  if (autoAcceptee) {
+    try {
+      const dueAt = utcAt(ouvertureDuJour(creneauPourTicket, utcToEpoch(o.scheduled_for)));
+      await creerTacheImpressionADate(orderId, dueAt);
+    } catch (e) { /* print_jobs indisponible : la commande reste acceptée, seule l'impression planifiée est absente */ }
   }
 
   const order = await orderLoad(orderId);

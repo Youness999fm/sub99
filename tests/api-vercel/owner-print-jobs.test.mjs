@@ -260,6 +260,27 @@ test('BUG RÉEL DU 22/11/2026 reproduit puis vérifié corrigé : un appareil qu
   assert.equal(vueFinale.print_job.attempts, PRINT_MAX_ATTEMPTS);
 });
 
+// DEUXIÈME boucle constatée en production le 22/11/2026 malgré le correctif ci-dessus (commande #94,
+// 64 tentatives) : cause exacte non reproduite localement malgré de nombreux essais. Filet de sécurité
+// indépendant ajouté dans reclamer() (serveur/impression.js) : la réclamation elle-même refuse désormais
+// tout job dont les tentatives ont déjà atteint le plafond, MÊME SI la ligne est encore "pending" en base
+// pour une raison imprévue — ce test force artificiellement cet état (impossible à produire autrement via
+// l'API) pour vérifier que ce filet fonctionne indépendamment de reclasserClaimsBloques().
+test('filet de sécurité indépendant : une tâche "pending" avec déjà le plafond de tentatives (état anormal, '
+  + 'jamais produit par l\'API elle-même) n\'est quand même jamais réclamée au-delà du plafond', async () => {
+  poserHorloge(AVANT_EPOCH);
+  const client = await nouveauClient('printjob-garde-fou@example.test');
+  const id = await commanderPlanifiee(client);
+  await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 30 });
+  poserHorloge(DUE_EPOCH);
+  // État anormal forcé directement en base (impossible via l'API normale) : "pending" avec déjà le plafond.
+  db.prepare('UPDATE print_jobs SET attempts = ? WHERE order_id = ?').run(PRINT_MAX_ATTEMPTS, id);
+  const claim = await owner.post('owner_print_claim.php', { id, device: 'tablette-test' });
+  assert.equal(claim.json.claimed, false, 'le plafond doit bloquer la réclamation même si le statut est encore "pending"');
+  const vue = commandeDansOwnerOrders(await owner.get('owner_orders.php'), id);
+  assert.equal(vue.print_job.attempts, PRINT_MAX_ATTEMPTS, 'jamais incrémenté au-delà du plafond');
+});
+
 test('owner_print_claim.php / owner_print_ack.php : authentification et validation', async () => {
   const anon = new Client('anon-print');
   expectError(await anon.post('owner_print_claim.php', { id: 1 }), 401, 'unauthorized');
