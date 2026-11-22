@@ -1,6 +1,6 @@
 // GET owner_orders — commandes nouvelles (tous jours) + commandes du jour de service.
 import { allowMethods, ok } from '../core.js';
-import { all } from '../db.js';
+import { all, estSchemaAbsent } from '../db.js';
 import { requireOwner } from '../auth.js';
 import { nowUtc, serviceDay } from '../util.js';
 import { orderViews } from '../orders.js';
@@ -10,10 +10,23 @@ export default async function ownerOrders(c) {
   allowMethods(c, ['GET']);
   await requireOwner(c);
   const now = nowUtc();
-  const rows = await all(
-    "SELECT * FROM orders WHERE status = 'new' OR service_day = ? ORDER BY created_at ASC, id ASC",
-    [serviceDay()]
-  );
+  // Une commande mise à la corbeille (deleted_at non NULL, voir owner_order_delete.js) ne doit plus
+  // apparaître ici (elle reste consultable via owner_trash.js). Tolère l'absence de la colonne (migration
+  // pas encore appliquée en prod) : dans ce cas, aucune commande n'est jamais "supprimée", comportement
+  // identique à avant cette fonctionnalité.
+  let rows;
+  try {
+    rows = await all(
+      "SELECT * FROM orders WHERE (status = 'new' OR service_day = ?) AND deleted_at IS NULL ORDER BY created_at ASC, id ASC",
+      [serviceDay()]
+    );
+  } catch (e) {
+    if (!estSchemaAbsent(e)) throw e;
+    rows = await all(
+      "SELECT * FROM orders WHERE status = 'new' OR service_day = ? ORDER BY created_at ASC, id ASC",
+      [serviceDay()]
+    );
+  }
   const orders = await orderViews(rows, true);
   // Impression de préparation planifiée (SBT-005) : si la table print_jobs n'existe pas encore (migration pas
   // encore appliquée en prod), la liste des commandes doit rester utilisable quand même — on tolère l'échec

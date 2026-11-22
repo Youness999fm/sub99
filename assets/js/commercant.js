@@ -934,6 +934,85 @@
     }
   }
 
+  // ---------- Corbeille (soft-delete) ----------
+
+  // Met une commande terminée (refusée, annulée ou prête) à la corbeille : jamais un vrai DELETE, juste
+  // masquée de la file. Le serveur refuse (409 not_deletable) une commande encore "new"/"accepted".
+  async function deleteOrder(id) {
+    const key = 'del-' + id;
+    if (state.sending.has(key)) return;
+    const o = findOrder(id);
+    if (!o) return;
+    const name = customerLabel(o);
+    state.sending.add(key);
+    state.mutationSeq += 1;
+    try {
+      const r = await api('owner_order_delete.php', { method: 'POST', body: { id: o.id } });
+      if (r.unauth) return;
+      if (r.ok) {
+        state.orders = state.orders.filter(x => String(x.id) !== String(id));
+        ensureOpenSelection();
+        toast(`Commande de ${name} mise à la corbeille.`);
+      } else if (r.data.error === 'not_deletable') {
+        alertMsg(`La commande de ${name} doit encore être traitée : impossible de la mettre à la corbeille pour le moment.`);
+      } else if (r.data.error === 'not_found') {
+        alertMsg(`La commande de ${name} est introuvable.`);
+      } else {
+        alertMsg(r.data.message || "La suppression n'a pas pu être enregistrée. Réessayez.");
+      }
+    } catch (e) {
+      if (e instanceof StaleError) return;
+      alertMsg('Connexion impossible : la suppression n\'a pas été envoyée. Réessayez.');
+    } finally {
+      state.sending.delete(key);
+      state.mutationSeq += 1;
+      scheduleRender();
+    }
+  }
+
+  function trashDialogHtml(orders, loading, error) {
+    let body;
+    if (loading) body = '<p class="account-hint">Chargement…</p>';
+    else if (error) body = '<p class="account-hint">Impossible de charger la corbeille. Réessayez.</p>';
+    else if (!orders.length) body = '<p class="account-hint">Corbeille vide.</p>';
+    else {
+      body = '<ul class="trash-list">' + orders.map(o => `
+        <li class="trash-row">
+          <span class="trash-info"><strong>${esc(customerLabel(o))}</strong> ${statusPill(o.status)} <span class="qchip-sub">${esc(eur(o.total_cents))}</span></span>
+          <button type="button" class="btn btn-light btn-sm" data-action="restore-order" data-id="${esc(o.id)}">Restaurer</button>
+        </li>`).join('') + '</ul>';
+    }
+    return `<h3>Corbeille</h3>${body}<div class="dlg-actions"><button type="button" class="btn btn-ghost" data-action="dlg-close">Fermer</button></div>`;
+  }
+
+  async function refreshTrashDialog() {
+    if (!el.dlg.open) return;
+    const r = await api('owner_trash.php');
+    if (!el.dlg.open) return;
+    if (!r.ok) { setHTML(el.dlgBody, trashDialogHtml([], false, true)); return; }
+    setHTML(el.dlgBody, trashDialogHtml(r.data.orders || [], false, false));
+  }
+
+  function openTrashDialog() {
+    openDialog(trashDialogHtml([], true, false));
+    refreshTrashDialog();
+  }
+
+  async function restoreOrder(id) {
+    const numId = Number(id);
+    if (!Number.isInteger(numId)) return;
+    const r = await api('owner_order_restore.php', { method: 'POST', body: { id: numId } });
+    if (r.unauth) return;
+    if (r.ok) {
+      toast('Commande restaurée.');
+      state.mutationSeq += 1;
+      if (state.authed) poll();
+      await refreshTrashDialog();
+    } else {
+      alertMsg(r.data.message || "La restauration n'a pas pu être enregistrée. Réessayez.");
+    }
+  }
+
   // ---------- Réglages ----------
   async function loadSettings() {
     try {
@@ -1101,12 +1180,18 @@
       const d = toDate(o.created_at);
       // « print-order » (pas « select ») : ouvre le ticket en lecture dans un dialogue, car « select » est
       // réservé aux commandes encore à traiter (statut "new") et resterait sans effet sur ces états terminaux.
+      // Bouton corbeille séparé (comme Voir/Imprimer sur les commandes programmées) : une commande "ready"
+      // honorée peut aussi être archivée depuis ici une fois qu'elle n'a plus besoin d'être gardée sous les yeux.
       return `
-        <button type="button" class="qchip ${o.status === 'cancelled' ? 'is-cancelled' : 'is-refused-chip'}" data-action="print-order" data-id="${esc(o.id)}"
-          aria-label="Voir la commande ${o.status === 'cancelled' ? 'annulée' : 'refusée'} de ${esc(customerLabel(o))}, ${esc(eur(o.total_cents))}">
-          <span class="qchip-title">${esc(customerLabel(o))}</span>
-          <span class="qchip-sub">${d ? esc(hm(d)) + ' · ' : ''}${esc(eur(o.total_cents))} · ${o.status === 'cancelled' ? 'Annulée' : 'Refusée'}</span>
-        </button>`;
+        <div class="qchip ${o.status === 'cancelled' ? 'is-cancelled' : 'is-refused-chip'} qchip-sched">
+          <button type="button" class="qchip-view" data-action="print-order" data-id="${esc(o.id)}"
+            aria-label="Voir la commande ${o.status === 'cancelled' ? 'annulée' : 'refusée'} de ${esc(customerLabel(o))}, ${esc(eur(o.total_cents))}">
+            <span class="qchip-title">${esc(customerLabel(o))}</span>
+            <span class="qchip-sub">${d ? esc(hm(d)) + ' · ' : ''}${esc(eur(o.total_cents))} · ${o.status === 'cancelled' ? 'Annulée' : 'Refusée'}</span>
+          </button>
+          <button type="button" class="qchip-print-btn" data-action="delete-order" data-id="${esc(o.id)}"
+            aria-label="Mettre à la corbeille la commande de ${esc(customerLabel(o))}" title="Mettre à la corbeille">🗑</button>
+        </div>`;
     }).join(''));
   }
 
@@ -2964,6 +3049,15 @@
         if (found) printAddendumOnPrinter(found.addendum, found.order);
         return;
       }
+      case 'trash-open':
+        openTrashDialog();
+        return;
+      case 'delete-order':
+        deleteOrder(id);
+        return;
+      case 'restore-order':
+        restoreOrder(id);
+        return;
       case 'dlg-close':
         closeDialog();
         return;

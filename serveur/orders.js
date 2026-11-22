@@ -471,6 +471,8 @@ export function orderView(o, items, addenda, owner) {
     v.customer_id = Number(o.customer_id);
     v.customer_phone = String(o.customer_phone);
     v.customer_email = String(o.customer_email);
+    // Corbeille (soft-delete) : jamais montré au client, seulement utile au commerçant (voir owner_trash.js).
+    v.deleted_at = o.deleted_at === undefined ? null : o.deleted_at;
   }
   return v;
 }
