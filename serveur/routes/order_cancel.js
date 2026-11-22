@@ -6,25 +6,39 @@
 // préparation peut être stoppée. Rejeu (déjà annulée) : 200 replayed:true, jamais une erreur.
 import crypto from 'node:crypto';
 import { allowMethods, readJsonBody, fail, failValidation, ok } from '../core.js';
-import { one, transaction } from '../db.js';
+import { estSchemaAbsent, one, transaction } from '../db.js';
 import { requireCustomer } from '../auth.js';
 import { nowUtc, utcAt, utcToEpoch } from '../util.js';
 import { CANCEL_WINDOW_S, ID_MAX, orderLoad, orderViews } from '../orders.js';
 
-/** Insère l'événement d'alerte (vue par la tablette via la queue addendum_print_jobs, voir impression.js). */
-async function insertCancelAlert(tx, orderId, order, now) {
-  const seqRow = await tx.one('SELECT COALESCE(MAX(seq), 0) AS m FROM order_addenda WHERE order_id = ?', [orderId]);
-  const seq = Number(seqRow.m) + 1;
-  const payloadHash = crypto.createHash('sha256').update('cancel:' + orderId + ':' + seq).digest('hex');
-  const addendumId = await tx.insert(
-    `INSERT INTO order_addenda (order_id, seq, kind, idempotency_key, payload_hash, target_item_id, delta_cents, customer_first_name, created_at)
-     VALUES (?, ?, 'cancel', ?, ?, NULL, 0, ?, ?)`,
-    [orderId, seq, 'cancel-' + orderId, payloadHash, String(order.customer_first_name), now]
-  );
-  await tx.insert(
-    'INSERT INTO addendum_print_jobs (addendum_id, status, attempts, created_at, updated_at) VALUES (?, \'pending\', 0, ?, ?)',
-    [addendumId, now, now]
-  );
+/**
+ * Insère l'événement d'alerte (vue par la tablette via la queue addendum_print_jobs, voir impression.js).
+ * Appelée APRÈS que l'annulation elle-même soit déjà committée (jamais dans la même transaction) : une
+ * alerte qui ne peut pas être créée (ex. migration order_addenda pas encore appliquée en prod) ne doit
+ * jamais faire perdre l'annulation réelle, qui est la partie critique pour le client. Tolère l'absence
+ * de schéma comme ailleurs (owner_orders.js) ; toute autre erreur reste silencieuse ici aussi — une
+ * alerte manquée reste moins grave qu'une commande qui semble annulée mais ne l'est pas.
+ */
+async function insertCancelAlert(orderId, order, now) {
+  try {
+    await transaction(async (tx) => {
+      const seqRow = await tx.one('SELECT COALESCE(MAX(seq), 0) AS m FROM order_addenda WHERE order_id = ?', [orderId]);
+      const seq = Number(seqRow.m) + 1;
+      const payloadHash = crypto.createHash('sha256').update('cancel:' + orderId + ':' + seq).digest('hex');
+      const addendumId = await tx.insert(
+        `INSERT INTO order_addenda (order_id, seq, kind, idempotency_key, payload_hash, target_item_id, delta_cents, customer_first_name, created_at)
+         VALUES (?, ?, 'cancel', ?, ?, NULL, 0, ?, ?)`,
+        [orderId, seq, 'cancel-' + orderId, payloadHash, String(order.customer_first_name), now]
+      );
+      await tx.insert(
+        'INSERT INTO addendum_print_jobs (addendum_id, status, attempts, created_at, updated_at) VALUES (?, \'pending\', 0, ?, ?)',
+        [addendumId, now, now]
+      );
+    });
+  } catch (e) {
+    if (!estSchemaAbsent(e)) throw e;
+    // Migration pas encore appliquée : l'annulation reste valable, seule l'alerte tablette est absente.
+  }
 }
 
 export default async function orderCancel(c) {
@@ -45,24 +59,24 @@ export default async function orderCancel(c) {
   // le dernier instant encore VALIDE (created_at doit être strictement après pour rester dans la fenêtre).
   const cutoff = utcAt(nowEpoch - CANCEL_WINDOW_S);
 
-  // Deux tentatives conditionnelles distinctes, dans UNE seule transaction : laquelle réussit prouve, de
-  // façon atomique, le statut réel au moment du changement — jamais une lecture préalable suivie d'une
-  // décision séparée, qui laisserait une fenêtre de course avec une acceptation commerçant concurrente
-  // (même principe que les UPDATE conditionnels de owner_order_decide.js).
-  const n = await transaction(async (tx) => {
-    const fromAccepted = await tx.exec(
-      "UPDATE orders SET status = 'cancelled', cancelled_at = ?, cancel_reason = ? WHERE id = ? AND status = 'accepted' AND created_at > ?",
-      [now, 'client', id, cutoff]
-    );
-    if (fromAccepted === 1) {
-      await insertCancelAlert(tx, id, order, now);
-      return 1;
-    }
-    return tx.exec(
+  // Deux tentatives conditionnelles distinctes : laquelle réussit prouve, de façon atomique, le statut réel
+  // au moment du changement — jamais une lecture préalable suivie d'une décision séparée, qui laisserait
+  // une fenêtre de course avec une acceptation commerçant concurrente (même principe que les UPDATE
+  // conditionnels de owner_order_decide.js). L'alerte tablette (insertCancelAlert) est appelée APRÈS coup,
+  // jamais dans la même transaction que l'UPDATE : voir le commentaire de insertCancelAlert ci-dessus.
+  const fromAccepted = await transaction((tx) => tx.exec(
+    "UPDATE orders SET status = 'cancelled', cancelled_at = ?, cancel_reason = ? WHERE id = ? AND status = 'accepted' AND created_at > ?",
+    [now, 'client', id, cutoff]
+  ));
+  let n = fromAccepted;
+  if (fromAccepted === 1) {
+    await insertCancelAlert(id, order, now);
+  } else {
+    n = await transaction((tx) => tx.exec(
       "UPDATE orders SET status = 'cancelled', cancelled_at = ?, cancel_reason = ? WHERE id = ? AND status = 'new' AND created_at > ?",
       [now, 'client', id, cutoff]
-    );
-  });
+    ));
+  }
 
   const fresh = await orderLoad(id);
   if (n === 1) return ok({ replayed: false, order: (await orderViews([fresh], false))[0] });

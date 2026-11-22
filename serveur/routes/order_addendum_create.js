@@ -7,7 +7,7 @@
 // 21/11/2026) : un ticket complémentaire (addendum_print_jobs) l'alerte sans délai, voir impression.js.
 import crypto from 'node:crypto';
 import { allowMethods, readJsonBody, fail, failValidation, ok } from '../core.js';
-import { one, estViolationUnique, transaction } from '../db.js';
+import { one, estSchemaAbsent, estViolationUnique, transaction } from '../db.js';
 import { requireCustomer } from '../auth.js';
 import { DELIVERY_ZONES, isIntBetween, nowUtc, utcAt, utcToEpoch } from '../util.js';
 import {
@@ -111,7 +111,13 @@ export default async function orderAddendumCreate(c) {
     items: kind === 'add' ? items : null, item: kind === 'modify' ? items[0] : null, total_cents: b.total_cents
   };
   const payloadHash = addendumPayloadHash(a);
-  const existing = await one('SELECT * FROM order_addenda WHERE order_id = ? AND idempotency_key = ?', [orderId, key]);
+  let existing;
+  try {
+    existing = await one('SELECT * FROM order_addenda WHERE order_id = ? AND idempotency_key = ?', [orderId, key]);
+  } catch (e) {
+    if (!estSchemaAbsent(e)) throw e;
+    fail(503, 'feature_unavailable', "L'ajout/la modification de commande n'est pas encore disponible. Appelez-nous directement.");
+  }
   if (existing !== null) {
     if (!memeEmpreinte(existing.payload_hash, payloadHash)) {
       fail(409, 'idempotency_conflict', 'Cet ajout a déjà été envoyé avec un contenu différent.');
@@ -187,6 +193,13 @@ export default async function orderAddendumCreate(c) {
       return id;
     });
   } catch (e) {
+    // Migration pas encore appliquée en prod (order_addenda/order_addendum_items/addendum_print_jobs
+    // absentes) : message clair et spécifique plutôt qu'une « erreur interne » générique — cette
+    // fonctionnalité repose entièrement sur ces tables, impossible de dégrader proprement ici (contrairement
+    // à l'alerte d'annulation, voir order_cancel.js, qui reste facultative).
+    if (estSchemaAbsent(e)) {
+      fail(503, 'feature_unavailable', "L'ajout/la modification de commande n'est pas encore disponible. Appelez-nous directement.");
+    }
     if (!estViolationUnique(e)) throw e;
     // Envoi concurrent avec la même clé : relire la ligne existante, hors transaction (même principe que order_create.js).
     const concurrent = await one('SELECT * FROM order_addenda WHERE order_id = ? AND idempotency_key = ?', [orderId, key]);
