@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS "orders" (
   "prepared_at" CHAR(20) NULL,
   "service_day" CHAR(10) NOT NULL,
   "scheduled_for" CHAR(20) NULL,
+  "cancel_requested_at" CHAR(20) NULL,
   "cancelled_at" CHAR(20) NULL,
   "cancel_reason" VARCHAR(200) NULL,
   "deleted_at" CHAR(20) NULL,
@@ -170,6 +171,8 @@ ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "prepared_at" CHAR(20) NULL;
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "service_day" CHAR(10) NOT NULL;
 
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "scheduled_for" CHAR(20) NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "cancel_requested_at" CHAR(20) NULL;
 
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "cancelled_at" CHAR(20) NULL;
 

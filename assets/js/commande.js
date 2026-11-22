@@ -349,9 +349,18 @@
         '</div>'
       : "";
 
-    const actionsHtml = (canCancelFlag || canAddFlag)
+    // Demande d'annulation déposée, en attente de la décision du commerçant (décision du 22/11/2026) :
+    // le client ne peut plus relancer une demande (bouton remplacé par un état "en cours", qui tourne).
+    const cancelPending = !!order.cancel_requested_at && (order.status === "new" || order.status === "accepted");
+    const actionsHtml = (canCancelFlag || cancelPending || canAddFlag)
       ? '<div class="order-track-actions">' +
-          (canCancelFlag
+          (cancelPending
+            ? '<div class="order-track-action order-track-action--cancel">' +
+                '<span class="order-track-pending" role="status">' +
+                  '<span class="order-track-pending__spinner" aria-hidden="true"></span> Annulation demandée — en attente du restaurant' +
+                '</span>' +
+              '</div>'
+            : canCancelFlag
             ? '<div class="order-track-action order-track-action--cancel">' +
                 '<button type="button" class="btn-outline" data-action="cancel-order">Annuler ma commande</button>' +
                 '<span class="order-track-action__timer" id="cancelCountdown" aria-live="off">--:--</span>' +
@@ -438,7 +447,7 @@
 
   function cancelOrder() {
     if (!orderId) return;
-    if (!window.confirm("Confirmer l’annulation de cette commande ? Cette action est définitive.")) return;
+    if (!window.confirm("Confirmer la demande d’annulation ? Le restaurant doit encore l’accepter avant que la commande soit réellement annulée.")) return;
     const btn = document.querySelector('[data-action="cancel-order"]');
     if (btn) btn.disabled = true;
     fetch("/api/order_cancel.php", {
