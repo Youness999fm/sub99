@@ -3,7 +3,12 @@
    Les réponses de /api/ ne passent jamais par le cache. Pas de push. */
 'use strict';
 
-const CACHE = 'subito-commercant-v1';
+// v2 (22/11/2026) : bump délibéré pour forcer la purge de l'ancien cache (activate() supprime toute clé
+// « subito-commercant-* » différente de CACHE) sur les appareils restés ouverts depuis avant cette mission —
+// la coquille réseau-d'abord protège déjà des nouveaux déploiements, mais ne corrige pas un cache déjà
+// écrit avec une version de index.html/commercant.js antérieure à l'ajout des fonctionnalités d'annulation
+// et d'ajout d'article.
+const CACHE = 'subito-commercant-v2';
 const SHELL = [
   './',
   './index.html',
