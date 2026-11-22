@@ -10,8 +10,12 @@ import customer_orders from './routes/customer_orders.js';
 import customer_signup from './routes/customer_signup.js';
 import customer_update_address from './routes/customer_update_address.js';
 import customer_update_profile from './routes/customer_update_profile.js';
+import order_addendum_create from './routes/order_addendum_create.js';
+import order_cancel from './routes/order_cancel.js';
 import order_create from './routes/order_create.js';
 import order_status from './routes/order_status.js';
+import owner_addendum_print_ack from './routes/owner_addendum_print_ack.js';
+import owner_addendum_print_claim from './routes/owner_addendum_print_claim.js';
 import owner_availability from './routes/owner_availability.js';
 import owner_customers from './routes/owner_customers.js';
 import owner_login from './routes/owner_login.js';
@@ -37,8 +41,12 @@ export const ROUTES = {
   customer_signup,
   customer_update_address,
   customer_update_profile,
+  order_addendum_create,
+  order_cancel,
   order_create,
   order_status,
+  owner_addendum_print_ack,
+  owner_addendum_print_claim,
   owner_availability,
   owner_customers,
   owner_login,

@@ -592,8 +592,8 @@ const SUBITO_CART_CONFIG = {
     return null;
   }
 
-  function readSizeChart() {
-    const items = document.querySelectorAll(".size-chart__item");
+  function readSizeChart(root) {
+    const items = (root || document).querySelectorAll(".size-chart__item");
     const sizes = [];
     items.forEach(function (item) {
       const name = item.querySelector(".size-chart__name");
@@ -651,8 +651,9 @@ const SUBITO_CART_CONFIG = {
   // #pizzas ; vegetarien.html : pas de section #pizzas, mais la page entière
   // est une sélection de pizzas) — jamais une liste écrite en dur, pour que
   // le moitié-moitié ne propose jamais un parfum absent de la page.
-  function readPizzaCatalog() {
-    const scope = document.getElementById("pizzas") || document.querySelector("main") || document;
+  function readPizzaCatalog(root) {
+    const doc = root || document;
+    const scope = doc.getElementById("pizzas") || doc.querySelector("main") || doc;
     const catalog = [];
     scope.querySelectorAll(".menu-item").forEach(function (item) {
       const nameEl = item.querySelector(".menu-item__name");
@@ -700,6 +701,25 @@ const SUBITO_CART_CONFIG = {
     return supplementGroupsPromise;
   }
 
+  // Même principe que loadSupplementGroups() ci-dessus, pour le catalogue complet (pizzas, tailles,
+  // produits à prix fixe) : utile sur une page qui n'a pas la grille du menu dans son propre HTML (ex.
+  // commande.html, pour proposer un ajout à une commande déjà envoyée).
+  let menuCatalogPromise = null;
+  function loadMenuCatalog() {
+    if (menuCatalogPromise) return menuCatalogPromise;
+    menuCatalogPromise = fetch("menu.html")
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error("HTTP " + r.status)); })
+      .then(function (html) {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        return scanMenuCatalog(doc);
+      })
+      .catch(function (e) {
+        log("Catalogue indisponible (" + e.message + ") : aucun article inventé.");
+        return { items: [], sizeChart: [], pizzaCatalog: [] };
+      });
+    return menuCatalogPromise;
+  }
+
   /* ---------- Personnalisation (panneau dépliable sous le produit) ----------
      Toujours repliée par défaut, jamais dans le panier : le client choisit
      ses options directement sous la pizza/le plat, puis l'ajoute depuis ce
@@ -708,32 +728,44 @@ const SUBITO_CART_CONFIG = {
 
   let customizeIdCounter = 0; // identifiants uniques pour associer <label for>
 
-  // Règle d'échange : retirer un ingrédient d'un groupe (légumes/sauces, ou
-  // viandes/poissons/fromages — les deux groupes de supplements.html, chacun
-  // à prix unique au sein du groupe) "paie" l'ajout d'un supplément du même
-  // groupe, qui devient alors gratuit — une viande contre une viande ou un
-  // fromage, un légume contre un légume, jamais entre les deux groupes.
-  // Chaque retrait ne couvre qu'un seul ajout, jamais plus.
+  // Règle d'échange : retirer un ingrédient donne un crédit égal à SON PRIX (à la taille
+  // choisie). Un supplément ajouté est gratuit si son prix est inférieur ou égal à un crédit
+  // encore disponible (le plus petit crédit suffisant est consommé) ; sinon il reste payant.
+  // Une viande (plus chère) retirée couvre donc un légume ou un œuf (moins chers) en plus
+  // d'une autre viande ; un légume retiré ne couvre jamais une viande (plus chère), seulement
+  // un légume ou un œuf. Chaque retrait ne couvre qu'un seul ajout, jamais plus.
+  // Même pliage que normName() côté serveur (serveur/util.js) : un ingrédient fixe de fiche
+  // s'écrit parfois différemment du supplément correspondant (ex. « oeuf » sur la fiche,
+  // « Œuf » dans supplements.html) — nécessaire pour que le crédit d'un retrait le reconnaisse.
   function normalizeIngredientName(name) {
-    return (name || "").toLowerCase().replace(/\*$/, "").trim();
+    return (name || "")
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .toLowerCase().replace(/œ/g, "oe").replace(/æ/g, "ae")
+      .replace(/\*$/, "").trim();
   }
 
-  function applySwapDiscount(removedList, extrasList, groups) {
+  function applySwapDiscount(removedList, extrasList, groups, sizeLabel) {
     const plain = function (list) { return list.map(function (ex) { return { name: ex.name, price: ex.price, qty: ex.qty }; }); };
-    if (!groups || !groups.length) return plain(extrasList);
-    const groupOf = {};
-    groups.forEach(function (g, gi) {
-      g.names.forEach(function (n) { groupOf[normalizeIngredientName(n)] = gi; });
+    if (!groups || !groups.length || !sizeLabel) return plain(extrasList);
+    const priceOf = {};
+    groups.forEach(function (g) {
+      const price = g.pricesBySize[sizeLabel];
+      if (price === undefined) return;
+      g.names.forEach(function (n) { priceOf[normalizeIngredientName(n)] = price; });
     });
-    const credits = groups.map(function () { return 0; });
+    const credits = [];
     (removedList || []).forEach(function (ing) {
-      const gi = groupOf[normalizeIngredientName(ing)];
-      if (gi !== undefined) credits[gi]++;
+      const price = priceOf[normalizeIngredientName(ing)];
+      if (price !== undefined) credits.push(price);
     });
+    credits.sort(function (a, b) { return a - b; }); // best-fit : le plus petit crédit suffisant d'abord
     return extrasList.map(function (ex) {
-      const gi = groupOf[normalizeIngredientName(ex.name)];
-      if (gi !== undefined && credits[gi] > 0) {
-        credits[gi]--;
+      let ci = -1;
+      for (let i = 0; i < credits.length; i++) {
+        if (credits[i] >= ex.price) { ci = i; break; }
+      }
+      if (ci !== -1) {
+        credits.splice(ci, 1);
         return { name: ex.name, price: 0, qty: ex.qty, swapped: true };
       }
       return { name: ex.name, price: ex.price, qty: ex.qty };
@@ -862,7 +894,13 @@ const SUBITO_CART_CONFIG = {
     quickAddBtn.textContent = "Ajouter telle quelle";
     quickAddBtn.addEventListener("click", function () {
       if (!size || missingFiller()) return;
-      addItem(displayName(), size.label, size.price);
+      // onAdd (facultatif) : réutilisation de ce widget hors du panier (ex. ajout à une commande déjà
+      // envoyée depuis commande.html, voir order_addendum_create.php) — sinon comportement inchangé.
+      if (opts.onAdd) {
+        opts.onAdd({ name: displayName(), variant: size.label, basePrice: size.price, removed: [], extras: [], half: null, note: "" });
+      } else {
+        addItem(displayName(), size.label, size.price);
+      }
     });
 
     const toggle = document.createElement("button");
@@ -1070,15 +1108,16 @@ const SUBITO_CART_CONFIG = {
 
     addBtn.addEventListener("click", function () {
       if (!size || missingFiller()) return;
-      addLine({
+      const line = {
         name: displayName(),
         variant: size.label,
         basePrice: size.price,
         removed: removed.slice(),
-        extras: applySwapDiscount(removed, extras, loadedGroups),
+        extras: applySwapDiscount(removed, extras, loadedGroups, size.label),
         half: halfOn && half2 ? { flavor1: productName, flavor2: half2 } : null,
         note: noteInput.value.trim()
-      });
+      };
+      if (opts.onAdd) opts.onAdd(line); else addLine(line);
     });
 
     function refresh() {
@@ -1124,7 +1163,7 @@ const SUBITO_CART_CONFIG = {
         parts.push(label);
         if (missingFiller()) parts.push("Choisissez une garniture pour continuer.");
         if (removed.length) parts.push("Sans : " + removed.join(", "));
-        const discountedExtras = applySwapDiscount(removed, extras, loadedGroups);
+        const discountedExtras = applySwapDiscount(removed, extras, loadedGroups, size.label);
         if (discountedExtras.length) {
           parts.push("Suppléments : " + discountedExtras.map(function (e) {
             return e.name + (e.price === 0 ? " (échange offert)" : "");
@@ -1344,6 +1383,47 @@ const SUBITO_CART_CONFIG = {
 
       log("Prix introuvable pour « " + name + " » : pas de bouton ajouté.");
     });
+  }
+
+  // Même lecture que scanMenuItems() ci-dessus, mais SANS jamais toucher au DOM (aucun bouton injecté) :
+  // sert à lire le catalogue d'une page récupérée par fetch() + DOMParser (ex. commande.html qui n'a pas
+  // la grille du menu dans sa propre page, voir loadMenuCatalog() plus bas, même principe que
+  // loadSupplementGroups() pour supplements.html).
+  function scanMenuCatalog(root) {
+    const sizeChart = readSizeChart(root);
+    const pizzaCatalog = sizeChart.length ? readPizzaCatalog(root) : [];
+    const items = [];
+    root.querySelectorAll(".menu-item").forEach(function (item) {
+      const nameEl = item.querySelector(".menu-item__name");
+      if (!nameEl) return;
+      const name = nameEl.textContent.trim();
+      const parsed = readMenuItemIngredients(item);
+      const ingredients = parsed.ingredients;
+      const ownPriceEl = item.querySelector(".menu-item__price");
+      const category = item.closest(".menu-category");
+      const displayName = qualifiedName(name, category, nameEl.getAttribute("data-ticket-name"));
+
+      if (ownPriceEl) {
+        const price = parsePrice(ownPriceEl.textContent);
+        if (price !== null) items.push({ kind: "product", name: displayName, price: price, categoryId: category ? category.id : null });
+        return;
+      }
+      if (category) {
+        const price = priceFromCategoryNote(category);
+        if (price !== null) {
+          items.push({
+            kind: "product", name: displayName, price: price, categoryId: category.id,
+            ingredients: CUSTOMIZABLE_CATEGORIES[category.id] ? ingredients : []
+          });
+          return;
+        }
+      }
+      if (sizeChart.length) {
+        const choice = parsed.choice && parsed.choice.options.length ? parsed.choice : null;
+        items.push({ kind: "pizza", name: name, ingredients: ingredients, choice: choice, allowHalf: !item.hasAttribute("data-no-half") });
+      }
+    });
+    return { items: items, sizeChart: sizeChart, pizzaCatalog: pizzaCatalog };
   }
 
   // Page composer.html : pas de liste de produits, juste la grille des
@@ -2621,5 +2701,17 @@ const SUBITO_CART_CONFIG = {
   window.addEventListener("storage", function (e) {
     if (e.key === SUBITO_CART_CONFIG.storageKey) renderAll();
   });
+
+  // Réutilisé hors du panier (commande.html : ajouter/modifier une commande déjà envoyée, voir
+  // order_addendum_create.php) — jamais par les pages menu.html/composer.html elles-mêmes, qui
+  // continuent d'utiliser ces fonctions directement en interne comme avant.
+  window.SubitoPizzaWidget = {
+    build: buildPizzaWidget,
+    loadSupplementGroups: loadSupplementGroups,
+    loadMenuCatalog: loadMenuCatalog,
+    applySwapDiscount: applySwapDiscount,
+    formatPrice: formatPrice,
+    parsePrice: parsePrice
+  };
 
 })();

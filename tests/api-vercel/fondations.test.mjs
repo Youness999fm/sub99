@@ -45,7 +45,7 @@ test('le schéma est créé et reste idempotent ; la sécurité par ligne est ac
   assert.equal(again.code, 0);
   const db = openTestDb(ctx);
   const tables = db.prepare("select tablename, rowsecurity from pg_tables where schemaname = 'public' order by tablename").all();
-  assert.deepEqual(tables.map((t) => t.tablename), ['availability', 'customers', 'order_items', 'orders', 'print_jobs', 'sessions', 'settings', 'throttle']);
+  assert.deepEqual(tables.map((t) => t.tablename), ['addendum_print_jobs', 'availability', 'customers', 'order_addenda', 'order_addendum_items', 'order_items', 'orders', 'print_jobs', 'sessions', 'settings', 'throttle']);
   assert.ok(tables.every((t) => t.rowsecurity === true), 'RLS activée sur chaque table');
   assert.equal(db.prepare("select svalue from settings where skey = ?").get('default_delay_minutes').svalue, '30');
 });

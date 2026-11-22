@@ -4,7 +4,7 @@ import { all } from '../db.js';
 import { requireOwner } from '../auth.js';
 import { nowUtc, serviceDay } from '../util.js';
 import { orderViews } from '../orders.js';
-import { reclasserClaimsBloques, printJobView } from '../impression.js';
+import { reclasserClaimsBloques, printJobView, addendaImpressionDue, addendumPrintJobView } from '../impression.js';
 
 export default async function ownerOrders(c) {
   allowMethods(c, ['GET']);
@@ -33,5 +33,26 @@ export default async function ownerOrders(c) {
       }
     }
   } catch (e) { /* print_jobs indisponible : commandes affichées sans statut d'impression planifiée */ }
+
+  // Ticket complémentaire (ajout/modification/annulation) : même tolérance (addendum_print_jobs absente
+  // en prod avant migration ne doit jamais empêcher d'afficher les commandes).
+  try {
+    const addendumIds = orders.flatMap((o) => o.addenda.map((a) => a.id));
+    if (addendumIds.length) {
+      const ph = addendumIds.map(() => '?').join(',');
+      const jobs = await all(`SELECT * FROM addendum_print_jobs WHERE addendum_id IN (${ph})`, addendumIds);
+      const byAddendum = new Map(jobs.map((j) => [Number(j.addendum_id), j]));
+      // Reclasse les tâches bloquées ET obtient la liste des tâches dues (toujours due dès pending, pas de délai).
+      const due = await addendaImpressionDue(addendumIds, now);
+      for (const o of orders) {
+        for (const a of o.addenda) {
+          const job = byAddendum.get(a.id);
+          a.print_job = addendumPrintJobView(job);
+          a.print_pending = due.has(a.id);
+        }
+      }
+    }
+  } catch (e) { /* addendum_print_jobs indisponible : addenda affichés sans statut d'impression */ }
+
   return ok({ server_now: now, orders });
 }

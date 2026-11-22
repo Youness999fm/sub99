@@ -65,7 +65,7 @@ test('supabase/001_schema.sql contient le schéma et la purge actuels (aucun éc
   for (const sql of schemaSql()) assert.ok(fichier.includes(sql + ';'), 'instruction absente : ' + sql.slice(0, 60));
   for (const sql of PURGE_SQL) assert.ok(fichier.includes(sql + ';'), 'purge absente : ' + sql.slice(0, 60));
   assert.match(fichier, /cron\.schedule/);
-  assert.equal((fichier.match(/ENABLE ROW LEVEL SECURITY/g) || []).length, 8);
+  assert.equal((fichier.match(/ENABLE ROW LEVEL SECURITY/g) || []).length, 11);
 });
 
 test('le script du fichier SQL (hors planification pg_cron) s\'exécute tel quel, deux fois de suite', async () => {
@@ -77,5 +77,5 @@ test('le script du fichier SQL (hors planification pg_cron) s\'exécute tel quel
   await neuf.exec(sansCron);
   await neuf.exec(sansCron);
   const t = await neuf.query("select count(*)::int as n from pg_tables where schemaname = 'public'");
-  assert.equal(t.rows[0].n, 8);
+  assert.equal(t.rows[0].n, 11);
 });
