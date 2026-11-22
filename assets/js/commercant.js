@@ -215,19 +215,26 @@
   function reportRenderError(section, err) {
     const msg = err && err.message ? err.message : String(err);
     console.error('Rendu commerçant [' + section + '] :', err);
-    const key = section + ':' + msg;
-    if (renderErrorsShown.has(key)) return; // une seule fois par erreur distincte, jamais un spam à chaque rendu.
+    reportPersistentNotice(section + ':' + msg, '⚠ Erreur d\'affichage (' + section + ') : ' + msg, '#b00020');
+  }
+  // Bandeau persistant générique (jamais une seule fois disparu comme un toast), décision du 22/11/2026 :
+  // sert aussi bien aux erreurs (reportRenderError, rouge) qu'aux constats durables (ex. imprimante jamais
+  // détectée malgré des tickets en attente, ambre) — un simple coup d'œil tardif doit suffire à tout voir,
+  // jamais juste une fenêtre de 4 secondes qu'on peut manquer en cuisine.
+  function reportPersistentNotice(key, texte, couleur) {
+    if (renderErrorsShown.has(key)) return; // une seule fois par constat distinct, jamais un spam à chaque rendu.
     renderErrorsShown.add(key);
     let bar = document.getElementById('render-error-bar');
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'render-error-bar';
-      bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#b00020;color:#fff;'
-        + 'font:13px/1.4 sans-serif;padding:8px 12px;white-space:pre-wrap;max-height:40vh;overflow:auto;';
+      bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;color:#fff;'
+        + 'font:13px/1.4 sans-serif;white-space:pre-wrap;max-height:40vh;overflow:auto;';
       document.body.appendChild(bar);
     }
     const line = document.createElement('div');
-    line.textContent = '⚠ Erreur d\'affichage (' + section + ') : ' + msg;
+    line.style.cssText = 'background:' + (couleur || '#b00020') + ';padding:8px 12px;';
+    line.textContent = texte;
     bar.appendChild(line);
   }
   function alertMsg(msg) {
@@ -885,23 +892,41 @@
   }
 
   async function checkDueAddendumPrintJobs(orders) {
-    const dues = duePendingAddenda(orders);
-    if (!dues.length) return;
-    if (!hasAndroidPrinter()) {
-      const nouvelles = dues.filter(({ addendum }) => !state.addendumBridgeAlerted.has(addendum.id));
-      if (nouvelles.length) {
-        nouvelles.forEach(({ addendum }) => state.addendumBridgeAlerted.add(addendum.id));
-        toast(`⚠ Ticket complémentaire en attente (imprimante non connectée) : ${nouvelles.map(({ order }) => customerLabel(order)).join(', ')}`);
+    try {
+      const dues = duePendingAddenda(orders);
+      if (!dues.length) return;
+      if (!hasAndroidPrinter()) {
+        const nouvelles = dues.filter(({ addendum }) => !state.addendumBridgeAlerted.has(addendum.id));
+        if (nouvelles.length) {
+          nouvelles.forEach(({ addendum }) => state.addendumBridgeAlerted.add(addendum.id));
+          const liste = nouvelles.map(({ order }) => customerLabel(order)).join(', ');
+          toast(`⚠ Ticket complémentaire en attente (imprimante non connectée) : ${liste}`);
+          // Bandeau PERSISTANT en plus du toast (décision du 22/11/2026) : si c'est vraiment l'absence
+          // d'imprimante qui bloque tout, ça doit rester visible plus de 4 secondes.
+          reportPersistentNotice('addendum-no-printer:' + nouvelles.map(({ addendum }) => addendum.id).join(','),
+            `⚠ Imprimante non détectée sur cet appareil : ticket complémentaire en attente pour ${liste}`, '#a86b00');
+        }
+        return;
       }
-      return;
-    }
-    for (const { addendum, order } of dues) {
-      state.claimingAddendumPrint.add(addendum.id);
-      try {
-        const r = await api('owner_addendum_print_claim.php', { method: 'POST', body: { id: addendum.id, device: (navigator.userAgent || '').slice(0, 120) } });
-        if (r.ok && r.data.claimed) printAddendumOnPrinter(addendum, order);
-      } catch (e) { /* le prochain sondage réessaiera : la tâche reste "pending" tant qu'elle n'est pas réclamée */ }
-      finally { state.claimingAddendumPrint.delete(addendum.id); }
+      for (const { addendum, order } of dues) {
+        state.claimingAddendumPrint.add(addendum.id);
+        try {
+          const r = await api('owner_addendum_print_claim.php', { method: 'POST', body: { id: addendum.id, device: (navigator.userAgent || '').slice(0, 120) } });
+          if (!r.ok) reportRenderError('addendum-print-claim', new Error('réponse non OK pour addendum ' + addendum.id + ' : ' + JSON.stringify(r.data || {})));
+          else if (r.data.claimed) printAddendumOnPrinter(addendum, order);
+        } catch (e) {
+          // Visible, pas seulement silencieux (décision du 22/11/2026) : un ticket complémentaire qui ne
+          // part jamais doit laisser une trace à l'écran, pas juste « le prochain sondage réessaiera » —
+          // si ce réessai échoue systématiquement, personne ne le saurait jamais autrement.
+          reportRenderError('addendum-print-claim', e);
+        }
+        finally { state.claimingAddendumPrint.delete(addendum.id); }
+      }
+    } catch (e) {
+      // Échec AVANT même la boucle (duePendingAddenda, hasAndroidPrinter...) : ne doit plus jamais rester
+      // invisible — c'est exactement ce genre d'échec qui expliquerait un ticket complémentaire qui ne
+      // sort jamais sans que personne ne le sache.
+      reportRenderError('checkDueAddendumPrintJobs', e);
     }
   }
 
