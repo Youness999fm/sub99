@@ -141,9 +141,29 @@ cible, ce qui n'a jamais été donné). Marche à suivre, identique à ce qui av
 - **Vérifié** : `node --check` (syntaxe OK), capture d'écran du rendu réel dans le navigateur (balisage
   injecté, mêmes limites de vérification que pour les boutons Voir/Imprimer ci-dessus — pas de parcours
   connecté réel), aucune erreur console.
-- **Non fait dans cette section** : la suppression de commande avec corbeille/restauration (soft-delete) —
-  fonctionnalité à part entière (nouvelle colonne, route, confirmation, UI de restauration), pas commencée
-  faute de temps.
+### 8. Suppression de commande avec corbeille/restauration (section 12 du brief) — fait, testé et vérifié visuellement
+
+- **Fait** : nouvelle colonne `orders.deleted_at` (jamais un vrai `DELETE SQL` — la commande reste en base
+  pour la preuve et la recette, seulement masquée). Trois nouvelles routes : `owner_order_delete.php`
+  (réservé aux commandes terminées — prête, refusée ou annulée ; une commande encore « new »/« accepted »
+  est explicitement protégée, 409 `not_deletable`, pour ne jamais faire disparaître par erreur une commande
+  qui a encore besoin d'une action), `owner_order_restore.php`, `owner_trash.php` (liste). `owner_orders.php`
+  exclut désormais les commandes à la corbeille de la file affichée, avec la même tolérance à l'absence de
+  colonne (migration pas encore appliquée en prod) que partout ailleurs cette nuit.
+- **UI** : un bouton corbeille sur chaque commande refusée/annulée (section du point 7 ci-dessus), et un
+  bouton « 🗑 Corbeille » dans la barre du haut (toujours visible, même quand la section refusées/annulées
+  est vide) qui ouvre un dialogue listant les commandes supprimées avec un bouton « Restaurer » par ligne.
+- **Testé** : 5 nouveaux tests dédiés (`tests/api-vercel/owner-order-trash.test.mjs`) — refus de suppression
+  sur une commande encore active, suppression + disparition de la file + présence dans la corbeille +
+  restauration + réapparition dans la file, idempotence des deux routes, droits d'accès (un client ne peut
+  appeler aucune des trois routes). Suite complète : **207/207 tests passent** (202 + 5 nouveaux).
+- **Vérifié visuellement** : capture d'écran du rendu réel du dialogue (mêmes limites de vérification que les
+  deux points précédents — balisage injecté, pas de parcours connecté réel faute d'accès autorisé au code).
+- **Limite assumée, à trancher si besoin** : une commande « prête » mise à la corbeille sort aussi du calcul
+  de la recette affichée dans l'espace patron (qui se base sur la même liste `owner_orders.php`). C'est
+  cohérent avec l'idée de « ranger » une commande du jour, mais si vous voulez que la recette du jour reste
+  inchangée même après mise à la corbeille, dites-le : ce serait un calcul séparé à ajouter, pas fait cette
+  nuit.
 
 ## Ce qui N'A PAS pu être fait cette nuit (honnêtement, sans survendre)
 
@@ -160,15 +180,17 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 | 9. Message téléphone pour modification après envoi | **CONTRADICTION À TRANCHER PAR VOUS** | Ce brief demande d'afficher un message invitant à appeler plutôt que de permettre une modification en libre-service. Or la mission précédente (cette nuit même) a justement construit une modification en libre-service dans les 10 minutes (bouton « Modifier cette pizza » sur commande.html), testée et déployée. Je n'ai PAS désactivé cette fonctionnalité qui vient d'être validée et testée, en l'absence d'une instruction confirmée dans ce sens — supprimer un travail validé sur une simple ambiguïté m'a semblé plus risqué que de vous signaler le conflit. **Dites-moi laquelle des deux règles commerciales vous voulez vraiment.** |
 | 10. Tests de bout en bout exhaustifs | Partiel | Une large suite automatisée existe déjà (202 tests) couvrant une bonne partie de ces scénarios depuis la mission précédente, mais pas tous les cas listés ici (panier mêlant toutes les catégories, perte réseau simulée, etc.). |
 | 11. Audit prix/promos/livraison | Non fait spécifiquement | Les règles de promo existantes sont couvertes par les tests automatisés déjà en place, mais pas ré-auditées ligne à ligne contre le brief. |
-| 12. Section commerçant — boutons Voir/Imprimer sur commandes programmées | **Fait, vérifié visuellement** (pas encore en conditions réelles connectées — voir détail plus haut) | |
-| 12. Section commerçant — refusées/annulées en haut avec compteurs | **Fait, vérifié visuellement** (même réserve que ci-dessus) | |
-| 12. Section commerçant — suppression avec corbeille/restauration | Non fait | Fonctionnalité à part entière (nouvelle colonne, route, confirmation, UI de restauration). Non commencée faute de temps — à prioriser à la prochaine session. |
+| 12. Section commerçant — les 3 fonctionnalités (Voir/Imprimer programmées, refusées/annulées + compteurs, corbeille/restauration) | **Fait, testé (207/207), vérifié visuellement** (pas encore en conditions réelles connectées — contrainte de sécurité qui m'interdit de saisir un code d'authentification, même un code de test local) | |
+| 12. « Imprimer ma recette » testé réellement | Non fait | Nécessiterait une vraie session commerçant connectée ou une vraie tablette avec imprimante — hors de portée cette nuit pour la même raison que ci-dessus. |
 | 13. Test de charge 4000 commandes | Non fait | Nécessite un harnais de charge dédié (k6, autocannon ou équivalent) contre l'environnement de test ; non construit cette nuit. **Jamais testé en production, comme exigé.** |
 | 14. Google Business Profile + SEO | SEO on-site déjà en place ; profil Google non vérifiable | Vérifié : `robots.txt`, `sitemap.xml`, balises title/description/OG/canonical, données structurées JSON-LD (Restaurant, BreadcrumbList, WebSite) présentes et correctement renseignées sur les pages principales. Aucun accès à la fiche Google Business Profile (ni identifiants, ni accès fourni) — à signaler précisément comme demandé : **accès manquant, impossible de le faire sans lui**. |
 
 ## Verdict honnête
 
-**Le site n'est PAS prêt à 100 % selon les critères de ce brief.** Ce qui a été accompli cette nuit :
+**Le site n'est PAS prêt à 100 % selon les critères de ce brief.** Ce qui a été accompli cette nuit, en deux
+temps (diagnostic initial puis un second passage de travail après le premier rapport) :
+
+**Premier passage** :
 - Un vrai bug de production (annulation qui échouait) a été diagnostiqué, corrigé, testé (4 tests dédiés +
   202/202 au total) et déployé.
 - Un écart de libellé sur ticket a été corrigé et vérifié.
@@ -176,6 +198,18 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 - Une action bloquante (schéma SQL manquant) a été identifiée précisément, avec la marche à suivre exacte,
   plutôt que contournée ou ignorée.
 
-**Ce qui reste est substantiel** (bases de pizza, minuteur avec pause, 3 fonctionnalités commerçant neuves,
-test de charge, SEO/Google) et nécessitera plusieurs sessions de travail supplémentaires, menées avec la
-même rigueur (reproduire, corriger, tester, vérifier) que cette nuit plutôt que bâclées pour aller vite.
+**Second passage** (section 3 : non-reproduction confirmée en direct sur le site public ; section 8 :
+resynchronisation du minuteur au retour d'onglet ; section 12 : les trois fonctionnalités commerçant
+construites et testées (boutons Voir/Imprimer, section refusées/annulées avec compteurs, corbeille avec
+restauration) ; section 14 : audit SEO on-site vérifié déjà solide). Suite complète : **207/207 tests**
+passent. Tout est commité sur la branche isolée `feature/fiabilisation-commandes`, **rien n'a encore été
+déployé** pour ce second lot (en attente de votre retour, puisque certains changements touchent l'espace
+commerçant et méritent votre vérification avant mise en ligne).
+
+**Ce qui reste est substantiel** : inventaire complet du catalogue (section 1), bases de pizza tomate/crème/
+BBQ/curry (section 4), tests exhaustifs pizza × base × supplément (sections 5-7), audit prix/promo ligne à
+ligne (section 11), vrai test de charge à 4000+ commandes (section 13), accès à la fiche Google Business
+Profile (section 14) — et nécessitera plusieurs sessions de travail supplémentaires, menées avec la même
+rigueur (reproduire, corriger, tester, vérifier) que cette nuit plutôt que bâclées pour aller vite. La
+contradiction de la section 9 (modification en libre-service vs message « appelez-nous ») reste entière et
+a volontairement besoin de votre décision.
