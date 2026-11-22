@@ -165,6 +165,46 @@ cible, ce qui n'a jamais été donné). Marche à suivre, identique à ce qui av
   inchangée même après mise à la corbeille, dites-le : ce serait un calcul séparé à ajouter, pas fait cette
   nuit.
 
+### 9. Sélecteur de base (sauce tomate / crème fraîche / barbecue / curry) — section 4 du brief, fait et testé
+
+- **Constat utile** (comme pour la section 12) : aucune nouvelle règle de prix serveur n'était nécessaire.
+  Les 4 sauces étaient déjà dans le même groupe de suppléments ("Légumes et sauces"), au même prix à
+  chaque taille — un changement de base est donc toujours gratuit par construction, prouvé par un nouveau
+  test (`catalogue.test.mjs`) à chaque taille plutôt que supposé.
+- **Fait** (`assets/js/cart.js`) : la fiche de personnalisation de chaque pizza détecte sa base actuelle et,
+  si reconnue (sauce tomate ou crème fraîche, soit 28 des 29 pizzas du menu), affiche un sélecteur dédié
+  « Base » avec les 4 choix, celui d'origine pré-sélectionné. Changer de base retire l'ancienne et ajoute
+  la nouvelle automatiquement (gratuit), sans doublon avec les listes "Sans"/"Suppléments" existantes.
+- **Un vrai bug trouvé et corrigé pendant le développement** : le nom poussé dans le panier doit être
+  exactement celui du catalogue (pas une forme capitalisée plus lisible) — sinon un recalcul de prix
+  interne pouvait supprimer silencieusement le changement de base si le client cliquait vite, avant la fin
+  du chargement des prix. Reproduit puis corrigé, revérifié.
+- **Carolina** : son ingrédient « Base barbecue » a été renommé « Sauce barbecue » (menu.html) pour
+  participer au sélecteur — au passage, corrigé un vrai décalage préexistant côté commerçant (la clé de
+  disponibilité ne correspondait pas non plus au supplément partagé, donc marquer la sauce barbecue en
+  rupture de stock n'affectait jamais vraiment Carolina).
+- **Indienne N'A PAS ce sélecteur**, décision assumée et non silencieuse : sa base est un ingrédient composé
+  unique « crème fraîche ET curry », pas une sauce simple — la forcer dans un choix à une seule option
+  changerait sa recette, ce que la mission demande justement d'éviter (« préserver la base d'origine »).
+- **« Compose ta pizza » (composer.html) n'a pas été étendu** : ce flux utilise un mécanisme différent
+  (`choice`, 2 options déjà) dont je n'ai pas vérifié en profondeur le comportement réel pour l'étendre
+  à 4 options sans risque cette nuit — à reprendre si vous le souhaitez.
+- **Vérifié visuellement** (clics réels sur un serveur de test, panier localStorage inspecté directement) :
+  rendu correct, échange confirmé gratuit dans le résumé ET dans le contenu réel du panier. Suite complète
+  **208/208 tests**.
+
+### 10. Audit prix/promo/livraison ligne à ligne — section 11 du brief, fait
+
+- **Comparé mot à mot** : le texte publicitaire (index.html, menu.html, faq.html — règle « 1 pizza achetée
+  = 1 offerte », −50 % en livraison, frais de livraison par zone, montant minimum de commande, moyens de
+  paiement acceptés) contre le calcul réel (`serveur/orders.js` `computeOrderTotals()`, validation de
+  `order_create.js`) ET le calcul client (`assets/js/cart.js`).
+- **Résultat : aucun écart trouvé.** La règle de promo (la moins chère de chaque paire offerte à l'emporter
+  / à −50 % en livraison, uniquement les pizzas, cumulable sans limite), les frais de livraison (gratuits
+  dès qu'une pizza est dans la commande), les montants minimums par zone, et les moyens de paiement
+  acceptés correspondent exactement, des deux côtés, à ce qui est annoncé au client.
+- **Rien à corriger sur ce point.**
+
 ## Ce qui N'A PAS pu être fait cette nuit (honnêtement, sans survendre)
 
 Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs semaines de travail d'une
@@ -174,12 +214,12 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 |---|---|---|
 | 1. Inventaire complet (catalogue, boutons, règles) | Non fait | Nécessite un passage méthodique de plusieurs heures sur chaque page/produit ; non commencé faute de temps cette nuit. |
 | 3. Bug « Ajouter un article » | **Non reproduit** | Testé en direct sur le site public (ajout simple, ajout personnalisé avec échange gratuit) : le panier existant fonctionne correctement, promo appliquée dès l'ajout. Sans repro précise (produit/appareil/message exact), impossible d'aller plus loin — voir détail plus haut dans ce journal. |
-| 4. Bases de pizza (tomate/crème/BBQ/curry) | Non fait | Nouvelle fonctionnalité produit à construire (catalogue + widget + tarification) — plusieurs heures de travail, pas commencé. |
+| 4. Bases de pizza (tomate/crème/BBQ/curry) | **Fait, testé (208/208), vérifié visuellement** | 28 des 29 pizzas du menu ; Indienne exclue volontairement (base composée, recette préservée) ; composer.html non étendu — voir détail plus haut. |
 | 5-7. Suppléments, moitié-moitié, tous produits/boutons | Non testé exhaustivement | La RÈGLE de gratuité (viande/légume/œuf) a été testée en profondeur (40 scénarios combinatoires + cas explicites) dans la mission précédente, mais pas CHAQUE pizza × CHAQUE base × CHAQUE supplément individuellement comme demandé ici. |
 | 8. Minuteur 10 minutes (réaffichage au retour d'onglet) | **Fait** (portée volontairement clarifiée — voir détail plus haut) | Le délai réel reste volontairement non mis en pause (ancrage absolu déjà validé) ; seul l'AFFICHAGE se resynchronise désormais instantanément au retour sur l'onglet. |
 | 9. Message téléphone pour modification après envoi | **TRANCHÉ PAR VOUS, FAIT ET TESTÉ : appel obligatoire** | Décision confirmée en toutes lettres : « pour les pizzas choisies et déjà commandées, il ne peut pas la modifier si déjà commandée ». Le bouton « Modifier cette pizza » (libre-service) est retiré ; chaque article déjà envoyé affiche désormais un rappel d'appel (« Pour modifier cette pizza déjà commandée, appelez-nous : 03 21 20 00 33 »). Côté serveur, `kind='modify'` est maintenant explicitement rejeté (409 `modify_disabled`), tout le code de traitement correspondant a été retiré proprement (pas juste masqué). **L'ajout d'un nouvel article reste en libre-service**, inchangé — seule la modification d'un article déjà existant est concernée. 2 tests réécrits pour prouver le rejet, vérifié visuellement (le rappel d'appel s'affiche, le panneau d'ajout fonctionne toujours). Suite complète : 207/207. |
 | 10. Tests de bout en bout exhaustifs | Partiel | Une large suite automatisée existe déjà (202 tests) couvrant une bonne partie de ces scénarios depuis la mission précédente, mais pas tous les cas listés ici (panier mêlant toutes les catégories, perte réseau simulée, etc.). |
-| 11. Audit prix/promos/livraison | Non fait spécifiquement | Les règles de promo existantes sont couvertes par les tests automatisés déjà en place, mais pas ré-auditées ligne à ligne contre le brief. |
+| 11. Audit prix/promos/livraison | **Fait — aucun écart trouvé** | Comparé mot à mot (texte publicitaire vs calcul serveur ET client) : promo, frais de livraison, montants minimums, moyens de paiement. Tout correspond exactement. |
 | 12. Section commerçant — les 3 fonctionnalités (Voir/Imprimer programmées, refusées/annulées + compteurs, corbeille/restauration) | **Fait, testé (207/207), vérifié visuellement** (pas encore en conditions réelles connectées — contrainte de sécurité qui m'interdit de saisir un code d'authentification, même un code de test local) | |
 | 12. « Imprimer ma recette » testé réellement | Non fait | Nécessiterait une vraie session commerçant connectée ou une vraie tablette avec imprimante — hors de portée cette nuit pour la même raison que ci-dessus. |
 | 13. Test de charge 4000 commandes | Non fait | Nécessite un harnais de charge dédié (k6, autocannon ou équivalent) contre l'environnement de test ; non construit cette nuit. **Jamais testé en production, comme exigé.** |
