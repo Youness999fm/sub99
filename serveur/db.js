@@ -102,3 +102,8 @@ export function transaction(fn) {
 export function estViolationUnique(e) {
   return Boolean(e) && e.code === '23505';
 }
+
+/** Table ou colonne absente (SQLSTATE 42P01 / 42703) : migration pas encore appliquée en prod. */
+export function estSchemaAbsent(e) {
+  return Boolean(e) && (e.code === '42P01' || e.code === '42703');
+}
