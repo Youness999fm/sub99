@@ -311,6 +311,26 @@ cible, ce qui n'a jamais été donné). Marche à suivre, identique à ce qui av
   niveau ce modèle indépendant (plusieurs centaines de lignes) est un vrai chantier à part entière, pas fait
   cette nuit — à prévoir pour une session dédiée si vous voulez cette couche de vérification à jour.
 
+### 15. Google Business Profile — section 14 du brief, correction d'un constat erroné : déjà en place
+
+- **Correction importante** : j'avais noté plus tôt cette nuit « accès manquant, impossible de le faire sans
+  vous ». C'était une erreur de ma part — vous m'avez signalé que l'accès existait déjà (le navigateur était
+  déjà connecté à votre compte Google), et en vérifiant, **le lien de commande en ligne est déjà configuré**
+  sur votre fiche Google Business Profile (« Subito pizza Hénin Beaumont ») : section « Commande de repas »
+  → fournisseur « subito-pizza-heninbeaumont.fr », retrait ET livraison tous les deux activés, en plus d'Uber
+  Eats déjà présent également.
+- **Vérifié que ce lien fonctionne réellement** : `subito-pizza-heninbeaumont.fr` (sans www, tel qu'écrit sur
+  la fiche) redirige bien vers `https://www.subito-pizza-heninbeaumont.fr/`, qui répond 200 — le bouton
+  « À emporter » / « Se faire livrer » visible sur votre fiche Google mène donc bien vers votre site, pas
+  vers un lien mort.
+- **Je n'ai rien modifié** : j'ai seulement consulté la configuration existante (ouvert puis refermé le
+  formulaire sans rien enregistrer), aucune fiche ni aucun lien n'a été changé — modifier un réglage de ce
+  type nécessite votre accord explicite au préalable, que vous ne m'avez pas encore donné pour un changement
+  précis. Si vous voulez que je l'ajuste (ex. pointer vers une page spécifique plutôt que l'accueil), dites-le
+  moi explicitement et je le ferai.
+- **Résidence Ilyès** (la 2ᵉ fiche visible dans votre gestionnaire, en Tunisie) n'a pas été touchée — sans
+  rapport avec Subito Pizza, comme vous l'aviez déjà précisé plus tôt dans la nuit.
+
 ## Ce qui N'A PAS pu être fait cette nuit (honnêtement, sans survendre)
 
 Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs semaines de travail d'une
@@ -329,7 +349,7 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 | 12. Section commerçant — les 3 fonctionnalités (Voir/Imprimer programmées, refusées/annulées + compteurs, corbeille/restauration) | **Fait, testé (207/207), vérifié visuellement** (pas encore en conditions réelles connectées — contrainte de sécurité qui m'interdit de saisir un code d'authentification, même un code de test local) | |
 | 12. « Imprimer ma recette » testé réellement | Non fait | Nécessiterait une vraie session commerçant connectée ou une vraie tablette avec imprimante — hors de portée cette nuit pour la même raison que ci-dessus. |
 | 13. Test de charge 4000 commandes | **Fait — 4271 commandes réelles créées, 0 erreur 5xx, 0 écart d'intégrité** | Harnais déjà existant (mission précédente), lancé à l'échelle demandée. Latences dégradées à cette échelle (poste de développement unique) — voir détail plus haut. Une vraie limite Vercel découverte (~3289 commandes/jour) à surveiller. **Jamais testé en production, comme exigé.** |
-| 14. Google Business Profile + SEO | SEO on-site déjà en place ; profil Google non vérifiable | Vérifié : `robots.txt`, `sitemap.xml`, balises title/description/OG/canonical, données structurées JSON-LD (Restaurant, BreadcrumbList, WebSite) présentes et correctement renseignées sur les pages principales. Aucun accès à la fiche Google Business Profile (ni identifiants, ni accès fourni) — à signaler précisément comme demandé : **accès manquant, impossible de le faire sans lui**. |
+| 14. Google Business Profile + SEO | **Fait — SEO on-site vérifié solide, lien de commande déjà présent et fonctionnel** | `robots.txt`, `sitemap.xml`, balises title/description/OG/canonical, données structurées JSON-LD (Restaurant, BreadcrumbList, WebSite) présentes et correctes. Lien de commande Google Business Profile déjà configuré (retrait + livraison, vers le site réel) — constat initial erroné corrigé, voir détail plus haut. |
 
 ## Verdict honnête
 
