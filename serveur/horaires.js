@@ -129,3 +129,17 @@ export async function etatOuverture(maintenant = maintenantEpoch()) {
   const ouvert = mode === 'open' ? true : mode === 'closed' ? false : autoOuvert;
   return { mode, expires_at: expiresAt, ouvert, auto_ouvert: autoOuvert, creneau, prochaine_transition: prochaineTransition(creneau, maintenant) };
 }
+
+/**
+ * Instant d'ouverture (epoch UTC) du jour civil parisien contenant `epochCible` — décision du 22/11/2026 :
+ * une commande planifiée déposée hors service (le commerçant ne peut pas l'accepter lui-même, voir
+ * order_create.js) doit sonner UNE SEULE FOIS, exactement à l'ouverture du jour demandé par le client
+ * (18h ce jour-là), jamais un compte à rebours avant l'heure de retrait/livraison (H-45 habituel, réservé
+ * aux commandes acceptées par le commerçant lui-même). Si le créneau est désactivé (HORAIRES_COMMANDES=off),
+ * renvoie `epochCible` lui-même (rien à attendre, « ouvert » tout le temps).
+ */
+export function ouvertureDuJour(creneau, epochCible) {
+  if (creneau === null) return epochCible;
+  const { annee, mois, jour } = jourParisDecale(epochCible, 0);
+  return parisLocalVersEpoch(annee, mois, jour, Math.floor(creneau.debut / 60), creneau.debut % 60);
+}

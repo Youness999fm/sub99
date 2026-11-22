@@ -71,10 +71,15 @@ function fabriqueFileImpression({ table, keyColumn, hasDueAt }) {
 
   async function reclamer(key, claimedBy, maintenant = nowUtc()) {
     await reclasserClaimsBloques(maintenant);
-    const params = [maintenant, String(claimedBy || '').slice(0, 120), maintenant, key, ...(hasDueAt ? [maintenant] : [])];
+    // Filet de sécurité indépendant (décision du 22/11/2026, deuxième boucle infinie constatée en
+    // production malgré reclasserClaimsBloques() ci-dessus — cause exacte non reproduite, ce garde-fou
+    // empêche la réclamation elle-même d'aller au-delà du plafond, quelle que soit la raison pour laquelle
+    // la tâche serait revenue à pending avec déjà PRINT_MAX_ATTEMPTS tentatives ou plus) : jamais une
+    // réclamation de plus une fois le plafond atteint, même si la tâche est encore « pending » en base.
+    const params = [maintenant, String(claimedBy || '').slice(0, 120), maintenant, key, PRINT_MAX_ATTEMPTS, ...(hasDueAt ? [maintenant] : [])];
     return one(
       `UPDATE ${table} SET status = 'claimed', claimed_at = ?, claimed_by = ?, attempts = attempts + 1, updated_at = ?
-       WHERE ${keyColumn} = ? AND status = 'pending'${dueSql}
+       WHERE ${keyColumn} = ? AND status = 'pending' AND attempts < ?${dueSql}
        RETURNING *`,
       params
     );
@@ -106,6 +111,13 @@ const fileAddendumPrintJobs = fabriqueFileImpression({ table: 'addendum_print_jo
 export async function creerTacheImpression(orderId, scheduledForUtc) {
   const dueAt = utcAt(utcToEpoch(scheduledForUtc) - PRINT_LEAD_MINUTES * 60);
   await filePrintJobs.creerTache(orderId, dueAt);
+}
+
+/** Crée la tâche d'impression à une échéance DIRECTE (pas de délai H-45 à soustraire) : commande planifiée
+ * acceptée automatiquement car déposée hors service (voir order_create.js) — le ticket doit sortir une
+ * seule fois, exactement à l'ouverture du jour demandé, jamais à H-45 avant l'heure de retrait/livraison. */
+export async function creerTacheImpressionADate(orderId, dueAtUtc) {
+  await filePrintJobs.creerTache(orderId, dueAtUtc);
 }
 
 /** Reclasse pending toute tâche « claimed » depuis plus de PRINT_CLAIM_TIMEOUT_S : l'appareil qui l'avait prise
