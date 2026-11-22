@@ -3240,5 +3240,31 @@
   // ce sondage lent tient la barre du haut et le panneau « Ouverture » à jour même si le commerçant ne les
   // rouvre pas (ex. bascule posée en fin de service, qui doit redevenir "automatique" avant la réouverture).
   setInterval(() => { if (state.authed) loadOpenMode(); }, 60000);
+
+  // ---------- Détection d'une nouvelle version déployée (décision du 22/11/2026) ----------
+  // Cette page reste ouverte en continu sur la tablette, parfois pendant des jours : une mise à jour du
+  // code (ex. ce correctif lui-même) ne sert à rien tant que la page n'est pas rechargée, ce qui n'arrive
+  // jamais tout seul contrairement au client (qui recharge une page neuve à chaque commande). Repéré en
+  // conditions réelles : deux correctifs déployés sans effet visible côté tablette, qui tournait encore
+  // l'ancien code. Un en-tête Last-Modified différent de celui vu au chargement = une version plus récente
+  // a été déployée depuis ; rechargement automatique (différé si un dialogue est ouvert, pour ne jamais
+  // couper une saisie en cours).
+  let versionConnue = null;
+  async function verifierNouvelleVersion() {
+    try {
+      const r = await fetch('../assets/js/commercant.js', { method: 'HEAD', cache: 'no-store' });
+      const vu = r.headers.get('last-modified') || r.headers.get('etag');
+      if (!vu) return;
+      if (versionConnue === null) { versionConnue = vu; return; }
+      if (vu !== versionConnue) {
+        if (el.dlg && el.dlg.open) return; // on retentera au prochain sondage, jamais pendant une saisie
+        toast('Nouvelle version disponible — rechargement…');
+        setTimeout(() => window.location.reload(), 1500);
+      }
+    } catch (e) { /* hors ligne ou requête bloquée : on retentera au prochain sondage */ }
+  }
+  verifierNouvelleVersion();
+  setInterval(verifierNouvelleVersion, 180000);
+
   boot();
 })();
