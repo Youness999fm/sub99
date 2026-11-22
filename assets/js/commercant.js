@@ -1079,12 +1079,19 @@
     if (!strip || !box) return;
     const list = scheduledOrders();
     strip.hidden = list.length === 0;
+    // Deux actions distinctes (et non plus une seule puce cliquable) : « Voir » ouvre le ticket en
+    // lecture (dialogue existant, avec son propre bouton « Imprimer » à l'intérieur) sans rien envoyer
+    // à l'imprimante ; « Imprimer » réimprime directement, sans détour par ce dialogue.
     setHTML(box, list.map(o => `
-        <button type="button" class="qchip is-scheduled" data-action="select" data-id="${esc(o.id)}"
-          aria-label="Commande de ${esc(customerLabel(o))}, programmée pour ${esc(scheduledLabel(o))}, ${esc(eur(o.total_cents))}">
-          <span class="qchip-title">${esc(customerLabel(o))}</span>
-          <span class="qchip-sub">${esc(scheduledLabel(o))} · ${esc(eur(o.total_cents))}</span>
-        </button>`).join(''));
+        <div class="qchip is-scheduled qchip-sched">
+          <button type="button" class="qchip-view" data-action="select" data-id="${esc(o.id)}"
+            aria-label="Voir la commande de ${esc(customerLabel(o))}, programmée pour ${esc(scheduledLabel(o))}, ${esc(eur(o.total_cents))}">
+            <span class="qchip-title">${esc(customerLabel(o))}</span>
+            <span class="qchip-sub">${esc(scheduledLabel(o))} · ${esc(eur(o.total_cents))}</span>
+          </button>
+          <button type="button" class="qchip-print-btn" data-action="print-ticket" data-id="${esc(o.id)}"
+            aria-label="Imprimer le ticket de ${esc(customerLabel(o))}" title="Imprimer le ticket">🖶</button>
+        </div>`).join(''));
   }
 
   function itemTitle(it) {

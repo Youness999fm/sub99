@@ -731,7 +731,13 @@
     // Sur mobile, l'onglet est souvent mis en veille : on revérifie dès
     // qu'il redevient visible plutôt que d'attendre le prochain sondage.
     document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState !== "visible" || inFlight) return;
+      if (document.visibilityState !== "visible") return;
+      // Le compte à rebours (annulation 4 min / ajout 10 min) reste basé sur l'horodatage absolu de la
+      // commande (jamais mis en pause : la cuisine continue même onglet masqué) — mais l'intervalle qui
+      // l'affiche est, lui, ralenti par le navigateur en arrière-plan. On force un recalcul immédiat dès
+      // que l'onglet redevient visible pour ne pas laisser un chiffre figé à l'écran.
+      if (currentOrder) startActionCountdowns();
+      if (inFlight) return;
       if (lastStatus === "ready" || lastStatus === "refused") return;
       lastChangeAt = Date.now();
       polling = true;

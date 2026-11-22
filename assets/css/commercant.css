@@ -649,6 +649,19 @@ body.fs-lock { overflow: hidden; }
 .qchip.is-choosing { background: var(--amber-tint); color: var(--amber); border-color: var(--amber); }
 .qchip.is-prep { background: var(--amber-tint); color: var(--amber); border-color: var(--amber); }
 .qchip.is-scheduled { background: var(--gold-tint); color: #8A6B1E; border-color: var(--gold); }
+/* Puce programmée : deux actions distinctes (Voir / Imprimer) au lieu d'une seule zone cliquable. */
+.qchip.qchip-sched { display: flex; flex-direction: row; align-items: stretch; padding: 0; cursor: default; }
+.qchip-view {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  text-align: left; padding: 10px 8px 10px 14px; background: none; border: none; color: inherit; font: inherit;
+  cursor: pointer; touch-action: manipulation;
+}
+.qchip-print-btn {
+  flex: 0 0 auto; width: 40px; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.06); border: none; border-left: 2px solid var(--gold); color: inherit;
+  font-size: 18px; cursor: pointer; touch-action: manipulation; border-radius: 0 14px 14px 0;
+}
+.qchip-print-btn:hover, .qchip-print-btn:focus-visible { background: rgba(0, 0, 0, 0.12); }
 .eyebrow-scheduled { color: var(--gold); }
 .strip-hint { margin: 0; font-size: 14px; opacity: 0.8; }
 /* Un nom ou une adresse très long, sans espace, ne doit pas faire déborder la fiche de commande. */
