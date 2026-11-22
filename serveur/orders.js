@@ -1,7 +1,7 @@
 // Commandes : validation du corps, calcul serveur, vues client et propriétaire (port de api/lib/orders.php).
 import crypto from 'node:crypto';
 import { fail, failValidation } from './core.js';
-import { all, one } from './db.js';
+import { all, estSchemaAbsent, one } from './db.js';
 import { catalogueCanonicalItems, catalogueSwapKey, checkAvailabilityLines, verifyLinePrices } from './catalogue.js';
 import { isIntBetween, nowUtc, strChars, utcAt, utcToEpoch } from './util.js';
 
@@ -499,10 +499,19 @@ async function addendumItemsByAddendum(addendumIds) {
 export async function orderAddendaByOrder(orderIds) {
   const map = new Map();
   if (orderIds.length === 0) return map;
-  const rows = await all(
-    `SELECT * FROM order_addenda WHERE order_id IN (${orderIds.map(() => '?').join(',')}) ORDER BY order_id, seq`,
-    orderIds
-  );
+  // Tolère l'absence de order_addenda/order_addendum_items (migration pas encore appliquée en prod,
+  // même principe que print_jobs dans owner_orders.js) : une commande doit toujours pouvoir être créée
+  // et affichée même si les tables d'ajout/modification n'existent pas encore côté base.
+  let rows;
+  try {
+    rows = await all(
+      `SELECT * FROM order_addenda WHERE order_id IN (${orderIds.map(() => '?').join(',')}) ORDER BY order_id, seq`,
+      orderIds
+    );
+  } catch (e) {
+    if (!estSchemaAbsent(e)) throw e;
+    return map;
+  }
   const itemsByAddendum = await addendumItemsByAddendum(rows.map((r) => Number(r.id)));
   for (const r of rows) {
     const id = Number(r.order_id);
