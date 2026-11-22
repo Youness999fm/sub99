@@ -337,7 +337,16 @@ export const ADDENDUM_WINDOW_S = 600;
  */
 export async function effectiveOrderLines(orderId) {
   const items = await all('SELECT * FROM order_items WHERE order_id = ? ORDER BY position', [orderId]);
-  const addenda = await all('SELECT * FROM order_addenda WHERE order_id = ? ORDER BY seq', [orderId]);
+  // Tolère l'absence de order_addenda/order_addendum_items (migration pas encore appliquée en prod, même
+  // principe que orderAddendaByOrder ci-dessous) : un ajout échouera plus loin avec un message clair
+  // (order_addendum_create.js), mais la résolution de l'état effectif ne doit jamais planter ici.
+  let addenda;
+  try {
+    addenda = await all('SELECT * FROM order_addenda WHERE order_id = ? ORDER BY seq', [orderId]);
+  } catch (e) {
+    if (!estSchemaAbsent(e)) throw e;
+    addenda = [];
+  }
   const addendumIds = addenda.map((a) => Number(a.id));
   const addendumItems = addendumIds.length
     ? await all(`SELECT * FROM order_addendum_items WHERE addendum_id IN (${addendumIds.map(() => '?').join(',')}) ORDER BY addendum_id, position`, addendumIds)
