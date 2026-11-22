@@ -16,8 +16,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="../assets/css/commercant.css">
-<script src="../assets/js/commercant.js" defer></script>
+<!-- ?v= bumpé à chaque déploiement touchant commercant.css/commercant.js (décision du 22/11/2026) : sur
+     un appareil mobile (PWA ajoutée à l'écran d'accueil, notamment iOS), supprimer puis réinstaller
+     l'icône NE vide PAS forcément les données du site déjà enregistrées par le navigateur — seule une
+     URL réellement nouvelle garantit un contenu neuf, sans dépendre d'une action manuelle de l'utilisateur
+     (vider le cache, etc.) ni du cycle de mise à jour du service worker. -->
+<link rel="stylesheet" href="../assets/css/commercant.css?v=20261122d">
+<script src="../assets/js/commercant.js?v=20261122d" defer></script>
 </head>
 <body>
 
