@@ -205,6 +205,43 @@ cible, ce qui n'a jamais été donné). Marche à suivre, identique à ce qui av
   acceptés correspondent exactement, des deux côtés, à ce qui est annoncé au client.
 - **Rien à corriger sur ce point.**
 
+### 11. Test de charge réel à 4000+ commandes — section 13 du brief, fait (jamais en production)
+
+- **Découverte utile** : un harnais de charge complet existait déjà depuis la mission précédente
+  (`tests/massif/12-charge-soutenue.mjs`) — simule une soirée complète (clients qui commandent, suivi
+  client qui sonde, commerçant qui décide), puis une rafale de 1000 requêtes simultanées, avec des
+  contrôles d'intégrité exhaustifs en base. Serveur + base de test tournent dans l'environnement isolé du
+  script lui-même, **jamais contre la production** — aucune commande réelle, aucun paiement.
+- **Lancé à l'échelle demandée** : 1340 clients simulés × 3 commandes = **4271 commandes réellement créées**
+  (au-delà des 4000 demandés), plus la rafale de 1000 requêtes concurrentes. Durée totale : 300 s.
+  **Mode réduit** (paramètres personnalisés pour atteindre ce volume) : les seuils de latence du script sont
+  calibrés pour ses 200 clients par défaut, pas pour 1340 — les dépassements de latence ci-dessous doivent
+  être lus avec cette réserve, pas comme un verdict de production.
+- **Ce qui compte le plus a tenu — 100 % sur toute la ligne** : **zéro erreur 5xx** sur 42 962 requêtes HTTP,
+  **zéro erreur réseau**, et surtout **zéro écart d'intégrité** sur ~20 contrôles différents : nombre de
+  commandes en base = nombre de réponses 201 = nombre suivi par le test ; aucune commande fantôme ni perdue ;
+  aucun doublon de clé d'idempotence ; aucune ligne d'article orpheline ; 10 envois simultanés de la même
+  commande → une seule créée ; 10 inscriptions simultanées au même e-mail → un seul compte ; un client ne
+  peut jamais lire la commande d'un autre (40 tentatives, 0 fuite) ; aucune donnée personnelle dans les
+  journaux serveur. La base finale (4271 commandes, 12 383 lignes, 1371 clients) correspond exactement à ce
+  que le test a envoyé et reçu, sans aucun écart.
+- **Latences dégradées à cette échelle** (11 contrôles sur 79 en échec, tous de ce type ou liés) : p95 autour
+  de 4,5 à 4,9 s sur `order_create`/`order_status`/`owner_order_decide` (seuils du script : 1,5 à 2 s),
+  attendu sur un poste de développement unique faisant tourner serveur + test + base dans un seul processus
+  sous 6 à 7 fois la charge par défaut du script — pas représentatif de la vraie production (fonctions
+  Vercel séparées + vraie base Postgres réseau).
+- **Une vraie découverte, indépendante de l'échelle choisie, à garder en tête** : la réponse de
+  `owner_orders.php` (toutes les commandes du jour, lignes comprises) pèse 5,84 Mo pour 4271 commandes, soit
+  environ 1434 octets par commande — **la limite de charge utile d'une fonction Vercel (4,5 Mo) serait
+  atteinte vers 3289 commandes dans une même journée de service**. Peu probable pour ce restaurant au
+  quotidien, mais à surveiller si le volume grossit significativement ; corrigible plus tard par une
+  pagination ou un allègement de la réponse si besoin — non corrigé cette nuit, simplement signalé.
+- **Un point non élucidé** : le tas JavaScript du processus de test reste à 270 Mo après nettoyage (seuil du
+  script : 200 Mo). Probablement attribuable aux registres internes du script de test lui-même (qui garde
+  la trace de 4271 commandes et 1371 clients pour ses propres vérifications), pas forcément une vraie fuite
+  côté serveur — pas creusé plus loin cette nuit, à vérifier séparément si vous voulez en avoir le cœur net.
+- **Rapport complet** (toutes les mesures route par route) : [reports/2026-11-22-test-charge-4271-commandes.log](2026-11-22-test-charge-4271-commandes.log).
+
 ## Ce qui N'A PAS pu être fait cette nuit (honnêtement, sans survendre)
 
 Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs semaines de travail d'une
@@ -222,7 +259,7 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 | 11. Audit prix/promos/livraison | **Fait — aucun écart trouvé** | Comparé mot à mot (texte publicitaire vs calcul serveur ET client) : promo, frais de livraison, montants minimums, moyens de paiement. Tout correspond exactement. |
 | 12. Section commerçant — les 3 fonctionnalités (Voir/Imprimer programmées, refusées/annulées + compteurs, corbeille/restauration) | **Fait, testé (207/207), vérifié visuellement** (pas encore en conditions réelles connectées — contrainte de sécurité qui m'interdit de saisir un code d'authentification, même un code de test local) | |
 | 12. « Imprimer ma recette » testé réellement | Non fait | Nécessiterait une vraie session commerçant connectée ou une vraie tablette avec imprimante — hors de portée cette nuit pour la même raison que ci-dessus. |
-| 13. Test de charge 4000 commandes | Non fait | Nécessite un harnais de charge dédié (k6, autocannon ou équivalent) contre l'environnement de test ; non construit cette nuit. **Jamais testé en production, comme exigé.** |
+| 13. Test de charge 4000 commandes | **Fait — 4271 commandes réelles créées, 0 erreur 5xx, 0 écart d'intégrité** | Harnais déjà existant (mission précédente), lancé à l'échelle demandée. Latences dégradées à cette échelle (poste de développement unique) — voir détail plus haut. Une vraie limite Vercel découverte (~3289 commandes/jour) à surveiller. **Jamais testé en production, comme exigé.** |
 | 14. Google Business Profile + SEO | SEO on-site déjà en place ; profil Google non vérifiable | Vérifié : `robots.txt`, `sitemap.xml`, balises title/description/OG/canonical, données structurées JSON-LD (Restaurant, BreadcrumbList, WebSite) présentes et correctement renseignées sur les pages principales. Aucun accès à la fiche Google Business Profile (ni identifiants, ni accès fourni) — à signaler précisément comme demandé : **accès manquant, impossible de le faire sans lui**. |
 
 ## Verdict honnête
