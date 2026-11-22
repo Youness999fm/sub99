@@ -154,6 +154,28 @@
   to { transform: rotate(360deg); }
 }
 
+/* Demande d'annulation en attente de la décision du commerçant : même rotation que le spinner principal,
+   en plus petit, inline avec le texte (remplace le bouton "Annuler ma commande" tant que c'est en attente). */
+.order-track-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--amber-dark, #8a6b1e);
+}
+.order-track-pending__spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(138, 107, 30, 0.25);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: orderTrackSpin 0.9s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .order-track-pending__spinner { animation: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .order-track-status__spinner { animation: none; }
 }

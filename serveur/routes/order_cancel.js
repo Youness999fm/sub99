@@ -1,9 +1,11 @@
-// POST order_cancel — annulation d'une commande par son client, { id }.
-// Fenêtre de 4 minutes calculée depuis orders.created_at (confirmation serveur de la commande initiale),
-// jamais réinitialisée. Toujours autorisée dans la fenêtre même si déjà acceptée par le commerçant
-// (décision du 21/11/2026) : un événement order_addenda de type "cancel" + une tâche addendum_print_jobs
-// sont créés dans la même transaction pour l'alerter immédiatement — lui seul juge sur place si la
-// préparation peut être stoppée. Rejeu (déjà annulée) : 200 replayed:true, jamais une erreur.
+// POST order_cancel — DEMANDE d'annulation d'une commande par son client, { id }. Décision du 22/11/2026 :
+// le client ne fait que DEMANDER, il n'annule plus lui-même — la commande n'est réellement annulée que si
+// le commerçant valide la demande (voir owner_cancel_decide.js). Fenêtre de 4 minutes calculée depuis
+// orders.created_at (confirmation serveur de la commande initiale), jamais réinitialisée. Toujours
+// autorisée dans la fenêtre même si déjà acceptée par le commerçant : un événement order_addenda de type
+// "cancel" + une tâche addendum_print_jobs sont créés dans la même transaction pour l'alerter immédiatement,
+// avec la même urgence qu'une commande neuve (voir assets/js/commercant.js, alertAddendum). Rejeu (déjà
+// demandée) : 200 replayed:true, jamais une erreur.
 import crypto from 'node:crypto';
 import { allowMethods, readJsonBody, fail, failValidation, ok } from '../core.js';
 import { estSchemaAbsent, one, transaction } from '../db.js';
@@ -13,11 +15,11 @@ import { CANCEL_WINDOW_S, ID_MAX, orderLoad, orderViews } from '../orders.js';
 
 /**
  * Insère l'événement d'alerte (vue par la tablette via la queue addendum_print_jobs, voir impression.js).
- * Appelée APRÈS que l'annulation elle-même soit déjà committée (jamais dans la même transaction) : une
+ * Appelée APRÈS que la demande elle-même soit déjà committée (jamais dans la même transaction) : une
  * alerte qui ne peut pas être créée (ex. migration order_addenda pas encore appliquée en prod) ne doit
- * jamais faire perdre l'annulation réelle, qui est la partie critique pour le client. Tolère l'absence
+ * jamais faire perdre la demande réelle, qui est la partie critique pour le client. Tolère l'absence
  * de schéma comme ailleurs (owner_orders.js) ; toute autre erreur reste silencieuse ici aussi — une
- * alerte manquée reste moins grave qu'une commande qui semble annulée mais ne l'est pas.
+ * alerte manquée reste moins grave qu'une demande qui semble déposée mais ne l'est pas.
  */
 async function insertCancelAlert(orderId, order, now) {
   try {
@@ -28,7 +30,7 @@ async function insertCancelAlert(orderId, order, now) {
       const addendumId = await tx.insert(
         `INSERT INTO order_addenda (order_id, seq, kind, idempotency_key, payload_hash, target_item_id, delta_cents, customer_first_name, created_at)
          VALUES (?, ?, 'cancel', ?, ?, NULL, 0, ?, ?)`,
-        [orderId, seq, 'cancel-' + orderId, payloadHash, String(order.customer_first_name), now]
+        [orderId, seq, 'cancel-' + orderId + '-' + now, payloadHash, String(order.customer_first_name), now]
       );
       await tx.insert(
         'INSERT INTO addendum_print_jobs (addendum_id, status, attempts, created_at, updated_at) VALUES (?, \'pending\', 0, ?, ?)',
@@ -37,7 +39,7 @@ async function insertCancelAlert(orderId, order, now) {
     });
   } catch (e) {
     if (!estSchemaAbsent(e)) throw e;
-    // Migration pas encore appliquée : l'annulation reste valable, seule l'alerte tablette est absente.
+    // Migration pas encore appliquée : la demande reste valable, seule l'alerte tablette est absente.
   }
 }
 
@@ -59,28 +61,24 @@ export default async function orderCancel(c) {
   // le dernier instant encore VALIDE (created_at doit être strictement après pour rester dans la fenêtre).
   const cutoff = utcAt(nowEpoch - CANCEL_WINDOW_S);
 
-  // Deux tentatives conditionnelles distinctes : laquelle réussit prouve, de façon atomique, le statut réel
-  // au moment du changement — jamais une lecture préalable suivie d'une décision séparée, qui laisserait
-  // une fenêtre de course avec une acceptation commerçant concurrente (même principe que les UPDATE
-  // conditionnels de owner_order_decide.js). L'alerte tablette (insertCancelAlert) est appelée APRÈS coup,
-  // jamais dans la même transaction que l'UPDATE : voir le commentaire de insertCancelAlert ci-dessus.
-  const fromAccepted = await transaction((tx) => tx.exec(
-    "UPDATE orders SET status = 'cancelled', cancelled_at = ?, cancel_reason = ? WHERE id = ? AND status = 'accepted' AND created_at > ?",
-    [now, 'client', id, cutoff]
+  // UPDATE conditionnel atomique : dépose la demande seulement si new/accepted, encore dans la fenêtre,
+  // et aucune demande déjà en cours — jamais une lecture préalable suivie d'une décision séparée.
+  const n = await transaction((tx) => tx.exec(
+    "UPDATE orders SET cancel_requested_at = ? WHERE id = ? AND status IN ('new', 'accepted') AND created_at > ? AND cancel_requested_at IS NULL",
+    [now, id, cutoff]
   ));
-  let n = fromAccepted;
-  if (fromAccepted === 1) {
+
+  if (n === 1) {
     await insertCancelAlert(id, order, now);
-  } else {
-    n = await transaction((tx) => tx.exec(
-      "UPDATE orders SET status = 'cancelled', cancelled_at = ?, cancel_reason = ? WHERE id = ? AND status = 'new' AND created_at > ?",
-      [now, 'client', id, cutoff]
-    ));
+    const fresh = await orderLoad(id);
+    return ok({ replayed: false, order: (await orderViews([fresh], false))[0] });
   }
 
   const fresh = await orderLoad(id);
-  if (n === 1) return ok({ replayed: false, order: (await orderViews([fresh], false))[0] });
-
+  if (fresh.cancel_requested_at !== null && fresh.cancel_requested_at !== undefined
+    && (fresh.status === 'new' || fresh.status === 'accepted')) {
+    return ok({ replayed: true, order: (await orderViews([fresh], false))[0] });
+  }
   if (String(fresh.status) === 'cancelled') {
     return ok({ replayed: true, order: (await orderViews([fresh], false))[0] });
   }
