@@ -1,7 +1,9 @@
-// Ajout/modification de commande (order_addendum_create.php) : fenêtre stricte de 10 minutes depuis
-// orders.created_at, jamais prolongée par un ajout précédent. Le ticket complémentaire ne doit jamais
-// reprendre les articles déjà transmis (vérifié ici au niveau données ; le rendu du ticket lui-même est
-// couvert par addendum-print-jobs.test.mjs). Horloge pilotée : bornes testées à la seconde exacte.
+// Ajout de commande (order_addendum_create.php) : fenêtre stricte de 10 minutes depuis orders.created_at,
+// jamais prolongée par un ajout précédent. Le ticket complémentaire ne doit jamais reprendre les articles
+// déjà transmis (vérifié ici au niveau données ; le rendu du ticket lui-même est couvert par
+// addendum-print-jobs.test.mjs). Horloge pilotée : bornes testées à la seconde exacte.
+// kind='modify' (modifier un article déjà envoyé) n'est volontairement plus proposé en libre-service
+// depuis le 22/11/2026 — voir les deux tests dédiés plus bas qui vérifient son rejet (409 modify_disabled).
 // Lancer depuis la racine :  SUBITO_TEST_PORT=18430 node --test tests/api-vercel/order-addendum.test.mjs
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -174,39 +176,39 @@ test('double-clic concurrent sur le même ajout : une seule transition, le secon
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM order_addenda WHERE order_id = ?').get(id).n, 1);
 });
 
-test("modification d'un article d'origine : retirer un ingrédient, ajouter un supplément, delta correct", async () => {
+// Décision du 22/11/2026 : modifier un article déjà envoyé (changer ses ingrédients après coup) n'est
+// PLUS proposé en libre-service — le client doit appeler le restaurant. kind='modify' est donc rejeté
+// explicitement (409 modify_disabled, message clair avec le téléphone), que la cible soit un article
+// d'origine (order_items) ou un article introduit par un ajout précédent (order_addendum_items). Seul
+// l'ajout d'un nouvel article (kind='add') reste en libre-service — vérifié juste après, sur la même
+// commande, pour prouver que le rejet du modify n'affecte pas la capacité d'ajout.
+test("kind='modify' est rejeté (409 modify_disabled) sur un article d'origine, et n'empêche pas un ajout ensuite", async () => {
   const t0 = BASE_EPOCH + 50_000;
   poserHorloge(t0);
   const cust = await nouveauClient('modif-origine@example.test');
-  const { id, itemId } = await commander(cust, 1); // Régina Duo, jambon+champignons d'origine
+  const { id, itemId, total_cents } = await commander(cust, 1); // Régina Duo d'origine
   poserHorloge(t0 + 10);
 
-  // Retire le jambon (viande, 2,00 €) et ajoute un supplément poulet (viande, 2,00 €) : échange gratuit —
-  // comme cart.js, le client envoie le prix DÉJÀ remisé (0), jamais le prix brut du groupe.
   const r = await cust.post('order_addendum_create.php', {
     order_id: id, idempotency_key: 'modif-' + Date.now(), kind: 'modify', target_item_id: itemId,
     item: { qty: 1, unit_price_cents: REGINA_DUO, removed: ['jambon'], extras: [{ name: 'poulet', price_cents: 0, qty: 1 }], note: '' },
     total_cents: REGINA_DUO
   });
-  assert.equal(r.status, 201, r.text);
-  assert.equal(r.json.addendum.kind, 'modify');
-  assert.equal(r.json.addendum.target_item_id, itemId);
-  assert.equal(r.json.addendum.delta_cents, 0, 'échange gratuit : aucun supplément facturé');
-  assert.equal(r.json.order.total_cents, REGINA_DUO);
+  expectError(r, 409, 'modify_disabled');
+  assert.equal(typeof r.json.message, 'string');
+  assert.equal(r.json.phone, '0321200033');
+  // Rien n'a changé : ni nouvel événement, ni total modifié.
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM order_addenda WHERE order_id = ?').get(id).n, 0);
+  const relu = await cust.get('order_status.php?id=' + id);
+  assert.equal(relu.json.order.total_cents, total_cents);
 
-  // Deuxième modification de la MÊME cible, sans retrait cette fois : le poulet doit être payant.
+  // L'ajout d'un nouvel article, lui, continue de fonctionner normalement sur cette même commande.
   poserHorloge(t0 + 20);
-  const r2 = await cust.post('order_addendum_create.php', {
-    order_id: id, idempotency_key: 'modif2-' + Date.now(), kind: 'modify', target_item_id: itemId,
-    item: { qty: 1, unit_price_cents: REGINA_DUO + 200, removed: [], extras: [{ name: 'poulet', price_cents: 200, qty: 1 }], note: '' },
-    total_cents: REGINA_DUO + 200
-  });
-  assert.equal(r2.status, 201, r2.text);
-  assert.equal(r2.json.addendum.delta_cents, 200, 'sans retrait, le poulet est payant');
-  assert.equal(r2.json.order.total_cents, REGINA_DUO + 200);
+  const addR = await ajout(cust, id, [{ name: 'Régina', variant: 'Duo', qty: 1, unit_price_cents: REGINA_DUO, removed: [], extras: [], half: null, note: '' }], 2 * REGINA_DUO - REGINA_DUO);
+  assert.equal(addR.status, 201, addR.text);
 });
 
-test('modifier un article déjà ajouté par un addendum précédent (scénario : ajout puis modification de cet ajout)', async () => {
+test("kind='modify' est aussi rejeté (409 modify_disabled) quand la cible est un article introduit par un ajout précédent", async () => {
   const t0 = BASE_EPOCH + 60_000;
   poserHorloge(t0);
   const cust = await nouveauClient('modif-ajout@example.test');
@@ -224,9 +226,9 @@ test('modifier un article déjà ajouté par un addendum précédent (scénario 
     item: { qty: 1, unit_price_cents: REGINA_DUO + 150, removed: [], extras: [{ name: 'olives', price_cents: 150, qty: 1 }], note: '' },
     total_cents: 2 * REGINA_DUO - REGINA_DUO + 150
   });
-  assert.equal(modR.status, 201, modR.text);
-  assert.equal(modR.json.addendum.target_addendum_item_id, addendumItemId);
-  assert.equal(modR.json.addendum.delta_cents, 150);
+  expectError(modR, 409, 'modify_disabled');
+  // Toujours un seul événement (le ajout initial) : le modify rejeté n'a rien créé.
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM order_addenda WHERE order_id = ?').get(id).n, 1);
 });
 
 test('statuts non éligibles : ready, refused, cancelled -> 409 not_addable', async () => {

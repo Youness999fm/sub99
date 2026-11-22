@@ -1,10 +1,14 @@
-// POST order_addendum_create — ajout ou modification rattaché à une commande existante (jamais une
-// nouvelle commande indépendante) :
-//   { order_id, idempotency_key, kind: 'add', items: [...], total_cents }
-//   { order_id, idempotency_key, kind: 'modify', target_item_id | target_addendum_item_id, item: {...}, total_cents }
+// POST order_addendum_create — ajout rattaché à une commande existante (jamais une nouvelle commande
+// indépendante) : { order_id, idempotency_key, kind: 'add', items: [...], total_cents }
 // Fenêtre de 10 minutes depuis orders.created_at (jamais prolongée par un ajout précédent, jamais
 // accepted_at). Toujours autorisé dans la fenêtre même si déjà accepté par le commerçant (décision du
 // 21/11/2026) : un ticket complémentaire (addendum_print_jobs) l'alerte sans délai, voir impression.js.
+//
+// Modifier un article DÉJÀ envoyé (changer ses ingrédients après coup) n'est volontairement PAS proposé en
+// libre-service (décision du 22/11/2026, remplace l'ancien kind='modify') : le client doit appeler le
+// restaurant. `kind: 'modify'` est donc reconnu mais rejeté explicitement (409 modify_disabled, message
+// clair), jamais une erreur de validation générique — au cas où un client resterait sur une version plus
+// ancienne du site le temps que la mise à jour se propage.
 import crypto from 'node:crypto';
 import { allowMethods, readJsonBody, fail, failValidation, ok } from '../core.js';
 import { one, estSchemaAbsent, estViolationUnique, transaction } from '../db.js';
@@ -41,82 +45,48 @@ export default async function orderAddendumCreate(c) {
   let key = b.idempotency_key ?? null;
   if (typeof key !== 'string' || !/^[A-Za-z0-9-]{8,64}$/.test(key)) { err.idempotency_key = "Clé d'envoi invalide."; key = ''; }
   const kind = b.kind ?? null;
-  if (kind !== 'add' && kind !== 'modify') err.kind = 'Type attendu : add ou modify.';
+  if (kind !== 'add' && kind !== 'modify') err.kind = 'Type attendu : add.';
   if (!isIntBetween(b.total_cents ?? null, 0, 10000000)) err.total_cents = 'Montant invalide.';
-  let targetItemId = null;
-  let targetAddendumItemId = null;
-  if (kind === 'modify') {
-    const hasItem = isIntBetween(b.target_item_id ?? null, 1, ID_MAX);
-    const hasAddendumItem = isIntBetween(b.target_addendum_item_id ?? null, 1, ID_MAX);
-    if (hasItem === hasAddendumItem) {
-      err.target_item_id = 'Précisez exactement une cible (target_item_id ou target_addendum_item_id).';
-    } else if (hasItem) {
-      targetItemId = b.target_item_id;
-    } else {
-      targetAddendumItemId = b.target_addendum_item_id;
-    }
-  }
   if (Object.keys(err).length > 0) failValidation(err);
+
+  if (kind === 'modify') {
+    fail(409, 'modify_disabled', "La modification d'un article déjà commandé n'est pas proposée en libre-service. Merci de nous appeler directement.", { phone: '0321200033' });
+  }
 
   // 2. Session + propriété de la commande.
   const order = await one('SELECT * FROM orders WHERE id = ? AND customer_id = ?', [orderId, customerId]);
   if (order === null) fail(404, 'not_found', 'Commande introuvable.');
 
-  // 3. Résolution de la cible (modify) sur l'état EFFECTIF actuel (replis des modifications précédentes).
+  // 3. État effectif actuel (replis des ajouts déjà confirmés) : sert au recalcul du total ci-dessous.
   const lines = await effectiveOrderLines(orderId);
-  let targetLine = null;
-  if (kind === 'modify') {
-    targetLine = lines.find((l) => (targetItemId !== null
-      ? l.source === 'item' && l.id === targetItemId
-      : l.source === 'addendum_item' && l.id === targetAddendumItemId)) ?? null;
-    if (targetLine === null) fail(404, 'not_found', 'Article à modifier introuvable.');
-  }
 
-  // 4. Forme du contenu : items neufs (add), ou l'état complet soumis pour la cible — nom/taille/moitié
-  // IMPOSÉS par la cible, jamais envoyés par le client (une modification ne change jamais la pizza elle-même).
-  let items;
-  if (kind === 'add') {
-    const itemsIn = Array.isArray(b.items) ? b.items : null;
-    if (itemsIn === null || itemsIn.length === 0 || itemsIn.length > 10) {
-      failValidation({
-        items: itemsIn === null ? 'Articles invalides.'
-          : (itemsIn.length === 0 ? 'Ajoutez au moins un article.' : "Trop d'articles ajoutés en une fois (10 au plus).")
-      });
-    }
-    const addErr = {};
-    items = [];
-    itemsIn.forEach((raw, i) => {
-      const item = validateItemFields(raw, `items[${i}]`, addErr);
-      if (item !== null) items.push(item);
+  // 4. Forme du contenu : les nouveaux articles ajoutés.
+  const itemsIn = Array.isArray(b.items) ? b.items : null;
+  if (itemsIn === null || itemsIn.length === 0 || itemsIn.length > 10) {
+    failValidation({
+      items: itemsIn === null ? 'Articles invalides.'
+        : (itemsIn.length === 0 ? 'Ajoutez au moins un article.' : "Trop d'articles ajoutés en une fois (10 au plus).")
     });
-    if (Object.keys(addErr).length > 0) failValidation(addErr);
-  } else {
-    const raw = {
-      name: targetLine.name, variant: targetLine.variant,
-      qty: b.item?.qty, unit_price_cents: b.item?.unit_price_cents,
-      removed: b.item?.removed, extras: b.item?.extras,
-      half: targetLine.half ?? null, note: b.item?.note
-    };
-    const modErr = {};
-    const item = validateItemFields(raw, 'item', modErr);
-    if (Object.keys(modErr).length > 0) failValidation(modErr);
-    items = [item];
   }
+  const addErr = {};
+  const items = [];
+  itemsIn.forEach((raw, i) => {
+    const item = validateItemFields(raw, `items[${i}]`, addErr);
+    if (item !== null) items.push(item);
+  });
+  if (Object.keys(addErr).length > 0) failValidation(addErr);
 
   // 5. Empreinte d'idempotence (sur le contenu normalisé, comme order_create.js) et rejeu éventuel —
   // avant toute vérification de fenêtre/statut : une opération déjà réussie se reconfirme toujours,
   // même si les conditions ont changé depuis (même principe que order_create.js).
-  const a = {
-    kind, target_item_id: targetItemId, target_addendum_item_id: targetAddendumItemId,
-    items: kind === 'add' ? items : null, item: kind === 'modify' ? items[0] : null, total_cents: b.total_cents
-  };
+  const a = { kind: 'add', target_item_id: null, target_addendum_item_id: null, items, item: null, total_cents: b.total_cents };
   const payloadHash = addendumPayloadHash(a);
   let existing;
   try {
     existing = await one('SELECT * FROM order_addenda WHERE order_id = ? AND idempotency_key = ?', [orderId, key]);
   } catch (e) {
     if (!estSchemaAbsent(e)) throw e;
-    fail(503, 'feature_unavailable', "L'ajout/la modification de commande n'est pas encore disponible. Appelez-nous directement.");
+    fail(503, 'feature_unavailable', "L'ajout de commande n'est pas encore disponible. Appelez-nous directement.");
   }
   if (existing !== null) {
     if (!memeEmpreinte(existing.payload_hash, payloadHash)) {
@@ -126,27 +96,26 @@ export default async function orderAddendumCreate(c) {
     return ok({ replayed: true, ...(await viewWith(freshOrder, Number(existing.id))) });
   }
 
-  // 6. Fenêtre (10 min depuis created_at) et statut (new/accepted seulement — rien à ajouter/modifier sur
-  // une commande déjà prête, refusée ou annulée).
+  // 6. Fenêtre (10 min depuis created_at) et statut (new/accepted seulement — rien à ajouter sur une
+  // commande déjà prête, refusée ou annulée).
   if (order.status !== 'new' && order.status !== 'accepted') {
     fail(409, 'not_addable', 'Cette commande ne peut plus être modifiée.', { status: String(order.status) });
   }
   const nowEpoch = utcToEpoch(nowUtc());
   const createdEpoch = utcToEpoch(String(order.created_at));
   if (nowEpoch >= createdEpoch + ADDENDUM_WINDOW_S) {
-    fail(409, 'too_late', 'Le délai de 10 minutes pour ajouter ou modifier est dépassé.',
+    fail(409, 'too_late', "Le délai de 10 minutes pour ajouter un article est dépassé.",
       { addendum_eligible_until: utcAt(createdEpoch + ADDENDUM_WINDOW_S) });
   }
 
   // 7. Catalogue (prix, disponibilités) : mêmes règles que order_create.js.
   const canonicalItems = await orderEnforceCatalogue({ items, mode: order.mode });
 
-  // 8. Total recalculé sur l'état EFFECTIF complet de la commande (toutes les lignes existantes, la
-  // cible remplacée par son nouvel état pour une modification, ou les nouvelles lignes en plus) : la
-  // promo « pizza offerte / -50 % » doit rester cohérente sur l'ensemble, jamais seulement sur le delta brut.
-  const otherLines = kind === 'modify' ? lines.filter((l) => l !== targetLine) : lines;
+  // 8. Total recalculé sur l'état EFFECTIF complet de la commande (toutes les lignes existantes, plus les
+  // nouvelles) : la promo « pizza offerte / -50 % » doit rester cohérente sur l'ensemble, jamais seulement
+  // sur le delta brut.
   const effectiveAfter = [
-    ...otherLines.filter((l) => l.qty > 0).map((l) => ({ unit_price_cents: l.unit_price_cents, qty: l.qty, variant: l.variant })),
+    ...lines.filter((l) => l.qty > 0).map((l) => ({ unit_price_cents: l.unit_price_cents, qty: l.qty, variant: l.variant })),
     ...canonicalItems.map((it) => ({ unit_price_cents: it.unit_price_cents, qty: it.qty, variant: it.variant }))
   ];
   const zone = order.mode === 'delivery' ? (DELIVERY_ZONES[order.delivery_city] ?? null) : null;
@@ -170,8 +139,8 @@ export default async function orderAddendumCreate(c) {
       const seq = Number(seqRow.m) + 1;
       const id = await tx.insert(
         `INSERT INTO order_addenda (order_id, seq, kind, idempotency_key, payload_hash, target_item_id, target_addendum_item_id, delta_cents, customer_first_name, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [orderId, seq, kind, key, payloadHash, targetItemId, targetAddendumItemId, deltaCents, String(order.customer_first_name), now]
+         VALUES (?, ?, 'add', ?, ?, NULL, NULL, ?, ?, ?)`,
+        [orderId, seq, key, payloadHash, deltaCents, String(order.customer_first_name), now]
       );
       for (let pos = 0; pos < canonicalItems.length; pos++) {
         const it = canonicalItems[pos];
@@ -198,7 +167,7 @@ export default async function orderAddendumCreate(c) {
     // fonctionnalité repose entièrement sur ces tables, impossible de dégrader proprement ici (contrairement
     // à l'alerte d'annulation, voir order_cancel.js, qui reste facultative).
     if (estSchemaAbsent(e)) {
-      fail(503, 'feature_unavailable', "L'ajout/la modification de commande n'est pas encore disponible. Appelez-nous directement.");
+      fail(503, 'feature_unavailable', "L'ajout de commande n'est pas encore disponible. Appelez-nous directement.");
     }
     if (!estViolationUnique(e)) throw e;
     // Envoi concurrent avec la même clé : relire la ligne existante, hors transaction (même principe que order_create.js).
