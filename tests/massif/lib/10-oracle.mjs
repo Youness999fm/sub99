@@ -315,11 +315,17 @@ export function genererLigne(r, idx, o = {}) {
       extras: noms.map((n) => ({ name: n, price_cents: 0, qty: 1 })), half, note: o.note ?? r.choix(NOTES)
     };
   } else {
-    const p = o.produit ?? r.choix(idx.produits);
+    // Produits à choix obligatoire (base des subitowichs, décision du 22/11/2026) volontairement exclus du
+    // tirage général de cette batterie : la combinatoire (choix × indisponibilité) est déjà couverte de façon
+    // exhaustive par tests/massif/11-disponibilite-dynamique.mjs. Les inclure ici changerait la composition
+    // de commandes générées à des index déjà fixés par la graine, dont dépendent de nombreux scénarios de
+    // falsification écrits pour une ligne de produit « simple » (jamais de choix) à cet index précis.
+    const p = o.produit ?? r.choix(idx.produits.filter((x) => !x.choice));
+    let name = p.line_name;
     // Les boissons n'ont aucun ingrédient fixe : pas de retrait possible sur ces fiches (tirage conservé pour la suite de la graine).
     const tenteRetrait = r.vrai(0.05);
     const retire = tenteRetrait && p.ingredients.length ? [r.choix(p.ingredients.map(String))] : [];
-    l = { name: p.line_name, variant: '', qty: o.qty ?? 1, unit_price_cents: 1, removed: retire, extras: [], half: null, note: o.note ?? r.choix(NOTES) };
+    l = { name, variant: '', qty: o.qty ?? 1, unit_price_cents: 1, removed: retire, extras: [], half: null, note: o.note ?? r.choix(NOTES) };
   }
   return calerLigne(idx, l);
 }

@@ -126,6 +126,13 @@ export function lignesCatalogue() {
       }
     } else if (p.kind === 'pizza') {
       sortie.push({ produit: p, kind: 'pizza', nom: p.line_name, variante: 'Solo', fixes: new Set(fixes), choixTous: null, filler: null, fabrique: () => ligne(p.line_name, 'Solo') });
+    } else if (p.choice && p.choice.required) {
+      // Choix obligatoire sur un produit (base des subitowichs, décision du 22/11/2026) : même principe
+      // que la garniture de la calzone ci-dessus, une ligne par option — jamais le nom nu seul.
+      for (const g of choix) {
+        const nom = `${p.line_name} — ${majuscule1(g)}`;
+        sortie.push({ produit: p, kind: 'product', nom, variante: '', fixes: new Set([...fixes, norme(g)]), choixTous: null, filler: norme(g), fabrique: () => ligne(nom, '') });
+      }
     } else {
       sortie.push({ produit: p, kind: 'product', nom: p.line_name, variante: '', fixes: new Set(fixes), choixTous: null, filler: null, fabrique: () => ligne(p.line_name, '') });
     }

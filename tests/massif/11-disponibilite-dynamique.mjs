@@ -603,7 +603,9 @@ async function apiBalayages() {
       await pose(patron, kind, t.name, 'out_manual');
       for (const l of cibles) {
         const r = await envoyer(client(), [l.fabrique()]); n++;
-        const attendu = l.kind === 'pizza' ? (l.nom.includes('—') ? nomBase(l.nom) : l.nom) : l.nom;
+        // Produit (ou pizza) entier déclaré hors service : le serveur nomme le produit SANS le choix
+        // (base des subitowichs comprise, décision du 22/11/2026) — jamais la ligne précise envoyée.
+        const attendu = l.nom.includes('—') ? nomBase(l.nom) : l.nom;
         if (!(estRefusDispo(r) && memeListe(r.json.unavailable, [attendu]))) defauts.push(`${t.name} (${l.nom}) hors service: ${resume(r)}`);
       }
       const rv = await envoyer(client(), [voisine.fabrique()]); n++;

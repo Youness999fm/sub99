@@ -2,7 +2,7 @@
 // retraits, moitié-moitié, garnitures à choix, moyens de paiement et zones que le site. Les prix unitaires sont ceux que
 // le serveur attend (règle des suppléments gratuits comprise) ; les totaux viennent du calcul serveur (promotions, frais).
 // Graine : même graine = mêmes commandes (reproductible).
-import { catalogue, catalogueResolveLine, catalogueExpectedLine } from '../../../serveur/catalogue.js';
+import { catalogue, catalogueResolveLine, catalogueExpectedLine, catalogueFind, catalogueSplitName } from '../../../serveur/catalogue.js';
 import { computeOrderTotals, PAYMENT_METHODS, CASH_CHANGE_CHOICES } from '../../../serveur/orders.js';
 import { DELIVERY_ZONES } from '../../../serveur/util.js';
 
@@ -81,8 +81,26 @@ export function ligneProduit(r, { produit, qty, note } = {}) {
   });
 }
 
+/** Un appelant a écrit le nom nu d'un produit à choix obligatoire (base des subitowichs, garniture de la
+ * calzone), sans l'option — ex. tests écrits avant que les subitowichs aient un choix (décision du
+ * 22/11/2026) : complète avec la première option plutôt que de faire planter calibrer(), la ligne reste
+ * un produit VALIDE et résoluble (le but de calibrer()) ; les tests qui visent l'indisponibilité, pas le
+ * choix lui-même, n'ont pas à connaître ce détail. Ne touche jamais une ligne qui a déjà une option écrite
+ * (ex. « Calzone (soufflée) — Thon ») ni une pizza (jamais appelé par lignePizza(), qui gère déjà son choix).
+ */
+function completerChoixManquant(ligne) {
+  if (ligne.variant) return ligne; // jamais les pizzas : lignePizza() gère déjà son choix
+  const [, rest] = catalogueSplitName(ligne.name);
+  if (rest !== null && rest !== '') return ligne; // option déjà écrite dans le nom
+  const p = catalogueFind(ligne.name, 'product');
+  if (!p || !p.choice || !p.choice.required || !p.choice.options.length) return ligne;
+  return { ...ligne, name: `${ligne.name} — ${majusculeChoix(p.choice.options[0])}` };
+}
+const majusculeChoix = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
 /** Fixe les prix unitaires et de suppléments attendus par le serveur ; lève si la ligne n'est pas résolue par le catalogue. */
-export function calibrer(ligne) {
+export function calibrer(ligneBrute) {
+  const ligne = completerChoixManquant(ligneBrute);
   const res = catalogueResolveLine(ligne);
   if (res.error) throw new Error('Ligne générée refusée par le catalogue : ' + JSON.stringify(res) + ' pour ' + JSON.stringify(ligne));
   const exp = catalogueExpectedLine(ligne, res);

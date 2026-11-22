@@ -152,6 +152,12 @@ test('chaque article commandable, au prix affiché, est accepté', async () => {
         lines.push(line(name, s.name, p.prices_by_size[s.name]));
       });
       if (p.choice) for (const opt of p.choice.options) lines.push(line(`${p.line_name} — ${opt.charAt(0).toUpperCase()}${opt.slice(1)}`, 'Duo', p.prices_by_size.Duo));
+    } else if (p.choice) {
+      // Choix obligatoire sur un produit (base des subitowichs, décision du 22/11/2026) : même principe
+      // que la garniture de la calzone ci-dessus, le nom de ligne porte l'option retenue.
+      for (const opt of p.choice.options) {
+        lines.push(line(`${p.line_name} — ${opt.charAt(0).toUpperCase()}${opt.slice(1)}`, '', p.price_cents));
+      }
     } else {
       lines.push(line(p.line_name, '', p.price_cents));
     }

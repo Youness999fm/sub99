@@ -354,6 +354,10 @@ export function buildCatalogue(root = ROOT) {
     // Libellé de ticket différent du nom client (SBT-010, ex. boissons « Canette Coca-Cola » -> ticket « Canette Coca ») :
     // attribut data-ticket-name sur le <h3>, prioritaire sur la règle générique (préfixe de catégorie).
     const ticketOverride = nameEl.attrs && typeof nameEl.attrs['data-ticket-name'] === 'string' ? nameEl.attrs['data-ticket-name'].trim() : '';
+    // Choix obligatoire sur un produit (pas seulement les pizzas) : même mécanisme que la garniture de
+    // la calzone (catalogueResolveLine() est déjà générique, voir serveur/catalogue.js), demandé pour la
+    // base des subitowichs (crème fraîche ou tomate, décision du 22/11/2026).
+    const productChoice = parsed.choice && parsed.choice.options.length ? { ...parsed.choice, required: true } : null;
     const base = {
       name,
       line_name: ticketOverride !== '' ? ticketOverride : qualifiedName(name, categoryId, cart.labels),
@@ -361,7 +365,7 @@ export function buildCatalogue(root = ROOT) {
       kind: 'product',
       ingredients: parsed.ingredients,
       availability: null,
-      choice: null,
+      choice: productChoice,
       half_allowed: false,
       half_flavor: false,
       prices_by_size: null,
