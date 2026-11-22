@@ -221,6 +221,45 @@ test('tablette disparue en plein envoi (résultat jamais revenu) : la tâche « 
   assert.equal(relance.json.job.attempts, 2);
 });
 
+test('BUG RÉEL DU 22/11/2026 reproduit puis vérifié corrigé : un appareil qui ne confirme jamais la '
+  + 'réception (ni succès ni échec, ex. bridge natif qui ne rappelle jamais) ne doit pas réimprimer le '
+  + 'même ticket indéfiniment — la tâche part en "failed" dès que le plafond d\'essais est atteint, elle '
+  + 'ne redevient jamais pending au-delà', async () => {
+  poserHorloge(AVANT_EPOCH);
+  const client = await nouveauClient('printjob-boucle@example.test');
+  const id = await commanderPlanifiee(client);
+  await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 30 });
+  let horloge = DUE_EPOCH;
+  poserHorloge(horloge);
+
+  for (let essai = 1; essai <= PRINT_MAX_ATTEMPTS; essai++) {
+    const claim = await owner.post('owner_print_claim.php', { id, device: 'tablette-muette' });
+    assert.equal(claim.json.claimed, true, `essai ${essai} : devrait être réclamable`);
+    assert.equal(claim.json.job.attempts, essai);
+    // Jamais d'accusé de réception (ni dispatched, ni failed) : seul le délai de blocage fait avancer les choses.
+    horloge += PRINT_CLAIM_TIMEOUT_S + 5;
+    poserHorloge(horloge);
+  }
+
+  // Plafond atteint sans jamais avoir reçu un seul accusé de réception : doit être "failed", jamais
+  // redevenir "pending" indéfiniment (c'était le bug : aucune vérification du plafond dans ce chemin).
+  const apresPlafond = await owner.post('owner_print_claim.php', { id, device: 'tablette-muette' });
+  assert.equal(apresPlafond.json.claimed, false, 'ne doit plus jamais être réclamable au-delà du plafond');
+  const vue = commandeDansOwnerOrders(await owner.get('owner_orders.php'), id);
+  assert.equal(vue.print_job.status, 'failed');
+  assert.equal(vue.print_job.attempts, PRINT_MAX_ATTEMPTS, 'jamais au-delà du plafond, même après un délai supplémentaire');
+  assert.equal(vue.print_job.last_error, 'appareil sans réponse');
+
+  // Preuve supplémentaire : même bien après le plafond, un sondage tardif ne relance rien.
+  horloge += PRINT_CLAIM_TIMEOUT_S * 3;
+  poserHorloge(horloge);
+  const bienPlusTard = await owner.post('owner_print_claim.php', { id, device: 'tablette-muette' });
+  assert.equal(bienPlusTard.json.claimed, false);
+  const vueFinale = commandeDansOwnerOrders(await owner.get('owner_orders.php'), id);
+  assert.equal(vueFinale.print_job.status, 'failed');
+  assert.equal(vueFinale.print_job.attempts, PRINT_MAX_ATTEMPTS);
+});
+
 test('owner_print_claim.php / owner_print_ack.php : authentification et validation', async () => {
   const anon = new Client('anon-print');
   expectError(await anon.post('owner_print_claim.php', { id: 1 }), 401, 'unauthorized');

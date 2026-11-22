@@ -40,12 +40,23 @@ function fabriqueFileImpression({ table, keyColumn, hasDueAt }) {
     }
   }
 
+  // BUG RÉEL DU 22/11/2026 : un appareil qui ne confirme jamais la réception (bridge natif qui ne rappelle
+  // jamais onPrinterSendResult) faisait reclasser la tâche en pending indéfiniment, sans jamais consulter
+  // PRINT_MAX_ATTEMPTS (ce plafond n'était vérifié que dans accuserReception, jamais appelée dans ce cas) —
+  // le même ticket se réimprimait toutes les PRINT_CLAIM_TIMEOUT_S secondes, sans limite. Désormais, une
+  // tâche bloquée qui a déjà atteint le plafond part directement en « failed » (reprise manuelle par le
+  // commerçant) au lieu de redevenir pending.
   async function reclasserClaimsBloques(maintenant = nowUtc()) {
     const limite = utcAt(utcToEpoch(maintenant) - PRINT_CLAIM_TIMEOUT_S);
     await exec(
+      `UPDATE ${table} SET status = 'failed', last_error = 'appareil sans réponse', updated_at = ?
+       WHERE status = 'claimed' AND claimed_at < ? AND attempts >= ?`,
+      [maintenant, limite, PRINT_MAX_ATTEMPTS]
+    );
+    await exec(
       `UPDATE ${table} SET status = 'pending', last_error = 'appareil sans réponse', updated_at = ?
-       WHERE status = 'claimed' AND claimed_at < ?`,
-      [maintenant, limite]
+       WHERE status = 'claimed' AND claimed_at < ? AND attempts < ?`,
+      [maintenant, limite, PRINT_MAX_ATTEMPTS]
     );
   }
 
