@@ -46,7 +46,10 @@ export const TABLES = {
       // Commande planifiée (type Uber Eats) : heure voulue par le client, NULL = dès que possible.
       ['scheduled_for', TS, true],
       // Annulation client (fenêtre 4 min depuis created_at, voir order_cancel.js) : status passe à 'cancelled'.
-      ['cancelled_at', TS, true], ['cancel_reason', 'str:200', true]
+      ['cancelled_at', TS, true], ['cancel_reason', 'str:200', true],
+      // Suppression côté commerçant (corbeille, voir owner_order_delete.js) : jamais un vrai DELETE SQL —
+      // la commande reste en base (preuve/recette), seulement cachée de la file tant que non restaurée.
+      ['deleted_at', TS, true]
     ],
     unique: { uq_orders_idem: ['customer_id', 'idempotency_key'] },
     index: {

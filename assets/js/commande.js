@@ -79,7 +79,6 @@
   let currentOrder = null; // dernière commande complète reçue, nécessaire pour construire un ajout/modif
   let addPanelOpen = false;
   let addPanelBusy = false;
-  let modifyTarget = null; // { source: 'item'|'addendum_item', id, name, variant } ou null (panneau d'ajout simple)
   let addendumKeySeq = 0;
   // Décalage entre l'horloge du serveur et celle du téléphone (serveur - téléphone, en ms) :
   // le minuteur se règle sur l'heure du serveur, pas sur celle de l'appareil.
@@ -103,10 +102,12 @@
     }).join(" · ");
   }
 
-  // allowModify : affiche un lien « Modifier » sur chaque pizza (jamais sur un article à prix fixe,
-  // la modification ne change que des ingrédients) quand le délai de 10 minutes est encore ouvert.
-  // source : 'item' (order_items) ou 'addendum_item' (article lui-même introduit par un ajout précédent).
-  function renderItems(items, allowModify, source) {
+  // allowModify : affiche un rappel d'appel sur chaque pizza déjà envoyée (jamais sur un article à prix
+  // fixe) tant que le délai de 10 minutes est encore ouvert. Modifier un article déjà commandé n'est
+  // volontairement PAS proposé en libre-service (décision du 22/11/2026) : seul un appel au restaurant
+  // permet de changer les ingrédients d'une pizza déjà envoyée (ajouter un nouvel article reste possible
+  // en libre-service, voir le panneau d'ajout plus bas).
+  function renderItems(items, allowModify) {
     return (items || []).map(function (it) {
       const label = esc(it.name) + (it.variant ? " (" + esc(it.variant) + ")" : "");
       const bits = [];
@@ -114,12 +115,12 @@
       if (it.removed && it.removed.length) bits.push("Sans : " + esc(it.removed.join(", ")));
       if (it.extras && it.extras.length) bits.push("Suppléments : " + esc(it.extras.map(function (e) { return e.name; }).join(", ")));
       if (it.note) bits.push("Note : " + esc(it.note));
-      const canModify = allowModify && it.variant && it.id != null;
+      const showCallHint = allowModify && it.variant && it.id != null;
       return (
         '<div class="order-track-item">' +
           '<div class="order-track-item__head"><span>' + esc(Number(it.qty) || 1) + ' × ' + label + '</span><span>' + formatCents(it.line_total_cents != null ? it.line_total_cents : it.unit_price_cents * it.qty) + '</span></div>' +
           (bits.length ? '<p class="order-track-item__details">' + bits.join(" · ") + '</p>' : "") +
-          (canModify ? '<button type="button" class="order-track-modify-link" data-action="modify-item" data-source="' + source + '" data-id="' + esc(it.id) + '" data-name="' + esc(it.name) + '" data-variant="' + esc(it.variant) + '">Modifier cette pizza</button>' : "") +
+          (showCallHint ? '<p class="order-track-call-hint">Pour modifier cette pizza déjà commandée, appelez-nous : <a href="tel:0321200033">' + SubitoIcons.svg('phone') + ' 03 21 20 00 33</a></p>' : "") +
         '</div>'
       );
     }).join("");
@@ -130,9 +131,9 @@
   }
 
   function renderAddendum(a, allowModify) {
-    // Seul un article introduit par un AJOUT (kind='add') peut être recible par une modification :
-    // la cible (target_addendum_item_id) ne pointe jamais vers l'article d'un événement modify/cancel.
-    const itemsHtml = renderItems(a.items, allowModify && a.kind === "add", "addendum_item");
+    // Le rappel d'appel n'a de sens que sur un article introduit par un AJOUT (kind='add') : un
+    // événement modify/cancel n'introduit jamais de nouvel article à pointer.
+    const itemsHtml = renderItems(a.items, allowModify && a.kind === "add");
     return (
       '<div class="order-track-addendum">' +
         '<div class="order-track-addendum__head">' +
@@ -272,7 +273,7 @@
     cancelUntilMs = isNaN(parsedCancel) ? null : parsedCancel;
     const parsedAddendum = order.addendum_eligible_until ? Date.parse(order.addendum_eligible_until) : NaN;
     addendumUntilMs = isNaN(parsedAddendum) ? null : parsedAddendum;
-    if (!canAddFlag) { addPanelOpen = false; modifyTarget = null; }
+    if (!canAddFlag) addPanelOpen = false;
     const parsedReady = order.status === "accepted" && order.ready_at ? Date.parse(order.ready_at) : NaN;
     readyAtMs = isNaN(parsedReady) ? null : parsedReady;
 
@@ -371,7 +372,7 @@
       '<p class="order-track-number">Commande de ' + esc(order.customer_name) + ' — ' + modeLabel + '</p>' +
       scheduledNote +
       statusHtml +
-      '<div class="order-track-items">' + renderItems(order.items, canAddFlag, "item") + '</div>' +
+      '<div class="order-track-items">' + renderItems(order.items, canAddFlag) + '</div>' +
       (order.promo_cents > 0 ? '<div class="order-track-fee"><span>Promotion</span><span>− ' + formatCents(order.promo_cents) + '</span></div>' : "") +
       (order.delivery_fee_cents > 0 ? '<div class="order-track-fee"><span>Frais de livraison</span><span>' + formatCents(order.delivery_fee_cents) + '</span></div>' : "") +
       '<div class="order-track-total"><span>Total</span><strong>' + formatCents(order.total_cents) + '</strong></div>' +
@@ -455,14 +456,6 @@
 
   function toggleAddPanel() {
     addPanelOpen = !addPanelOpen;
-    if (!addPanelOpen) modifyTarget = null;
-    lastRenderKey = null;
-    render(currentOrder);
-  }
-
-  function openModifyFor(source, id, name, variant) {
-    addPanelOpen = true;
-    modifyTarget = { source: source, id: Number(id), name: name, variant: variant };
     lastRenderKey = null;
     render(currentOrder);
   }
@@ -514,24 +507,18 @@
     return { name: line.name, variant: line.variant, qty: 1, unit_price_cents: unit, removed: line.removed || [], extras: extras, half: line.half || null, note: line.note || "" };
   }
 
-  function submitAddendum(kind, items, target) {
+  // Ajout d'un nouvel article à la commande (jamais une modification d'un article déjà envoyé, voir
+  // order_addendum_create.js : kind='modify' n'est plus accepté).
+  function submitAddendum(items) {
     if (addPanelBusy || !currentOrder) return;
     addPanelBusy = true;
     const newLines = items.map(function (it) { return { unit: it.unit_price_cents, qty: it.qty, variant: it.variant }; });
-    let baseLines = effectiveLinesClientSide(currentOrder);
-    if (kind === "modify" && target) {
-      baseLines = baseLines.filter(function (l) { return !(l.source === target.source && l.id === target.id); });
-    }
+    const baseLines = effectiveLinesClientSide(currentOrder);
     const totalEstimate = estimateTotal(currentOrder, baseLines.concat(newLines));
     const key = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ("addendum-" + Date.now() + "-" + (++addendumKeySeq));
 
     function post(total) {
-      const body = { order_id: Number(orderId), idempotency_key: key, kind: kind, total_cents: total };
-      if (kind === "add") body.items = items;
-      else {
-        body.item = items[0];
-        if (target.source === "item") body.target_item_id = target.id; else body.target_addendum_item_id = target.id;
-      }
+      const body = { order_id: Number(orderId), idempotency_key: key, kind: "add", items: items, total_cents: total };
       return fetch("/api/order_addendum_create.php", {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
       }).then(function (res) { return res.json().then(function (data) { return { status: res.status, data: data }; }); });
@@ -549,7 +536,6 @@
       .then(function (r) {
         if (r.data && r.data.order) {
           addPanelOpen = false;
-          modifyTarget = null;
           lastRenderKey = null;
           render(r.data.order);
         } else {
@@ -568,34 +554,9 @@
     const W = window.SubitoPizzaWidget;
     if (!W) { panel.innerHTML = '<p class="account-error">Fonction indisponible pour le moment.</p>'; return; }
 
-    if (modifyTarget) {
-      panel.innerHTML = "";
-      const title = document.createElement("p");
-      title.className = "order-track-add-category";
-      title.textContent = "Modifier : " + modifyTarget.name + " (" + modifyTarget.variant + ")";
-      panel.appendChild(title);
-      const back = document.createElement("button");
-      back.type = "button";
-      back.className = "order-track-modify-link";
-      back.textContent = "Annuler cette modification";
-      back.addEventListener("click", function () { modifyTarget = null; lastRenderKey = null; render(currentOrder); });
-      panel.appendChild(back);
-      W.loadMenuCatalog().then(function (catalog) {
-        if (!modifyTarget) return;
-        const info = catalog.items.find(function (it) { return it.kind === "pizza" && it.name === modifyTarget.name; });
-        const sizeOnly = catalog.sizeChart.filter(function (s) { return s.label === modifyTarget.variant; });
-        const widget = W.build(modifyTarget.name, info ? info.ingredients : [], sizeOnly, [], {
-          allowHalf: false, choice: null,
-          onAdd: function (line) { submitAddendum("modify", [lineToAddendumItem(line)], modifyTarget); }
-        });
-        panel.appendChild(widget);
-      });
-      return;
-    }
-
     panel.innerHTML = '<p class="account-hint">Chargement du menu…</p>';
     W.loadMenuCatalog().then(function (catalog) {
-      if (addPanelBusy && !modifyTarget) { /* une soumission est déjà en cours : le panneau sera reconstruit juste après */ }
+      if (addPanelBusy) { /* une soumission est déjà en cours : le panneau sera reconstruit juste après */ }
       panel.innerHTML = "";
       const byCategory = {};
       catalog.items.forEach(function (it) {
@@ -616,7 +577,7 @@
           btn.type = "button";
           btn.textContent = "Ajouter";
           btn.addEventListener("click", function () {
-            submitAddendum("add", [{ name: it.name, variant: "", qty: 1, unit_price_cents: Math.round(it.price * 100), removed: [], extras: [], half: null, note: "" }], null);
+            submitAddendum([{ name: it.name, variant: "", qty: 1, unit_price_cents: Math.round(it.price * 100), removed: [], extras: [], half: null, note: "" }]);
           });
           row.appendChild(btn);
           panel.appendChild(row);
@@ -635,7 +596,7 @@
           wrap.appendChild(label);
           const widget = W.build(it.name, it.ingredients, catalog.sizeChart, catalog.pizzaCatalog, {
             allowHalf: it.allowHalf, choice: it.choice,
-            onAdd: function (line) { submitAddendum("add", [lineToAddendumItem(line)], null); }
+            onAdd: function (line) { submitAddendum([lineToAddendumItem(line)]); }
           });
           wrap.appendChild(widget);
           panel.appendChild(wrap);
@@ -731,7 +692,13 @@
     // Sur mobile, l'onglet est souvent mis en veille : on revérifie dès
     // qu'il redevient visible plutôt que d'attendre le prochain sondage.
     document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState !== "visible" || inFlight) return;
+      if (document.visibilityState !== "visible") return;
+      // Le compte à rebours (annulation 4 min / ajout 10 min) reste basé sur l'horodatage absolu de la
+      // commande (jamais mis en pause : la cuisine continue même onglet masqué) — mais l'intervalle qui
+      // l'affiche est, lui, ralenti par le navigateur en arrière-plan. On force un recalcul immédiat dès
+      // que l'onglet redevient visible pour ne pas laisser un chiffre figé à l'écran.
+      if (currentOrder) startActionCountdowns();
+      if (inFlight) return;
       if (lastStatus === "ready" || lastStatus === "refused") return;
       lastChangeAt = Date.now();
       polling = true;
@@ -747,7 +714,6 @@
         const action = btn.getAttribute("data-action");
         if (action === "cancel-order") cancelOrder();
         else if (action === "toggle-add-panel") toggleAddPanel();
-        else if (action === "modify-item") openModifyFor(btn.getAttribute("data-source"), btn.getAttribute("data-id"), btn.getAttribute("data-name"), btn.getAttribute("data-variant"));
       });
     }
   }

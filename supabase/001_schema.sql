@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS "orders" (
   "scheduled_for" CHAR(20) NULL,
   "cancelled_at" CHAR(20) NULL,
   "cancel_reason" VARCHAR(200) NULL,
+  "deleted_at" CHAR(20) NULL,
   CONSTRAINT "uq_orders_idem" UNIQUE ("customer_id", "idempotency_key"),
   FOREIGN KEY ("customer_id") REFERENCES "customers" ("id") ON DELETE RESTRICT ON UPDATE RESTRICT
 );
@@ -173,6 +174,8 @@ ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "scheduled_for" CHAR(20) NULL;
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "cancelled_at" CHAR(20) NULL;
 
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "cancel_reason" VARCHAR(200) NULL;
+
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deleted_at" CHAR(20) NULL;
 
 CREATE INDEX IF NOT EXISTS "ix_orders_day" ON "orders" ("service_day");
 

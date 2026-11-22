@@ -334,6 +334,13 @@
       .filter(o => o.status === 'new' && o.scheduled_for && !surfaced(o))
       .sort((a, b) => String(a.scheduled_for).localeCompare(String(b.scheduled_for)));
   }
+  // Refusées/annulées du jour : affichées à part, en haut, pour ne jamais les mélanger avec la file active
+  // ni avec la recette (qui ne compte que les commandes réellement honorées).
+  function refusedOrCancelledOrders() {
+    return state.orders
+      .filter(o => (o.status === 'refused' || o.status === 'cancelled') && o.service_day === state.serviceDay)
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  }
   // Recette du jour : commandes acceptées, qu'elles soient encore en préparation ou déjà prêtes.
   function recapOrders() {
     return state.orders
@@ -927,6 +934,85 @@
     }
   }
 
+  // ---------- Corbeille (soft-delete) ----------
+
+  // Met une commande terminée (refusée, annulée ou prête) à la corbeille : jamais un vrai DELETE, juste
+  // masquée de la file. Le serveur refuse (409 not_deletable) une commande encore "new"/"accepted".
+  async function deleteOrder(id) {
+    const key = 'del-' + id;
+    if (state.sending.has(key)) return;
+    const o = findOrder(id);
+    if (!o) return;
+    const name = customerLabel(o);
+    state.sending.add(key);
+    state.mutationSeq += 1;
+    try {
+      const r = await api('owner_order_delete.php', { method: 'POST', body: { id: o.id } });
+      if (r.unauth) return;
+      if (r.ok) {
+        state.orders = state.orders.filter(x => String(x.id) !== String(id));
+        ensureOpenSelection();
+        toast(`Commande de ${name} mise à la corbeille.`);
+      } else if (r.data.error === 'not_deletable') {
+        alertMsg(`La commande de ${name} doit encore être traitée : impossible de la mettre à la corbeille pour le moment.`);
+      } else if (r.data.error === 'not_found') {
+        alertMsg(`La commande de ${name} est introuvable.`);
+      } else {
+        alertMsg(r.data.message || "La suppression n'a pas pu être enregistrée. Réessayez.");
+      }
+    } catch (e) {
+      if (e instanceof StaleError) return;
+      alertMsg('Connexion impossible : la suppression n\'a pas été envoyée. Réessayez.');
+    } finally {
+      state.sending.delete(key);
+      state.mutationSeq += 1;
+      scheduleRender();
+    }
+  }
+
+  function trashDialogHtml(orders, loading, error) {
+    let body;
+    if (loading) body = '<p class="account-hint">Chargement…</p>';
+    else if (error) body = '<p class="account-hint">Impossible de charger la corbeille. Réessayez.</p>';
+    else if (!orders.length) body = '<p class="account-hint">Corbeille vide.</p>';
+    else {
+      body = '<ul class="trash-list">' + orders.map(o => `
+        <li class="trash-row">
+          <span class="trash-info"><strong>${esc(customerLabel(o))}</strong> ${statusPill(o.status)} <span class="qchip-sub">${esc(eur(o.total_cents))}</span></span>
+          <button type="button" class="btn btn-light btn-sm" data-action="restore-order" data-id="${esc(o.id)}">Restaurer</button>
+        </li>`).join('') + '</ul>';
+    }
+    return `<h3>Corbeille</h3>${body}<div class="dlg-actions"><button type="button" class="btn btn-ghost" data-action="dlg-close">Fermer</button></div>`;
+  }
+
+  async function refreshTrashDialog() {
+    if (!el.dlg.open) return;
+    const r = await api('owner_trash.php');
+    if (!el.dlg.open) return;
+    if (!r.ok) { setHTML(el.dlgBody, trashDialogHtml([], false, true)); return; }
+    setHTML(el.dlgBody, trashDialogHtml(r.data.orders || [], false, false));
+  }
+
+  function openTrashDialog() {
+    openDialog(trashDialogHtml([], true, false));
+    refreshTrashDialog();
+  }
+
+  async function restoreOrder(id) {
+    const numId = Number(id);
+    if (!Number.isInteger(numId)) return;
+    const r = await api('owner_order_restore.php', { method: 'POST', body: { id: numId } });
+    if (r.unauth) return;
+    if (r.ok) {
+      toast('Commande restaurée.');
+      state.mutationSeq += 1;
+      if (state.authed) poll();
+      await refreshTrashDialog();
+    } else {
+      alertMsg(r.data.message || "La restauration n'a pas pu être enregistrée. Réessayez.");
+    }
+  }
+
   // ---------- Réglages ----------
   async function loadSettings() {
     try {
@@ -1024,7 +1110,8 @@
       new: ['pill-new', 'Nouvelle'],
       accepted: ['pill-accepted', 'Acceptée'],
       ready: ['pill-ready', 'Prête'],
-      refused: ['pill-refused', 'Refusée']
+      refused: ['pill-refused', 'Refusée'],
+      cancelled: ['pill-cancelled', 'Annulée']
     };
     const [cls, label] = map[status] || ['pill-refused', String(status)];
     return `<span class="pill ${cls}">${esc(label)}</span>`;
@@ -1072,6 +1159,42 @@
     }).join(''));
   }
 
+  // « Refusées / annulées » : section dédiée en haut, avec un compteur par motif, pour que le commerçant
+  // les retrouve sans avoir à les chercher dans la recette (qui ne garde que les commandes honorées).
+  function renderRefused() {
+    const strip = document.getElementById('refused-strip');
+    const box = document.getElementById('refused-queue');
+    const countEl = document.getElementById('refused-count');
+    if (!strip || !box) return;
+    const list = refusedOrCancelledOrders();
+    strip.hidden = list.length === 0;
+    if (countEl) {
+      const nbRefused = list.filter(o => o.status === 'refused').length;
+      const nbCancelled = list.filter(o => o.status === 'cancelled').length;
+      const parts = [];
+      if (nbRefused) parts.push(nbRefused + ' refusée' + (nbRefused > 1 ? 's' : ''));
+      if (nbCancelled) parts.push(nbCancelled + ' annulée' + (nbCancelled > 1 ? 's' : ''));
+      countEl.textContent = parts.length ? ' (' + parts.join(' · ') + ')' : '';
+    }
+    setHTML(box, list.map(o => {
+      const d = toDate(o.created_at);
+      // « print-order » (pas « select ») : ouvre le ticket en lecture dans un dialogue, car « select » est
+      // réservé aux commandes encore à traiter (statut "new") et resterait sans effet sur ces états terminaux.
+      // Bouton corbeille séparé (comme Voir/Imprimer sur les commandes programmées) : une commande "ready"
+      // honorée peut aussi être archivée depuis ici une fois qu'elle n'a plus besoin d'être gardée sous les yeux.
+      return `
+        <div class="qchip ${o.status === 'cancelled' ? 'is-cancelled' : 'is-refused-chip'} qchip-sched">
+          <button type="button" class="qchip-view" data-action="print-order" data-id="${esc(o.id)}"
+            aria-label="Voir la commande ${o.status === 'cancelled' ? 'annulée' : 'refusée'} de ${esc(customerLabel(o))}, ${esc(eur(o.total_cents))}">
+            <span class="qchip-title">${esc(customerLabel(o))}</span>
+            <span class="qchip-sub">${d ? esc(hm(d)) + ' · ' : ''}${esc(eur(o.total_cents))} · ${o.status === 'cancelled' ? 'Annulée' : 'Refusée'}</span>
+          </button>
+          <button type="button" class="qchip-print-btn" data-action="delete-order" data-id="${esc(o.id)}"
+            aria-label="Mettre à la corbeille la commande de ${esc(customerLabel(o))}" title="Mettre à la corbeille">🗑</button>
+        </div>`;
+    }).join(''));
+  }
+
   // « Programmées » : commandes planifiées par le client, pas encore entrées dans la file active.
   function renderScheduled() {
     const strip = document.getElementById('scheduled-strip');
@@ -1079,12 +1202,19 @@
     if (!strip || !box) return;
     const list = scheduledOrders();
     strip.hidden = list.length === 0;
+    // Deux actions distinctes (et non plus une seule puce cliquable) : « Voir » ouvre le ticket en
+    // lecture (dialogue existant, avec son propre bouton « Imprimer » à l'intérieur) sans rien envoyer
+    // à l'imprimante ; « Imprimer » réimprime directement, sans détour par ce dialogue.
     setHTML(box, list.map(o => `
-        <button type="button" class="qchip is-scheduled" data-action="select" data-id="${esc(o.id)}"
-          aria-label="Commande de ${esc(customerLabel(o))}, programmée pour ${esc(scheduledLabel(o))}, ${esc(eur(o.total_cents))}">
-          <span class="qchip-title">${esc(customerLabel(o))}</span>
-          <span class="qchip-sub">${esc(scheduledLabel(o))} · ${esc(eur(o.total_cents))}</span>
-        </button>`).join(''));
+        <div class="qchip is-scheduled qchip-sched">
+          <button type="button" class="qchip-view" data-action="select" data-id="${esc(o.id)}"
+            aria-label="Voir la commande de ${esc(customerLabel(o))}, programmée pour ${esc(scheduledLabel(o))}, ${esc(eur(o.total_cents))}">
+            <span class="qchip-title">${esc(customerLabel(o))}</span>
+            <span class="qchip-sub">${esc(scheduledLabel(o))} · ${esc(eur(o.total_cents))}</span>
+          </button>
+          <button type="button" class="qchip-print-btn" data-action="print-ticket" data-id="${esc(o.id)}"
+            aria-label="Imprimer le ticket de ${esc(customerLabel(o))}" title="Imprimer le ticket">🖶</button>
+        </div>`).join(''));
   }
 
   function itemTitle(it) {
@@ -1702,6 +1832,7 @@
       ob.classList.toggle('is-forced', force);
     }
     renderNotifSlot();
+    renderRefused();
     renderQueue();
     renderScheduled();
     renderPrep();
@@ -2918,6 +3049,15 @@
         if (found) printAddendumOnPrinter(found.addendum, found.order);
         return;
       }
+      case 'trash-open':
+        openTrashDialog();
+        return;
+      case 'delete-order':
+        deleteOrder(id);
+        return;
+      case 'restore-order':
+        restoreOrder(id);
+        return;
       case 'dlg-close':
         closeDialog();
         return;

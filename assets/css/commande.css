@@ -340,13 +340,13 @@
   margin: 10px 0;
 }
 
-.order-track-modify-link {
-  margin-left: 8px;
-  font-size: 0.75rem;
-  background: none;
-  border: none;
+.order-track-call-hint {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted, #6b6b6b);
+}
+.order-track-call-hint a {
   color: var(--green-dark);
+  font-weight: 600;
   text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
 }

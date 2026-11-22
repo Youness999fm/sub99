@@ -61,6 +61,7 @@
   <div class="cm-top-right">
     <span class="btn btn-top store-open-btn" id="store-open-btn" role="status" aria-label="Statut de la prise de commandes">Ouvert</span>
     <button type="button" class="btn btn-top btn-print-issue" id="print-issue-btn" data-action="print-issues-open" hidden>⚠ Impression (<span id="print-issue-count">0</span>)</button>
+    <button type="button" class="btn btn-top" data-action="trash-open">🗑 Corbeille</button>
     <p class="cm-clock" id="clock" aria-live="off">--:--:--</p>
     <button type="button" class="btn btn-top" data-action="sound-toggle" id="sound-btn">Couper le son</button>
     <button type="button" class="btn btn-top" data-action="logout">Se déconnecter</button>
@@ -79,6 +80,14 @@
       <aside class="decide-col">
         <div class="decision" id="decision"></div>
       </aside>
+    </div>
+
+    <div class="queue-strip refused-strip" id="refused-strip" hidden>
+      <div class="strip-head">
+        <h2>Refusées / annulées<span id="refused-count"></span></h2>
+        <p class="strip-hint">Commandes du jour non honorées ; gardées ici pour mémoire, pas dans la recette.</p>
+      </div>
+      <div class="queue" id="refused-queue" aria-label="Commandes refusées ou annulées aujourd'hui"></div>
     </div>
 
     <div class="queue-strip">

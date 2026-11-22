@@ -23,6 +23,8 @@ import owner_logout from './routes/owner_logout.js';
 import owner_me from './routes/owner_me.js';
 import owner_open_mode from './routes/owner_open_mode.js';
 import owner_order_decide from './routes/owner_order_decide.js';
+import owner_order_delete from './routes/owner_order_delete.js';
+import owner_order_restore from './routes/owner_order_restore.js';
 import owner_orders from './routes/owner_orders.js';
 import owner_print_ack from './routes/owner_print_ack.js';
 import owner_print_claim from './routes/owner_print_claim.js';
@@ -30,6 +32,7 @@ import owner_recette_clear from './routes/owner_recette_clear.js';
 import owner_sessions from './routes/owner_sessions.js';
 import owner_sessions_revoke from './routes/owner_sessions_revoke.js';
 import owner_settings from './routes/owner_settings.js';
+import owner_trash from './routes/owner_trash.js';
 import schedule_slots from './routes/schedule_slots.js';
 
 export const ROUTES = {
@@ -54,6 +57,8 @@ export const ROUTES = {
   owner_me,
   owner_open_mode,
   owner_order_decide,
+  owner_order_delete,
+  owner_order_restore,
   owner_orders,
   owner_print_ack,
   owner_print_claim,
@@ -61,5 +66,6 @@ export const ROUTES = {
   owner_sessions,
   owner_sessions_revoke,
   owner_settings,
+  owner_trash,
   schedule_slots
 };
