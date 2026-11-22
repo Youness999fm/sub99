@@ -242,6 +242,20 @@ cible, ce qui n'a jamais été donné). Marche à suivre, identique à ce qui av
   côté serveur — pas creusé plus loin cette nuit, à vérifier séparément si vous voulez en avoir le cœur net.
 - **Rapport complet** (toutes les mesures route par route) : [reports/2026-11-22-test-charge-4271-commandes.log](2026-11-22-test-charge-4271-commandes.log).
 
+### 12. Inventaire complet du catalogue — section 1 du brief, fait
+
+- **Vérifié systématiquement, pour les 64 produits** (pizzas, pâtes, subitowichs, tex-mex, salades, desserts,
+  boissons) : cohérence des noms d'ingrédients entre menu.html et les groupes de suppléments du catalogue ;
+  cohérence entre les listes d'ingrédients de menu.html et celles de `commercant.js` (disponibilité) — c'est
+  exactement le type de décalage trouvé sur Carolina plus tôt cette nuit, donc vérifié sur TOUS les produits
+  cette fois ; tous les `data-ticket-name` ; tous les boutons/liens des pages client ; tous les prix affichés
+  contre le catalogue.
+- **Résultat : Carolina (déjà corrigée plus tôt) était la seule vraie incohérence fonctionnelle.** Aucun
+  autre produit n'a de décalage de ce type. Deux broutilles cosmétiques trouvées et corrigées (4 attributs
+  `data-ticket-name` redondants sans aucun effet ; un bouton sans `type="button"` explicite) — sans
+  conséquence sur le comportement, corrigées par hygiène.
+- **Aucun lien mort trouvé** sur l'ensemble des pages client.
+
 ## Ce qui N'A PAS pu être fait cette nuit (honnêtement, sans survendre)
 
 Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs semaines de travail d'une
@@ -249,7 +263,7 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 
 | Section | Statut | Raison |
 |---|---|---|
-| 1. Inventaire complet (catalogue, boutons, règles) | Non fait | Nécessite un passage méthodique de plusieurs heures sur chaque page/produit ; non commencé faute de temps cette nuit. |
+| 1. Inventaire complet (catalogue, boutons, règles) | **Fait — 1 vrai bug (Carolina, déjà corrigé), 2 broutilles cosmétiques corrigées, 0 lien mort** | Les 64 produits vérifiés systématiquement (menu.html vs catalogue vs commercant.js vs prix). |
 | 3. Bug « Ajouter un article » | **Non reproduit** | Testé en direct sur le site public (ajout simple, ajout personnalisé avec échange gratuit) : le panier existant fonctionne correctement, promo appliquée dès l'ajout. Sans repro précise (produit/appareil/message exact), impossible d'aller plus loin — voir détail plus haut dans ce journal. |
 | 4. Bases de pizza (tomate/crème/BBQ/curry) | **Fait, testé (208/208), vérifié visuellement** | 28 des 29 pizzas du menu ; Indienne exclue volontairement (base composée, recette préservée) ; composer.html non étendu — voir détail plus haut. |
 | 5-7. Suppléments, moitié-moitié, tous produits/boutons | Non testé exhaustivement | La RÈGLE de gratuité (viande/légume/œuf) a été testée en profondeur (40 scénarios combinatoires + cas explicites) dans la mission précédente, mais pas CHAQUE pizza × CHAQUE base × CHAQUE supplément individuellement comme demandé ici. |
