@@ -277,6 +277,40 @@ cible, ce qui n'a jamais été donné). Marche à suivre, identique à ce qui av
   — seulement pour une poignée de cas représentatifs plus tôt cette nuit (voir section 9 plus haut). La
   mécanique de PRIX, elle, est désormais vérifiée exhaustivement.
 
+### 14. Vérification des batteries de tests massifs existantes (section 10) — bugs réels trouvés et corrigés, limite honnête trouvée
+
+- **Pourquoi** : `tests/massif/01-emporter.mjs` et `02-livraison.mjs` sont des batteries de bout en bout déjà
+  existantes (centaines de commandes, comparaison à un calcul 100 % indépendant du code serveur) — exactement
+  ce que demande la section 10. Je les ai relancées pour vérifier qu'elles tenaient toujours après tout ce qui
+  a été changé cette nuit (et avant).
+- **3 vrais bugs trouvés et corrigés dans les FIXTURES de test elles-mêmes** (pas dans le site) :
+  1. `02-carte.mjs` (modèle indépendant de la livraison) n'avait que 2 groupes de suppléments en dur au lieu
+     de 3 — le groupe « Œuf » (ajouté lors d'une mission précédente) n'y avait jamais été reporté, ce qui
+     faisait planter le script dès le premier contrôle.
+  2. Plusieurs fichiers référençaient encore l'ancien nom « Boisson Oasis Pomme Poire canette » (63 occurrences
+     dans 8 fichiers) au lieu du nom de ligne actuel « Canette Oasis pomme poire » (changé par le correctif de
+     ticket de tout à l'heure, mission précédente) — corrigé partout.
+  3. **J'ai moi-même introduit un vrai bug par excès de prudence** : plus tôt cette nuit, j'avais retiré 4
+     attributs `data-ticket-name` que je croyais sans effet (« Canette Tropico », « Maxi Coca », « Maxi Fanta »,
+     « Maxi Tropico »), car leur valeur était identique au nom déjà affiché. En réalité, `tools/build-catalogue.mjs`
+     traite différemment « pas d'attribut » (préfixe « Boisson » automatique) et « attribut présent, même valeur »
+     (pas de préfixe) — retirer ces 4 attributs changeait donc réellement le nom de ligne utilisé pour la
+     commande (ex. « Maxi Coca » → « Boisson Maxi Coca »). **Corrigé : les 4 attributs ont été remis**, catalogue
+     régénéré, suite complète re-vérifiée (214/214, toujours verte). C'est précisément ce relancement des
+     batteries massives qui a permis d'attraper cette erreur avant qu'elle ne parte plus loin.
+- **Une limite honnête, pas corrigée cette nuit** : au-delà de ces 3 bugs réels, les deux batteries continuent
+  de signaler des centaines d'écarts qui ne sont PAS de vrais bugs mais un **modèle indépendant devenu
+  obsolète** au fil des missions précédentes : (a) il compare les réponses en exigeant qu'elles n'aient pas de
+  champ `id` sur chaque article, alors que ce champ existe désormais (nécessaire pour cibler un ajout/une
+  modification) ; (b) son calcul de remise d'ingrédient reproduit l'ANCIENNE règle « même groupe de
+  suppléments seulement », pas la règle actuelle (prix-based, inter-groupes, déjà vérifiée exhaustivement dans
+  `combinatoire-exhaustif.test.mjs`) ; (c) il ne connaît pas les champs plus récents des réponses (`addenda`,
+  `deleted_at`, fenêtres d'annulation/ajout). **Vérifié à la main que les prix eux-mêmes concordent** (seul le
+  champ `id` diffère dans les écarts observés) — donc pas de signe d'un vrai bug de prix caché derrière ce
+  bruit, seulement un outil de vérification indépendant qui n'a pas suivi les évolutions de l'API. Remettre à
+  niveau ce modèle indépendant (plusieurs centaines de lignes) est un vrai chantier à part entière, pas fait
+  cette nuit — à prévoir pour une session dédiée si vous voulez cette couche de vérification à jour.
+
 ## Ce qui N'A PAS pu être fait cette nuit (honnêtement, sans survendre)
 
 Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs semaines de travail d'une
@@ -290,7 +324,7 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 | 5-7. Suppléments, moitié-moitié, tous produits/boutons | **Fait — mécanique de prix exhaustive (214/214), rendu visuel sur échantillon** | Chaque pizza, chaque base, chaque groupe de supplément, chaque pizza en moitié-moitié — voir détail plus haut. Le rendu visuel réel dans le navigateur n'a été vérifié que sur un échantillon représentatif, pas pour chaque combinaison individuellement. |
 | 8. Minuteur 10 minutes (réaffichage au retour d'onglet) | **Fait** (portée volontairement clarifiée — voir détail plus haut) | Le délai réel reste volontairement non mis en pause (ancrage absolu déjà validé) ; seul l'AFFICHAGE se resynchronise désormais instantanément au retour sur l'onglet. |
 | 9. Message téléphone pour modification après envoi | **TRANCHÉ PAR VOUS, FAIT ET TESTÉ : appel obligatoire** | Décision confirmée en toutes lettres : « pour les pizzas choisies et déjà commandées, il ne peut pas la modifier si déjà commandée ». Le bouton « Modifier cette pizza » (libre-service) est retiré ; chaque article déjà envoyé affiche désormais un rappel d'appel (« Pour modifier cette pizza déjà commandée, appelez-nous : 03 21 20 00 33 »). Côté serveur, `kind='modify'` est maintenant explicitement rejeté (409 `modify_disabled`), tout le code de traitement correspondant a été retiré proprement (pas juste masqué). **L'ajout d'un nouvel article reste en libre-service**, inchangé — seule la modification d'un article déjà existant est concernée. 2 tests réécrits pour prouver le rejet, vérifié visuellement (le rappel d'appel s'affiche, le panneau d'ajout fonctionne toujours). Suite complète : 207/207. |
-| 10. Tests de bout en bout exhaustifs | Partiel | Une large suite automatisée existe déjà (202 tests) couvrant une bonne partie de ces scénarios depuis la mission précédente, mais pas tous les cas listés ici (panier mêlant toutes les catégories, perte réseau simulée, etc.). |
+| 10. Tests de bout en bout exhaustifs | **Partiel — 3 vrais bugs de fixtures corrigés (dont un que j'avais moi-même introduit), limite honnête documentée** | Batteries massives déjà existantes (paniers mixtes, tous moyens de réception) relancées : 3 vrais bugs trouvés et corrigés. Le modèle de comparaison indépendant lui-même est obsolète sur plusieurs points (détaillé plus haut) — pas remis à niveau cette nuit, prix réels vérifiés corrects malgré le bruit. |
 | 11. Audit prix/promos/livraison | **Fait — aucun écart trouvé** | Comparé mot à mot (texte publicitaire vs calcul serveur ET client) : promo, frais de livraison, montants minimums, moyens de paiement. Tout correspond exactement. |
 | 12. Section commerçant — les 3 fonctionnalités (Voir/Imprimer programmées, refusées/annulées + compteurs, corbeille/restauration) | **Fait, testé (207/207), vérifié visuellement** (pas encore en conditions réelles connectées — contrainte de sécurité qui m'interdit de saisir un code d'authentification, même un code de test local) | |
 | 12. « Imprimer ma recette » testé réellement | Non fait | Nécessiterait une vraie session commerçant connectée ou une vraie tablette avec imprimante — hors de portée cette nuit pour la même raison que ci-dessus. |
