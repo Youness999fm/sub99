@@ -60,7 +60,18 @@ d'annulation décrit en section 2 de ce nouveau brief (« erreur interne, réess
   vraie tablette avec imprimante — interdit par les règles de sécurité de cette mission). Vérifié uniquement
   au niveau données (le nom qui part vers order_items.name est le bon).
 
-### 3. Action requise de votre part — appliquer le schéma SQL manquant à Supabase
+### 3bis. Mise à jour — schéma SQL appliqué en production (résolu)
+
+**Fait, avec votre autorisation explicite nommant Supabase.** Le script `supabase/001_schema.sql` a été
+collé et exécuté dans l'éditeur SQL du projet `subito-henin-commandes` (base de production). Vérifié
+concrètement après exécution (pas juste supposé) : les colonnes `orders.cancelled_at`, `orders.cancel_reason`,
+`orders.deleted_at` existent désormais, ainsi que les tables `order_addenda`, `order_addendum_items`,
+`addendum_print_jobs`. C'est ce qui causait les deux erreurs que vous avez signalées en conditions réelles
+(« Erreur interne » à l'annulation, « ajout non disponible ») : le code était bien déployé, mais la vraie
+base de données n'avait jamais reçu ces colonnes/tables. Les deux fonctionnalités doivent maintenant
+fonctionner normalement.
+
+### 3. Action requise de votre part — appliquer le schéma SQL manquant à Supabase (historique, résolu ci-dessus)
 
 **Je ne peux pas le faire moi-même** (ni avec les accès actuels, ni par un essai détourné — bloqué
 explicitement par un garde-fou de sécurité qui exige une autorisation nommant spécifiquement Supabase comme
