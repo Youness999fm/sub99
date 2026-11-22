@@ -171,42 +171,50 @@ export function catalogueCanonicalItems(items) {
 
 /**
  * Prix unitaire attendu d'une ligne résolue, et prix attendu de chaque supplément.
- * Règle de substitution reprise de applySwapDiscount() (cart.js) : chaque ingrédient retiré
- * d'un groupe rend gratuit le premier supplément suivant du même groupe ; un retrait ne
- * couvre qu'un supplément (la ligne entière, quelle que soit sa quantité, comme cart.js).
- * Seuls comptent les retraits d'ingrédients réellement présents sur la pizza (ou sa deuxième
- * moitié), une fois chacun : le navigateur ne peut pas en envoyer d'autres.
+ * Règle de substitution reprise de applySwapDiscount() (cart.js) : retirer un ingrédient donne
+ * un crédit égal à SON PRIX (à la taille de la ligne) ; un supplément ajouté est gratuit si son
+ * prix est <= un crédit encore disponible (le plus petit crédit suffisant est consommé), sinon
+ * il reste payant — jamais de notion de catégorie, seulement le prix. Un retrait ne couvre
+ * qu'un seul supplément (la ligne entière, quelle que soit sa quantité, comme cart.js). Seuls
+ * comptent les retraits d'ingrédients réellement présents sur la pizza (ou sa deuxième moitié),
+ * une fois chacun : le navigateur ne peut pas en envoyer d'autres.
  */
 export function catalogueExpectedLine(it, r) {
   const p = r.product;
   if (p.kind !== 'pizza') return { unit_cents: Number(p.price_cents), extras: [] };
   const variant = it.variant;
   const groups = catalogue().supplement_groups;
-  const groupOf = new Map();
-  groups.forEach((g, gi) => {
-    for (const n of g.names) groupOf.set(catalogueSwapKey(String(n)), gi);
-  });
-  // Crédits : retraits d'ingrédients fixes de la fiche (ou de la deuxième moitié), une fois
-  // chacun — exactement les puces « Sans » que propose le navigateur.
+  // normName() (accents et œ/oe pliés) plutôt que catalogueSwapKey() pour cette table : un ingrédient
+  // fixe de fiche s'écrit parfois différemment du nom du supplément correspondant (ex. « oeuf » sur la
+  // fiche, « Œuf » dans supplements.html) — seule la comparaison des RETRAITS en a besoin, pas celle des
+  // AJOUTS (catalogueExtraGroup, inchangé, le navigateur envoie toujours l'orthographe exacte du catalogue).
+  const priceOf = new Map();
+  for (const g of groups) {
+    const prix = Number(g.prices_by_size[variant]);
+    for (const n of g.names) priceOf.set(normName(String(n)), prix);
+  }
+  // Crédits : prix (à cette taille) des ingrédients fixes retirés de la fiche (ou de la
+  // deuxième moitié), une fois chacun — exactement les puces « Sans » que propose le navigateur.
   const present = new Set();
   for (const ing of p.ingredients) present.add(normName(String(ing)));
   if (r.half !== null) for (const ing of r.half.ingredients) present.add(normName(String(ing)));
-  const credits = groups.map(() => 0);
+  const credits = [];
   const counted = new Set();
   for (const ing of it.removed) {
     const k = normName(ing);
     if (!present.has(k) || counted.has(k)) continue;
     counted.add(k);
-    const gi = groupOf.get(catalogueSwapKey(ing));
-    if (gi !== undefined) credits[gi]++;
+    const prix = priceOf.get(k);
+    if (prix !== undefined) credits.push(prix);
   }
+  credits.sort((a, b) => a - b); // best-fit : le plus petit crédit suffisant d'abord
   let unit = Number(p.prices_by_size[variant]);
   const extras = [];
   for (const ex of it.extras) {
     let price = Number(groups[catalogueExtraGroup(ex.name)].prices_by_size[variant]);
-    const gi = groupOf.get(catalogueSwapKey(ex.name));
-    if (gi !== undefined && credits[gi] > 0) {
-      credits[gi]--;
+    const ci = credits.findIndex((c) => c >= price);
+    if (ci !== -1) {
+      credits.splice(ci, 1);
       price = 0;
     }
     extras.push(price);

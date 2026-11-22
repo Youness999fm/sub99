@@ -15,7 +15,7 @@ while (port === 18091) port += 1;
 
 process.env.SUBITO_TEST_PORT = String(port);
 const { ROOT, Client, OWNER_CODE, makeEnv, openTestDb, runTool, startServer, stopServer } = await import('./lib/harness.mjs');
-const { DELIVERY_ZONES } = await import('../../serveur/util.js');
+const { DELIVERY_ZONES, normName } = await import('../../serveur/util.js');
 const { computeOrderTotals } = await import('../../serveur/orders.js');
 
 const CATALOGUE_FILE = path.join(ROOT, 'api', 'data', 'catalogue.json');
@@ -549,12 +549,17 @@ const extraCents = (name, variant) => {
   assert.ok(g, `supplément ${name} absent du catalogue`);
   return g.prices_by_size[variant];
 };
+// Même forme que loadSupplementGroups() (cart.js) : pricesBySize en EUROS (camelCase), pas les centimes du serveur.
+const browserGroups = () => catalogue.supplement_groups.map((g) => ({
+  title: g.title, names: g.names,
+  pricesBySize: Object.fromEntries(Object.entries(g.prices_by_size).map(([k, v]) => [k, v / 100])),
+}));
 // Panier tel que cart.js le construit : prix en euros, remise d'échange par pizza (applySwapDiscount).
 function browserCart(specs, b) {
   return specs.map((s) => ({
     name: s.name, variant: s.variant, qty: s.qty ?? 1, removed: s.removed ?? [], half: null, note: '',
     basePrice: sizeCents(s.variant) / 100,
-    extras: b.applySwapDiscount(s.removed ?? [], (s.extras ?? []).map((n) => ({ name: n, price: extraCents(n, s.variant) / 100, qty: 1 })), catalogue.supplement_groups),
+    extras: b.applySwapDiscount(s.removed ?? [], (s.extras ?? []).map((n) => ({ name: n, price: extraCents(n, s.variant) / 100, qty: 1 })), browserGroups(), s.variant),
   }));
 }
 // Corps envoyé au serveur par cart.js : prix unitaire de liste en centimes, suppléments à leur prix (0 s'il est offert).
@@ -618,4 +623,139 @@ test('échange par pizza : parité navigateur et serveur, quantités 1 et 3', as
     const r = await order(payloadOf(cart, b), { total_cents: total });
     assert.equal(r.status, 201, `${JSON.stringify(specs)} : ${r.text}`);
   }
+});
+
+// ------------------------------------------------- règle de gratuité par PRIX (décision du 21/11/2026)
+// Retirer un ingrédient donne un crédit égal à SON PRIX (à la taille choisie) ; un supplément ajouté est
+// gratuit si son prix est <= un crédit encore disponible (le plus petit crédit suffisant est consommé),
+// sinon il reste payant. Remplace la règle « même groupe » : plus de notion de catégorie, seulement le
+// prix. Couvre aussi l'œuf (nouveau 3e groupe, seul membre « Œuf ») des deux côtés (retrait ET ajout).
+test('règle de gratuité par prix : viande/légume/œuf, cas de base à toutes les tailles', async () => {
+  const b = cartBrowser();
+  for (const variant of ['Solo', 'Duo', 'Quatro', 'XXL']) {
+    const legume = extraCents('champignons', variant);
+    const viande = extraCents('jambon', variant);
+    const oeuf = extraCents('Œuf', variant);
+    assert.ok(oeuf <= legume && legume < viande, `œuf <= légume < viande attendu à ${variant}`);
+
+    // Légume retiré + œuf ajouté : toujours gratuit (œuf toujours au plus cher aussi cher que le légume).
+    const c1 = browserCart([{ name: 'Régina', variant, removed: ['champignons'], extras: ['Œuf'] }], b);
+    assert.equal(b.orderTotalsCents(c1).total_cents, sizeCents(variant), `légume→œuf gratuit à ${variant}`);
+    // Viande retirée + œuf ajouté : toujours gratuit (œuf toujours aussi cher ou moins cher que la viande).
+    const c2 = browserCart([{ name: 'Régina', variant, removed: ['jambon'], extras: ['Œuf'] }], b);
+    assert.equal(b.orderTotalsCents(c2).total_cents, sizeCents(variant), `viande→œuf gratuit à ${variant}`);
+    // Légume retiré + viande ajoutée : jamais gratuit (la viande coûte toujours plus que le légume retiré).
+    const c3 = browserCart([{ name: 'Régina', variant, removed: ['champignons'], extras: ['poulet'] }], b);
+    assert.equal(b.orderTotalsCents(c3).total_cents, sizeCents(variant) + viande, `légume→viande payant à ${variant}`);
+    for (const c of [c1, c2, c3]) {
+      const r = await order(payloadOf(c, b), { total_cents: b.orderTotalsCents(c).total_cents });
+      assert.equal(r.status, 201, `${variant} : ${r.text}`);
+    }
+  }
+});
+
+test('règle de gratuité par prix : 2 viandes retirées + 3 viandes ajoutées → 2 gratuites, la 3ᵉ payante', async () => {
+  const b = cartBrowser();
+  const cart = browserCart([{ name: '3 Jambons', variant: 'Quatro', removed: ['jambon', 'mortadelle'], extras: ['poulet', 'kebab', 'merguez'] }], b);
+  const total = b.orderTotalsCents(cart).total_cents;
+  assert.equal(total, sizeCents('Quatro') + extraCents('poulet', 'Quatro'), 'seule la 3e viande ajoutée est facturée');
+  const r = await order(payloadOf(cart, b), { total_cents: total });
+  assert.equal(r.status, 201, r.text);
+});
+
+test('règle de gratuité par prix : retirer l\'œuf fixe d\'une pizza (Kefta) donne désormais un crédit (trou corrigé)', async () => {
+  const b = cartBrowser();
+  // Avant l'ajout du groupe Œuf, retirer "oeuf" (orthographe de la fiche) ne correspondait à aucun
+  // groupe de supplément : aucun crédit. À Solo, légume et œuf ont le même prix (1,00 €) : le crédit
+  // du retrait de l'œuf doit donc couvrir une olive gratuite.
+  const offert = browserCart([{ name: 'Kefta', variant: 'Solo', removed: ['oeuf'], extras: ['olives'] }], b);
+  assert.equal(b.orderTotalsCents(offert).total_cents, sizeCents('Solo'), 'olive gratuite : le crédit œuf (1,00 €) couvre le légume (1,00 €)');
+  const r1 = await order(payloadOf(offert, b), { total_cents: sizeCents('Solo') });
+  assert.equal(r1.status, 201, r1.text);
+
+  // Contrôle : le même retrait ne couvre pas un supplément plus cher (poulet, viande à 1,50 €).
+  const paye = browserCart([{ name: 'Kefta', variant: 'Solo', removed: ['oeuf'], extras: ['poulet'] }], b);
+  assert.equal(b.orderTotalsCents(paye).total_cents, sizeCents('Solo') + extraCents('poulet', 'Solo'), 'poulet payant : le crédit œuf (1,00 €) ne couvre pas la viande (1,50 €)');
+  const r2 = await order(payloadOf(paye, b), { total_cents: sizeCents('Solo') + extraCents('poulet', 'Solo') });
+  assert.equal(r2.status, 201, r2.text);
+});
+
+test('règle de gratuité par prix : best-fit — le crédit le plus petit SUFFISANT est consommé, jamais le premier venu', async () => {
+  // Régina Quatro : retire jambon (viande, 3,00 €) et champignons (légume, 2,50 €) → crédits [2,50 ; 3,00].
+  // Ajoute dans cet ordre : Œuf (2,00 €) puis poulet (viande, 3,00 €). Un appariement « premier trouvé »
+  // sur la liste non triée dans l'ordre des retraits (viande d'abord = 3,00 €) consommerait le crédit de
+  // 3,00 € sur l'œuf (qui n'avait besoin que de 2,00 €), ne laissant que 2,50 € pour le poulet à 3,00 € →
+  // poulet facturé à tort. Le best-fit (crédit le plus PETIT qui suffit) doit donner l'œuf le crédit de
+  // 2,50 € et garder le crédit de 3,00 € pour le poulet : les deux doivent être gratuits.
+  const b = cartBrowser();
+  const cart = browserCart([{ name: 'Régina', variant: 'Quatro', removed: ['jambon', 'champignons'], extras: ['Œuf', 'poulet'] }], b);
+  const total = b.orderTotalsCents(cart).total_cents;
+  assert.equal(total, sizeCents('Quatro'), 'œuf et poulet tous deux gratuits grâce au best-fit');
+  const r = await order(payloadOf(cart, b), { total_cents: total });
+  assert.equal(r.status, 201, r.text);
+  assert.equal(r.json.order.items[0].line_total_cents, sizeCents('Quatro'));
+});
+
+// Générateur pseudo-aléatoire reproductible (mulberry32) : mêmes scénarios à chaque exécution, jamais de test
+// qui échoue de façon aléatoire/non reproductible. Remplace fast-check (absent des dépendances du projet).
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+test('règle de gratuité par prix : balayage combinatoire reproductible (navigateur = oracle indépendant = serveur)', async () => {
+  const rnd = mulberry32(20261121);
+  const pick = (arr, n) => {
+    const pool = arr.slice();
+    const out = [];
+    while (out.length < n && pool.length) out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+    return out;
+  };
+  // (pizza, taille déjà couverte par ailleurs ici, ingrédients fixes classés retirables).
+  const PIZZAS = [
+    { name: 'Régina', removable: ['jambon', 'champignons'] },
+    { name: '3 Jambons', removable: ['jambon', 'mortadelle', 'chorizo'] },
+    { name: 'Kefta', removable: ['viande hachée', 'oeuf'] },
+    { name: "L'Extravagante", removable: ['jambon', 'chorizo', 'merguez', 'champignons', 'oeuf'] },
+  ];
+  const EXTRAS_POOL = ['olives', 'poivrons', 'poulet', 'kebab', 'brie', 'Œuf'];
+  // Oracle indépendant : même règle énoncée en français, réécrite sans partager de code avec cart.js/catalogue.js
+  // (seule la normalisation de nom normName() est réutilisée : un ingrédient fixe de fiche s'écrit parfois
+  // différemment du supplément correspondant, ex. « oeuf » sur la fiche vs « Œuf » dans supplements.html).
+  function oracleTotal(pizzaName, variant, removedNames, extraNames) {
+    const priceOfName = (name) => {
+      const g = catalogue.supplement_groups.find((x) => x.names.some((n) => normName(n) === normName(name)));
+      return g ? g.prices_by_size[variant] : undefined;
+    };
+    const credits = removedNames.map(priceOfName).filter((p) => p !== undefined).sort((a, b) => a - b);
+    let unit = sizeCents(variant);
+    for (const name of extraNames) {
+      const price = priceOfName(name);
+      const ci = credits.findIndex((c) => c >= price);
+      if (ci !== -1) credits.splice(ci, 1);
+      else unit += price;
+    }
+    return unit;
+  }
+  const b = cartBrowser();
+  let n = 0;
+  for (let i = 0; i < 40; i++) {
+    const pizza = PIZZAS[Math.floor(rnd() * PIZZAS.length)];
+    const variant = ['Solo', 'Duo', 'Quatro', 'XXL'][Math.floor(rnd() * 4)];
+    const removed = pick(pizza.removable, Math.floor(rnd() * Math.min(3, pizza.removable.length + 1)));
+    const extras = pick(EXTRAS_POOL, Math.floor(rnd() * 4));
+    const attendu = oracleTotal(pizza.name, variant, removed, extras);
+    const cart = browserCart([{ name: pizza.name, variant, removed, extras }], b);
+    const totalNavigateur = b.orderTotalsCents(cart).total_cents;
+    assert.equal(totalNavigateur, attendu, `oracle≠navigateur : ${pizza.name} ${variant} retiré=${removed} ajouté=${extras}`);
+    const r = await order(payloadOf(cart, b), { total_cents: totalNavigateur });
+    assert.equal(r.status, 201, `oracle≠serveur : ${pizza.name} ${variant} retiré=${removed} ajouté=${extras} : ${r.text}`);
+    assert.equal(r.json.order.items[0].line_total_cents, attendu, `serveur a enregistré un total différent de l'oracle (${pizza.name} ${variant})`);
+    n++;
+  }
+  assert.equal(n, 40, 'les 40 scénarios combinatoires ont bien tous été exécutés');
 });

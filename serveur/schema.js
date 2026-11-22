@@ -44,7 +44,9 @@ export const TABLES = {
       ['prepared_at', TS, true],
       ['service_day', 'char:10', false],
       // Commande planifiée (type Uber Eats) : heure voulue par le client, NULL = dès que possible.
-      ['scheduled_for', TS, true]
+      ['scheduled_for', TS, true],
+      // Annulation client (fenêtre 4 min depuis created_at, voir order_cancel.js) : status passe à 'cancelled'.
+      ['cancelled_at', TS, true], ['cancel_reason', 'str:200', true]
     ],
     unique: { uq_orders_idem: ['customer_id', 'idempotency_key'] },
     index: {
@@ -111,6 +113,57 @@ export const TABLES = {
     unique: { uq_print_jobs_order: ['order_id'] },
     index: { ix_print_jobs_due: ['status', 'print_due_at'] },
     fk: [['order_id', 'orders', 'id']]
+  },
+  // Ajout, modification ou annulation rattaché à une commande existante (jamais une nouvelle commande
+  // indépendante). order_items reste immuable : l'état « après modification » d'un article se recalcule
+  // en repliant l'article d'origine (ou l'article déjà ajouté par un addenda précédent) + le dernier
+  // order_addenda kind='modify' qui le cible, par ordre de seq (voir effectiveOrderLines(), orders.js).
+  // kind : 'add' (nouveaux articles, aucune cible) | 'modify' (cible target_item_id OU
+  // target_addendum_item_id, jamais les deux) | 'cancel' (annulation tardive, aucune cible, voir
+  // order_cancel.js). target_addendum_item_id n'est PAS une clé étrangère déclarée : order_addendum_items
+  // référence déjà order_addenda (addendum_id) et une référence circulaire entre les deux tables n'est pas
+  // prise en charge par schemaSql() (CREATE TABLE unique, sans ALTER différé) — vérifié en application.
+  order_addenda: {
+    columns: [
+      ['id', 'pk', false], ['order_id', 'int', false], ['seq', 'int', false],
+      ['kind', 'str:20', false], ['idempotency_key', 'str:64', false], ['payload_hash', 'char:64', false],
+      ['target_item_id', 'int', true], ['target_addendum_item_id', 'int', true], ['delta_cents', 'int', false],
+      ['customer_first_name', 'str:60', false], ['created_at', TS, false]
+    ],
+    unique: { uq_order_addenda_idem: ['order_id', 'idempotency_key'], uq_order_addenda_seq: ['order_id', 'seq'] },
+    index: { ix_order_addenda_order: ['order_id', 'seq'] },
+    fk: [['order_id', 'orders', 'id'], ['target_item_id', 'order_items', 'id']]
+  },
+  // Contenu d'un order_addenda : pour kind='add', un article neuf par ligne ; pour kind='modify', l'état
+  // COMPLET après modification de l'article ciblé (jamais seulement un delta — le delta à imprimer sur le
+  // ticket se calcule par différence avec l'état précédent au moment du rendu, voir impression.js/tâche 6).
+  order_addendum_items: {
+    columns: [
+      ['id', 'pk', false], ['addendum_id', 'int', false], ['position', 'int', false],
+      ['name', 'str:160', false], ['variant', 'str:20', false], ['qty', 'int', false],
+      ['unit_price_cents', 'int', false], ['line_total_cents', 'int', false],
+      ['removed_json', 'text', false], ['extras_json', 'text', false], ['half_json', 'text', true],
+      ['note', 'str:300', false], ['category', 'str:20', true]
+    ],
+    unique: {},
+    index: { ix_addendum_items_addendum: ['addendum_id'] },
+    fk: [['addendum_id', 'order_addenda', 'id']]
+  },
+  // Queue d'impression du ticket complémentaire : même cycle de vie que print_jobs (pending -> claimed ->
+  // dispatched | failed | unknown), mais clé unique sur addendum_id (une commande peut avoir plusieurs
+  // ajouts) et sans print_due_at : un ticket d'ajout est dû immédiatement, jamais un délai H-45.
+  addendum_print_jobs: {
+    columns: [
+      ['id', 'pk', false], ['addendum_id', 'int', false],
+      ['status', 'str:10', false],
+      ['claimed_at', TS, true], ['claimed_by', 'str:120', true],
+      ['dispatched_at', TS, true], ['attempts', 'int', false],
+      ['last_error', 'str:300', true],
+      ['created_at', TS, false], ['updated_at', TS, false]
+    ],
+    unique: { uq_addendum_print_jobs_addendum: ['addendum_id'] },
+    index: { ix_addendum_print_jobs_status: ['status'] },
+    fk: [['addendum_id', 'order_addenda', 'id']]
   }
 };
 
@@ -139,6 +192,9 @@ export const COUPURE_JOUR_SQL = `to_char((date_trunc('day', now() at time zone '
  * Planifiée par pg_cron (supabase/001_schema.sql) ; les clients et leurs comptes ne sont pas touchés.
  */
 export const PURGE_SQL = [
+  `DELETE FROM public.order_addendum_items WHERE addendum_id IN (SELECT id FROM public.order_addenda WHERE order_id IN (SELECT id FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL}))`,
+  `DELETE FROM public.addendum_print_jobs WHERE addendum_id IN (SELECT id FROM public.order_addenda WHERE order_id IN (SELECT id FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL}))`,
+  `DELETE FROM public.order_addenda WHERE order_id IN (SELECT id FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL})`,
   `DELETE FROM public.order_items WHERE order_id IN (SELECT id FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL})`,
   `DELETE FROM public.print_jobs WHERE order_id IN (SELECT id FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL})`,
   `DELETE FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL}`,

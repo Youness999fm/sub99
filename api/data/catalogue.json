@@ -2103,6 +2103,23 @@
           "reblochons"
         ]
       }
+    },
+    {
+      "title": "Œuf",
+      "names": [
+        "Œuf"
+      ],
+      "prices_by_size": {
+        "Solo": 100,
+        "Duo": 100,
+        "Quatro": 200,
+        "XXL": 200
+      },
+      "availability_keys": {
+        "Œuf": [
+          "Œuf"
+        ]
+      }
     }
   ],
   "zones": [

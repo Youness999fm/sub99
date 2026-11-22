@@ -157,7 +157,13 @@
     printIssues: new Map(), // id commande -> { label, error } : tickets qui n'ont pas pu s'imprimer malgré les tentatives automatiques
     // Impression de préparation H-45 des commandes planifiées (SBT-005).
     claimingPrint: new Set(), // id commande en cours de réclamation (évite un double essai avant la réponse du serveur)
-    printBridgeAlerted: new Set() // id commande déjà signalée « imprimante non connectée » (une seule alerte, pas une par sondage)
+    printBridgeAlerted: new Set(), // id commande déjà signalée « imprimante non connectée » (une seule alerte, pas une par sondage)
+    // Ticket complémentaire (ajout/modification/annulation, order_addendum_create.js/order_cancel.js) :
+    // même principe que ci-dessus, mais clé sur l'id de l'addenda (addendum_print_jobs), toujours dû
+    // immédiatement (pas de délai H-45 à attendre).
+    claimingAddendumPrint: new Set(),
+    addendumPrintIssues: new Map(), // id addenda -> { label, error }
+    addendumBridgeAlerted: new Set()
   };
 
   const $ = sel => document.querySelector(sel);
@@ -310,6 +316,14 @@
   }
   function findOrder(id) {
     return state.orders.find(o => String(o.id) === String(id)) || null;
+  }
+  /** Retrouve un order_addenda et sa commande à partir du seul id de l'addenda (réessai manuel d'un ticket complémentaire). */
+  function findAddendum(addendumId) {
+    for (const o of state.orders) {
+      const a = (o.addenda || []).find(x => String(x.id) === String(addendumId));
+      if (a) return { addendum: a, order: o };
+    }
+    return null;
   }
   function openOrders() {
     return state.orders.filter(o => surfaced(o));
@@ -722,6 +736,7 @@
         : `Commande programmée pour ${scheduledLabel(scheduledArrivals[0])}.`);
     }
     checkDuePrintJobs(list);
+    checkDueAddendumPrintJobs(list);
   }
 
   // ---------- Impression de préparation H-45 des commandes planifiées (SBT-005) ----------
@@ -751,9 +766,62 @@
     }
   }
 
+  // ---------- Ticket complémentaire (ajout/modification/annulation) ----------
+  // Même principe que checkDuePrintJobs() ci-dessus, mais toujours dû dès sa création (pas de délai H-45) :
+  // owner_orders.php expose chaque addenda avec un indicateur print_pending (voir serveur/routes/owner_orders.js).
+  function duePendingAddenda(orders) {
+    const out = [];
+    for (const o of orders) {
+      for (const a of (o.addenda || [])) {
+        if (a.print_pending && !state.claimingAddendumPrint.has(a.id)) out.push({ addendum: a, order: o });
+      }
+    }
+    return out;
+  }
+
+  async function checkDueAddendumPrintJobs(orders) {
+    const dues = duePendingAddenda(orders);
+    if (!dues.length) return;
+    if (!hasAndroidPrinter()) {
+      const nouvelles = dues.filter(({ addendum }) => !state.addendumBridgeAlerted.has(addendum.id));
+      if (nouvelles.length) {
+        nouvelles.forEach(({ addendum }) => state.addendumBridgeAlerted.add(addendum.id));
+        toast(`⚠ Ticket complémentaire en attente (imprimante non connectée) : ${nouvelles.map(({ order }) => customerLabel(order)).join(', ')}`);
+      }
+      return;
+    }
+    for (const { addendum, order } of dues) {
+      state.claimingAddendumPrint.add(addendum.id);
+      try {
+        const r = await api('owner_addendum_print_claim.php', { method: 'POST', body: { id: addendum.id, device: (navigator.userAgent || '').slice(0, 120) } });
+        if (r.ok && r.data.claimed) printAddendumOnPrinter(addendum, order);
+      } catch (e) { /* le prochain sondage réessaiera : la tâche reste "pending" tant qu'elle n'est pas réclamée */ }
+      finally { state.claimingAddendumPrint.delete(addendum.id); }
+    }
+  }
+
+  // Retente l'accusé de réception sur le même rythme que l'impression elle-même (PRINT_RETRY_DELAYS_MS,
+  // définie plus bas dans ce fichier) : un échec réseau transitoire ne doit pas laisser la tâche "claimed"
+  // jusqu'au reclassement automatique à 120s (serveur/impression.js), qui provoquerait une réimpression du
+  // même ticket. Si les tentatives échouent vraiment toutes, le reclassement serveur reste le filet de
+  // sécurité final, inchangé.
   async function accuserReceptionImpression(orderId, outcome, error) {
-    try { await api('owner_print_ack.php', { method: 'POST', body: { id: orderId, outcome, error: error ? String(error).slice(0, 300) : undefined } }); }
-    catch (e) { /* sans effet : le serveur reclassera la tâche bloquée de lui-même après le délai (voir impression.js) */ }
+    const body = { id: orderId, outcome, error: error ? String(error).slice(0, 300) : undefined };
+    for (let i = 0; i < PRINT_RETRY_DELAYS_MS.length; i++) {
+      if (i > 0) await new Promise((resolve) => setTimeout(resolve, PRINT_RETRY_DELAYS_MS[i]));
+      try { await api('owner_print_ack.php', { method: 'POST', body }); return; }
+      catch (e) { /* tentative suivante, ou abandon après la dernière */ }
+    }
+  }
+
+  /** Même garde que accuserReceptionImpression(), pour le ticket complémentaire. */
+  async function accuserReceptionImpressionAjout(addendumId, outcome, error) {
+    const body = { id: addendumId, outcome, error: error ? String(error).slice(0, 300) : undefined };
+    for (let i = 0; i < PRINT_RETRY_DELAYS_MS.length; i++) {
+      if (i > 0) await new Promise((resolve) => setTimeout(resolve, PRINT_RETRY_DELAYS_MS[i]));
+      try { await api('owner_addendum_print_ack.php', { method: 'POST', body }); return; }
+      catch (e) { /* tentative suivante, ou abandon après la dernière */ }
+    }
   }
 
   document.addEventListener('visibilitychange', () => {
@@ -1883,6 +1951,90 @@
     };
   }
 
+  // État de la cible d'une modification (order_addenda kind='modify') juste AVANT cet événement précis :
+  // l'article d'origine (order_items) ou celui d'un ajout précédent (target_addendum_item_id), remplacé par
+  // la dernière modification antérieure (seq plus petit) sur la même cible s'il y en a une. Sert à n'imprimer
+  // que ce qui a RÉELLEMENT changé à cette étape (jamais une recopie de l'état complet, voir buildAddendumTicketBytes).
+  function addendumPreviousState(order, addendum) {
+    let previous = null;
+    if (addendum.target_item_id !== null && addendum.target_item_id !== undefined) {
+      previous = (order.items || []).find(it => it.id === addendum.target_item_id) || null;
+    } else {
+      for (const a of (order.addenda || [])) {
+        if (a.kind !== 'add') continue;
+        const found = (a.items || []).find(it => it.id === addendum.target_addendum_item_id);
+        if (found) { previous = found; break; }
+      }
+    }
+    for (const a of (order.addenda || [])) {
+      if (a.kind !== 'modify' || a.seq >= addendum.seq) continue;
+      const memeCible = addendum.target_item_id !== null
+        ? a.target_item_id === addendum.target_item_id
+        : a.target_addendum_item_id === addendum.target_addendum_item_id;
+      if (memeCible) previous = a.items[0];
+    }
+    return previous;
+  }
+
+  // Articles à imprimer pour un order_addenda : tels quels pour un ajout (déjà uniquement les nouveaux
+  // articles) ; pour une modification, UNIQUEMENT le delta (ingrédients nouvellement retirés/ajoutés,
+  // nouvelle quantité si elle a changé) par rapport à l'état précédent — jamais une recopie de la ligne
+  // entière (exigence du ticket complémentaire : ne jamais faire croire à une réimpression de l'existant).
+  function addendumTicketItems(order, addendum) {
+    if (addendum.kind !== 'modify') return addendum.items || [];
+    const current = (addendum.items || [])[0];
+    if (!current) return [];
+    const previous = addendumPreviousState(order, addendum);
+    if (!previous) return addendum.items; // repli : cible introuvable, affiche l'état complet plutôt que rien
+    const prevRemoved = new Set((previous.removed || []).map(x => x.toLowerCase()));
+    const prevExtras = new Set((previous.extras || []).map(x => x.name.toLowerCase()));
+    const newlyRemoved = (current.removed || []).filter(x => !prevRemoved.has(x.toLowerCase()));
+    const newlyAdded = (current.extras || []).filter(x => !prevExtras.has(x.name.toLowerCase()));
+    const qtyChanged = Number(previous.qty) !== Number(current.qty);
+    const note = qtyChanged
+      ? `Nouvelle quantite : ${current.qty}` + (current.note ? ' - ' + current.note : '')
+      : current.note;
+    return [{ ...current, removed: newlyRemoved, extras: newlyAdded, note }];
+  }
+
+  // Transforme un order_addenda en texte structuré pour le ticket complémentaire (même esprit que
+  // printerPayload() ci-dessus, mais jamais les articles déjà transmis — voir addendumTicketItems()).
+  function printerAddendumPayload(addendum, order) {
+    const created = toDate(addendum.created_at);
+    const asLine = it => {
+      const { main, size } = ticketItemTitle(it);
+      return {
+        qtyPrefix: ticketQtyPrefix(it, 'x'),
+        titleMain: main,
+        titleSize: size,
+        removed: (it.removed || []).slice(),
+        extrasText: (it.extras || []).map(x => {
+          const qty = Number(x.qty) || 1;
+          const price = Number(x.price_cents) || 0;
+          return `+ ${qty > 1 ? qty + 'x ' : ''}${x.name}${price ? ` (${eur(price)}${qty > 1 ? ' piece' : ''})` : ''}`;
+        }),
+        note: it.note && String(it.note).trim() ? String(it.note).trim() : null
+      };
+    };
+    const items = addendumTicketItems(order, addendum);
+    const hasPizza = items.some(it => it.variant);
+    let headline;
+    if (addendum.kind === 'cancel') headline = 'ANNULATION DEMANDEE';
+    else if (addendum.kind === 'modify') headline = 'MODIFICATION DE COMMANDE';
+    else headline = hasPizza ? 'PIZZA RAJOUTEE' : 'AJOUT A LA COMMANDE';
+    return {
+      addendumId: String(addendum.id),
+      orderId: String(order.id),
+      seq: Number(addendum.seq),
+      kind: String(addendum.kind),
+      headline,
+      customer: customerLabel(order),
+      createdAt: created ? hm(created) : '',
+      items: items.map(asLine),
+      deltaLabel: eur(Number(addendum.delta_cents) || 0)
+    };
+  }
+
   // ---------- Impression thermique (ESC/POS) ----------
   // Tout est construit ici, côté site web : l'appli Android ne fait plus que transmettre des
   // octets bruts déjà prêts sur la connexion Bluetooth (voir PrinterBridge.kt, sendBytes()).
@@ -2152,6 +2304,80 @@
     return bytes;
   }
 
+  // Construit la trame ESC/POS d'un ticket COMPLÉMENTAIRE (ajout/modification/annulation) : en-tête
+  // obligatoire (PIZZA RAJOUTEE / AJOUT A LA COMMANDE / MODIFICATION DE COMMANDE / ANNULATION DEMANDEE,
+  // section 8-9 de la mission), prénom client, numéro de la commande d'origine, numéro de l'ajout, puis
+  // UNIQUEMENT les articles de cet événement (jamais les articles déjà transmis sur le ticket initial).
+  function buildAddendumTicketBytes(p) {
+    const bytes = [];
+    const push = (...vals) => vals.forEach(v => bytes.push(v & 0xFF));
+    const raw = arr => arr.forEach(v => bytes.push(v & 0xFF));
+    const text = s => { for (const ch of escAscii(s)) bytes.push(ch.charCodeAt(0)); };
+    const align = n => push(0x1B, 0x61, n);
+    const bold = on => push(0x1B, 0x45, on ? 1 : 0);
+    const charSize = (w, h) => push(0x1D, 0x21, (((w - 1) & 7) << 4) | ((h - 1) & 7));
+    const feed = n => push(0x1B, 0x64, n);
+    const cut = () => { feed(4); push(0x1D, 0x56, 0x00); };
+    const sep = () => text('-'.repeat(PRINT_WIDTH) + '\n');
+    const reverse = on => push(0x1D, 0x42, on ? 1 : 0);
+    const blank = (n = 1) => text('\n'.repeat(n));
+    const printMods = it => {
+      if (it.removed && it.removed.length) {
+        bold(true); reverse(true);
+        it.removed.forEach(r => text('  - ' + escAscii(r) + ' \n'));
+        reverse(false); bold(false);
+      }
+      (it.extrasText || []).forEach(e => { bold(true); text('  ' + escAscii(e) + '\n'); bold(false); });
+      if (it.note) { bold(true); text('  #' + escAscii(it.note) + '\n'); bold(false); }
+    };
+
+    push(0x1B, 0x40); // initialisation
+    if (logoRasterBytes) { align(1); raw(logoRasterBytes); blank(1); }
+
+    // En-tête obligatoire : jamais confondu avec une nouvelle commande indépendante.
+    align(1); bold(true); charSize(2, 3);
+    text(p.headline + '\n');
+    charSize(1, 1); bold(false);
+    text('*'.repeat(PRINT_WIDTH) + '\n');
+
+    // Prénom client, numéro de la commande d'origine, numéro de l'ajout, date/heure.
+    align(0);
+    text(escRow('Commande', '#' + p.orderId));
+    align(1); bold(true); charSize(2, 2);
+    text(escWrapWordsAt(p.customer, PRINT_WIDTH_X2) + '\n');
+    charSize(1, 1); bold(false); align(0);
+    if (p.kind !== 'cancel') text(escRow('Ajout n', String(p.seq)));
+    text(escRow('Heure', p.createdAt));
+    blank(1); sep(); blank(1);
+
+    if (p.kind === 'cancel') {
+      align(1); bold(true); charSize(2, 2);
+      text('A ANNULER\n');
+      charSize(1, 1); bold(false); align(0);
+      text(escWrapWordsAt('Verifiez si la preparation peut encore etre arretee pour cette commande.', PRINT_WIDTH) + '\n');
+    } else {
+      (p.items || []).forEach(it => {
+        bold(true); charSize(2, 3);
+        text(escItemLine(`${it.qtyPrefix}${it.titleMain}`, it.titleSize, PRINT_WIDTH_X2));
+        charSize(1, 1); bold(false);
+        printMods(it);
+        blank(1);
+      });
+      sep();
+      bold(true); charSize(2, 2);
+      text(escTwoColAt('SUPPLEMENT', p.deltaLabel, PRINT_WIDTH_X2));
+      charSize(1, 1); bold(false);
+      blank(1);
+    }
+
+    bold(true);
+    text(escWrapWordsAt('NE PAS REPREPARER LES ARTICLES INITIAUX', PRINT_WIDTH) + '\n');
+    bold(false);
+    blank(2);
+    cut();
+    return bytes;
+  }
+
   function bytesToBase64(bytes) {
     let bin = '';
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
@@ -2164,7 +2390,7 @@
   }
 
   let printRequestSeq = 0;
-  const pendingPrints = new Map(); // requestId -> { orderId, label, base64, attempt, scheduledJob }
+  const pendingPrints = new Map(); // requestId -> { orderId, label, base64, attempt, scheduledJob, addendumId }
 
   // Lance l'impression d'une commande (depuis l'acceptation, le bouton manuel "Imprimer/Réimprimer le
   // ticket", ou — avec { scheduledJob: true } — la tâche d'impression de préparation H-45 d'une commande
@@ -2176,7 +2402,24 @@
       const payload = printerPayload(o);
       const base64 = bytesToBase64(buildTicketBytes(payload));
       const requestId = 'p' + (++printRequestSeq) + '-' + payload.orderId;
-      pendingPrints.set(requestId, { orderId: payload.orderId, label: customerLabel(o), base64, attempt: 0, scheduledJob });
+      pendingPrints.set(requestId, { orderId: payload.orderId, label: customerLabel(o), base64, attempt: 0, scheduledJob, addendumId: null });
+      sendAttempt(requestId);
+    } catch (e) { /* l'impression ne doit jamais bloquer le flux de commande */ }
+  }
+
+  // Lance l'impression du ticket complémentaire d'un order_addenda (ajout/modification/annulation,
+  // réclamé via owner_addendum_print_claim.php) — même circuit bas-niveau que printOrderOnPrinter()
+  // (sendAttempt/onPrinterSendResult/finalizePrint), seul le contenu et l'accusé de réception diffèrent.
+  function printAddendumOnPrinter(addendum, order) {
+    if (!addendum || !order || !hasAndroidPrinter()) return;
+    try {
+      const payload = printerAddendumPayload(addendum, order);
+      const base64 = bytesToBase64(buildAddendumTicketBytes(payload));
+      const requestId = 'a' + (++printRequestSeq) + '-' + payload.addendumId;
+      pendingPrints.set(requestId, {
+        orderId: payload.orderId, label: `${payload.headline} · ${customerLabel(order)}`,
+        base64, attempt: 0, scheduledJob: false, addendumId: addendum.id
+      });
       sendAttempt(requestId);
     } catch (e) { /* l'impression ne doit jamais bloquer le flux de commande */ }
   }
@@ -2207,6 +2450,22 @@
     const job = pendingPrints.get(requestId);
     if (!job) return;
     pendingPrints.delete(requestId);
+
+    if (job.addendumId !== null) {
+      accuserReceptionImpressionAjout(job.addendumId, ok ? 'dispatched' : 'failed', ok ? null : error);
+      if (ok) {
+        state.addendumPrintIssues.delete(job.addendumId);
+        state.addendumBridgeAlerted.delete(job.addendumId);
+        renderPrintIssues();
+        toast(`Ticket complémentaire imprimé · ${job.label}`);
+        return;
+      }
+      state.addendumPrintIssues.set(job.addendumId, { label: job.label, error: error || 'erreur inconnue' });
+      renderPrintIssues();
+      if (!el.dlg.open) openPrintIssuesDialog();
+      return;
+    }
+
     // Rapporte le résultat RÉEL (dispatched/failed) à la tâche planifiée H-45 réclamée plus tôt — jamais pour
     // une impression manuelle (bouton "Imprimer/Réimprimer le ticket"), qui reste une simple consultation.
     if (job.scheduledJob) accuserReceptionImpression(job.orderId, ok ? 'dispatched' : 'failed', ok ? null : error);
@@ -2224,7 +2483,7 @@
   }
 
   function renderPrintIssues() {
-    const n = state.printIssues.size;
+    const n = state.printIssues.size + state.addendumPrintIssues.size;
     el.printIssueBtn.hidden = n === 0;
     el.printIssueCount.textContent = String(n);
     if (el.dlg.open && el.dlgBody.querySelector('[data-print-issues]')) {
@@ -2233,14 +2492,16 @@
   }
 
   function printIssuesHtml() {
-    const rows = [...state.printIssues.entries()].map(([id, issue]) => `
+    const row = (action, id, issue) => `
       <div class="print-issue-row">
         <div class="pi-text">
           <p class="pi-label">${esc(issue.label)}</p>
           <p class="pi-error">${esc(issue.error)}</p>
         </div>
-        <button type="button" class="btn btn-accept btn-sm" data-action="print-retry" data-id="${esc(id)}">Réessayer</button>
-      </div>`).join('');
+        <button type="button" class="btn btn-accept btn-sm" data-action="${action}" data-id="${esc(id)}">Réessayer</button>
+      </div>`;
+    const rows = [...state.printIssues.entries()].map(([id, issue]) => row('print-retry', id, issue)).join('')
+      + [...state.addendumPrintIssues.entries()].map(([id, issue]) => row('print-retry-addendum', id, issue)).join('');
     return `
       <div data-print-issues="1">
         <h3>Ticket(s) non imprimé(s)</h3>
@@ -2650,6 +2911,11 @@
       case 'print-retry': {
         const o = findOrder(id);
         if (o) printOrderOnPrinter(o);
+        return;
+      }
+      case 'print-retry-addendum': {
+        const found = findAddendum(id);
+        if (found) printAddendumOnPrinter(found.addendum, found.order);
         return;
       }
       case 'dlg-close':

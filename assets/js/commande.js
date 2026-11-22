@@ -69,6 +69,18 @@
   let countdownTimer = null;
   // Clé du dernier rendu : le sondage ne reconstruit la page que si la commande change.
   let lastRenderKey = null;
+  // Annulation (4 min) et ajout/modification (10 min) : fenêtres et indicateurs renvoyés par le serveur
+  // (jamais recalculés côté client, même principe que readyAtMs/clockOffset ci-dessus).
+  let cancelUntilMs = null;
+  let addendumUntilMs = null;
+  let canCancelFlag = false;
+  let canAddFlag = false;
+  let actionCountdownTimer = null;
+  let currentOrder = null; // dernière commande complète reçue, nécessaire pour construire un ajout/modif
+  let addPanelOpen = false;
+  let addPanelBusy = false;
+  let modifyTarget = null; // { source: 'item'|'addendum_item', id, name, variant } ou null (panneau d'ajout simple)
+  let addendumKeySeq = 0;
   // Décalage entre l'horloge du serveur et celle du téléphone (serveur - téléphone, en ms) :
   // le minuteur se règle sur l'heure du serveur, pas sur celle de l'appareil.
   let clockOffset = 0;
@@ -91,7 +103,10 @@
     }).join(" · ");
   }
 
-  function renderItems(items) {
+  // allowModify : affiche un lien « Modifier » sur chaque pizza (jamais sur un article à prix fixe,
+  // la modification ne change que des ingrédients) quand le délai de 10 minutes est encore ouvert.
+  // source : 'item' (order_items) ou 'addendum_item' (article lui-même introduit par un ajout précédent).
+  function renderItems(items, allowModify, source) {
     return (items || []).map(function (it) {
       const label = esc(it.name) + (it.variant ? " (" + esc(it.variant) + ")" : "");
       const bits = [];
@@ -99,13 +114,34 @@
       if (it.removed && it.removed.length) bits.push("Sans : " + esc(it.removed.join(", ")));
       if (it.extras && it.extras.length) bits.push("Suppléments : " + esc(it.extras.map(function (e) { return e.name; }).join(", ")));
       if (it.note) bits.push("Note : " + esc(it.note));
+      const canModify = allowModify && it.variant && it.id != null;
       return (
         '<div class="order-track-item">' +
           '<div class="order-track-item__head"><span>' + esc(Number(it.qty) || 1) + ' × ' + label + '</span><span>' + formatCents(it.line_total_cents != null ? it.line_total_cents : it.unit_price_cents * it.qty) + '</span></div>' +
           (bits.length ? '<p class="order-track-item__details">' + bits.join(" · ") + '</p>' : "") +
+          (canModify ? '<button type="button" class="order-track-modify-link" data-action="modify-item" data-source="' + source + '" data-id="' + esc(it.id) + '" data-name="' + esc(it.name) + '" data-variant="' + esc(it.variant) + '">Modifier cette pizza</button>' : "") +
         '</div>'
       );
     }).join("");
+  }
+
+  function addendumKindLabel(kind) {
+    return kind === "modify" ? "Modification" : kind === "cancel" ? "Annulation demandée" : "Ajout";
+  }
+
+  function renderAddendum(a, allowModify) {
+    // Seul un article introduit par un AJOUT (kind='add') peut être recible par une modification :
+    // la cible (target_addendum_item_id) ne pointe jamais vers l'article d'un événement modify/cancel.
+    const itemsHtml = renderItems(a.items, allowModify && a.kind === "add", "addendum_item");
+    return (
+      '<div class="order-track-addendum">' +
+        '<div class="order-track-addendum__head">' +
+          '<span class="order-track-addendum__kind">AJOUT N°' + esc(a.seq) + " — " + addendumKindLabel(a.kind) + '</span>' +
+          (a.delta_cents ? '<span>' + (a.delta_cents > 0 ? "+ " : "− ") + formatCents(Math.abs(a.delta_cents)) + '</span>' : '') +
+        '</div>' +
+        itemsHtml +
+      '</div>'
+    );
   }
 
   function formatCountdown(ms) {
@@ -229,6 +265,14 @@
 
   function render(order) {
     lastCustomerName = order.customer_name || null;
+    currentOrder = order;
+    canCancelFlag = !!order.can_cancel;
+    canAddFlag = !!order.can_add_or_modify;
+    const parsedCancel = order.cancel_eligible_until ? Date.parse(order.cancel_eligible_until) : NaN;
+    cancelUntilMs = isNaN(parsedCancel) ? null : parsedCancel;
+    const parsedAddendum = order.addendum_eligible_until ? Date.parse(order.addendum_eligible_until) : NaN;
+    addendumUntilMs = isNaN(parsedAddendum) ? null : parsedAddendum;
+    if (!canAddFlag) { addPanelOpen = false; modifyTarget = null; }
     const parsedReady = order.status === "accepted" && order.ready_at ? Date.parse(order.ready_at) : NaN;
     readyAtMs = isNaN(parsedReady) ? null : parsedReady;
 
@@ -298,15 +342,41 @@
         '</div>';
     }
 
+    const addendaHtml = (order.addenda && order.addenda.length)
+      ? '<div class="order-track-addenda"><p class="order-track-addenda__title">Ajouts à votre commande</p>' +
+          order.addenda.map(function (a) { return renderAddendum(a, canAddFlag); }).join("") +
+        '</div>'
+      : "";
+
+    const actionsHtml = (canCancelFlag || canAddFlag)
+      ? '<div class="order-track-actions">' +
+          (canCancelFlag
+            ? '<div class="order-track-action order-track-action--cancel">' +
+                '<button type="button" class="btn-outline" data-action="cancel-order">Annuler ma commande</button>' +
+                '<span class="order-track-action__timer" id="cancelCountdown" aria-live="off">--:--</span>' +
+              '</div>'
+            : "") +
+          (canAddFlag
+            ? '<div class="order-track-action order-track-action--add">' +
+                '<button type="button" class="btn-outline" data-action="toggle-add-panel">' + (addPanelOpen ? "Fermer" : "Ajouter un article") + '</button>' +
+                '<span class="order-track-action__timer" id="addendumCountdown" aria-live="off">--:--</span>' +
+              '</div>'
+            : "") +
+        '</div>'
+      : "";
+
+    const addPanelHtml = addPanelOpen ? '<div class="order-track-add-panel" id="addPanel"><p class="account-hint">Chargement du menu…</p></div>' : "";
+
     body.innerHTML =
       '<p class="order-track-number">Commande de ' + esc(order.customer_name) + ' — ' + modeLabel + '</p>' +
       scheduledNote +
       statusHtml +
-      '<div class="order-track-items">' + renderItems(order.items) + '</div>' +
+      '<div class="order-track-items">' + renderItems(order.items, canAddFlag, "item") + '</div>' +
       (order.promo_cents > 0 ? '<div class="order-track-fee"><span>Promotion</span><span>− ' + formatCents(order.promo_cents) + '</span></div>' : "") +
       (order.delivery_fee_cents > 0 ? '<div class="order-track-fee"><span>Frais de livraison</span><span>' + formatCents(order.delivery_fee_cents) + '</span></div>' : "") +
       '<div class="order-track-total"><span>Total</span><strong>' + formatCents(order.total_cents) + '</strong></div>' +
-      (order.mode === "delivery" && order.payment_methods && order.payment_methods.length ? '<p class="order-track-payment">' + paymentLabel(order.payment_methods, order.cash_change_for) + '</p>' : "");
+      (order.mode === "delivery" && order.payment_methods && order.payment_methods.length ? '<p class="order-track-payment">' + paymentLabel(order.payment_methods, order.cash_change_for) + '</p>' : "") +
+      addendaHtml + actionsHtml + addPanelHtml;
 
     if (readyAtMs !== null && order.delay_minutes !== 0) {
       startCountdown(order.mode);
@@ -314,6 +384,8 @@
       clearInterval(countdownTimer);
       countdownTimer = null;
     }
+    startActionCountdowns();
+    if (addPanelOpen) renderAddPanel();
 
     body.setAttribute("data-order-status", order.status);
 
@@ -324,6 +396,252 @@
     // Tant qu'elle est « new » ou « accepted », le sondage continue. Le minuteur, lui, continue de
     // tourner localement jusqu'à l'expiration.
     if (order.status === "ready" || order.status === "refused") stopPolling();
+  }
+
+  /* ---------- Annulation (4 min) et ajout/modification (10 min) ---------- */
+
+  function startActionCountdowns() {
+    if (actionCountdownTimer) clearInterval(actionCountdownTimer);
+    function tick() {
+      const now = serverNow();
+      let stillRunning = false;
+      const cEl = qs("cancelCountdown");
+      if (cEl) {
+        const remaining = cancelUntilMs - now;
+        if (remaining <= 0) {
+          cEl.textContent = "Délai écoulé";
+          const b = document.querySelector('[data-action="cancel-order"]');
+          if (b) b.disabled = true;
+        } else {
+          cEl.textContent = "Encore " + formatCountdown(remaining);
+          stillRunning = true;
+        }
+      }
+      const aEl = qs("addendumCountdown");
+      if (aEl) {
+        const remaining = addendumUntilMs - now;
+        if (remaining <= 0) {
+          aEl.textContent = "Délai écoulé";
+          const b = document.querySelector('[data-action="toggle-add-panel"]');
+          if (b) b.disabled = true;
+        } else {
+          aEl.textContent = "Encore " + formatCountdown(remaining);
+          stillRunning = true;
+        }
+      }
+      if (!stillRunning && actionCountdownTimer) { clearInterval(actionCountdownTimer); actionCountdownTimer = null; }
+    }
+    tick();
+    if (qs("cancelCountdown") || qs("addendumCountdown")) actionCountdownTimer = setInterval(tick, 1000);
+  }
+
+  function cancelOrder() {
+    if (!orderId) return;
+    if (!window.confirm("Confirmer l’annulation de cette commande ? Cette action est définitive.")) return;
+    const btn = document.querySelector('[data-action="cancel-order"]');
+    if (btn) btn.disabled = true;
+    fetch("/api/order_cancel.php", {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: Number(orderId) })
+    })
+      .then(function (res) { return res.json().then(function (data) { return { status: res.status, data: data }; }); })
+      .then(function (r) {
+        if (r.data && r.data.order) { lastRenderKey = null; render(r.data.order); }
+        else window.alert((r.data && r.data.message) || "Impossible d’annuler pour le moment.");
+      })
+      .catch(function () { window.alert("Connexion perdue. Réessayez dans un instant."); })
+      .then(function () { if (btn) btn.disabled = false; });
+  }
+
+  function toggleAddPanel() {
+    addPanelOpen = !addPanelOpen;
+    if (!addPanelOpen) modifyTarget = null;
+    lastRenderKey = null;
+    render(currentOrder);
+  }
+
+  function openModifyFor(source, id, name, variant) {
+    addPanelOpen = true;
+    modifyTarget = { source: source, id: Number(id), name: name, variant: variant };
+    lastRenderKey = null;
+    render(currentOrder);
+  }
+
+  // État effectif de toutes les lignes de la commande (même principe que effectiveOrderLines() côté
+  // serveur, orders.js) : nécessaire pour ESTIMER le nouveau total avant envoi (le serveur reste la
+  // seule source de vérité — voir submitAddendum, qui se resynchronise sur son total en cas d'écart).
+  function effectiveLinesClientSide(order) {
+    const out = [];
+    (order.items || []).forEach(function (it) { out.push({ source: "item", id: it.id, unit: it.unit_price_cents, qty: it.qty, variant: it.variant }); });
+    const latestModify = {};
+    (order.addenda || []).forEach(function (a) {
+      if (a.kind === "add") {
+        (a.items || []).forEach(function (it) { out.push({ source: "addendum_item", id: it.id, unit: it.unit_price_cents, qty: it.qty, variant: it.variant }); });
+      } else if (a.kind === "modify" && a.items && a.items[0]) {
+        const key = (a.target_item_id != null ? "item:" + a.target_item_id : "addendum_item:" + a.target_addendum_item_id);
+        latestModify[key] = a.items[0];
+      }
+    });
+    return out.map(function (l) {
+      const mod = latestModify[l.source + ":" + l.id];
+      return mod ? { source: l.source, id: l.id, unit: mod.unit_price_cents, qty: mod.qty, variant: mod.variant } : l;
+    });
+  }
+
+  function estimateTotal(order, lines) {
+    let gross = 0;
+    const pizzaUnits = [];
+    lines.forEach(function (l) {
+      gross += l.unit * l.qty;
+      if (l.variant) for (let i = 0; i < l.qty; i++) pizzaUnits.push(l.unit);
+    });
+    pizzaUnits.sort(function (a, b) { return b - a; });
+    let promo = 0;
+    for (let i = 0; i + 1 < pizzaUnits.length; i += 2) {
+      promo += order.mode === "delivery" ? Math.floor((pizzaUnits[i + 1] + 1) / 2) : pizzaUnits[i + 1];
+    }
+    const hasPizza = pizzaUnits.length > 0;
+    const fee = (order.mode === "delivery" && !hasPizza) ? (order.delivery_fee_cents || 0) : 0;
+    return gross - promo + fee;
+  }
+
+  // Convertit la ligne construite par le widget de personnalisation (cart.js, montants en EUROS) vers la
+  // forme attendue par order_addendum_create.php (montants en centimes, suppléments {name,price_cents,qty}).
+  function lineToAddendumItem(line) {
+    const toCentsLocal = function (x) { return Math.round(x * 100); };
+    const extras = (line.extras || []).map(function (e) { return { name: e.name, price_cents: toCentsLocal(e.price), qty: e.qty || 1 }; });
+    const unit = toCentsLocal(line.basePrice) + extras.reduce(function (s, e) { return s + e.price_cents * e.qty; }, 0);
+    return { name: line.name, variant: line.variant, qty: 1, unit_price_cents: unit, removed: line.removed || [], extras: extras, half: line.half || null, note: line.note || "" };
+  }
+
+  function submitAddendum(kind, items, target) {
+    if (addPanelBusy || !currentOrder) return;
+    addPanelBusy = true;
+    const newLines = items.map(function (it) { return { unit: it.unit_price_cents, qty: it.qty, variant: it.variant }; });
+    let baseLines = effectiveLinesClientSide(currentOrder);
+    if (kind === "modify" && target) {
+      baseLines = baseLines.filter(function (l) { return !(l.source === target.source && l.id === target.id); });
+    }
+    const totalEstimate = estimateTotal(currentOrder, baseLines.concat(newLines));
+    const key = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ("addendum-" + Date.now() + "-" + (++addendumKeySeq));
+
+    function post(total) {
+      const body = { order_id: Number(orderId), idempotency_key: key, kind: kind, total_cents: total };
+      if (kind === "add") body.items = items;
+      else {
+        body.item = items[0];
+        if (target.source === "item") body.target_item_id = target.id; else body.target_addendum_item_id = target.id;
+      }
+      return fetch("/api/order_addendum_create.php", {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+      }).then(function (res) { return res.json().then(function (data) { return { status: res.status, data: data }; }); });
+    }
+
+    post(totalEstimate)
+      .then(function (r) {
+        // Un seul nouvel essai, avec le total exact recalculé par le serveur (promo sur l'ensemble de
+        // la commande) : jamais une boucle, jamais une 2e tentative sur une autre sorte d'erreur.
+        if (r.status === 409 && r.data && r.data.error === "price_mismatch" && r.data.server_total_cents != null) {
+          return post(r.data.server_total_cents);
+        }
+        return r;
+      })
+      .then(function (r) {
+        if (r.data && r.data.order) {
+          addPanelOpen = false;
+          modifyTarget = null;
+          lastRenderKey = null;
+          render(r.data.order);
+        } else {
+          window.alert((r.data && r.data.message) || "Impossible d’enregistrer cet ajout pour le moment.");
+        }
+      })
+      .catch(function () { window.alert("Connexion perdue. Réessayez dans un instant."); })
+      .then(function () { addPanelBusy = false; });
+  }
+
+  const ADD_PANEL_CATEGORY_TITLES = { boissons: "Boissons", desserts: "Desserts", "tex-mex": "Tex-Mex", pates: "Pâtes", subitowichs: "Subitowichs", salades: "Salades" };
+
+  function renderAddPanel() {
+    const panel = qs("addPanel");
+    if (!panel) return;
+    const W = window.SubitoPizzaWidget;
+    if (!W) { panel.innerHTML = '<p class="account-error">Fonction indisponible pour le moment.</p>'; return; }
+
+    if (modifyTarget) {
+      panel.innerHTML = "";
+      const title = document.createElement("p");
+      title.className = "order-track-add-category";
+      title.textContent = "Modifier : " + modifyTarget.name + " (" + modifyTarget.variant + ")";
+      panel.appendChild(title);
+      const back = document.createElement("button");
+      back.type = "button";
+      back.className = "order-track-modify-link";
+      back.textContent = "Annuler cette modification";
+      back.addEventListener("click", function () { modifyTarget = null; lastRenderKey = null; render(currentOrder); });
+      panel.appendChild(back);
+      W.loadMenuCatalog().then(function (catalog) {
+        if (!modifyTarget) return;
+        const info = catalog.items.find(function (it) { return it.kind === "pizza" && it.name === modifyTarget.name; });
+        const sizeOnly = catalog.sizeChart.filter(function (s) { return s.label === modifyTarget.variant; });
+        const widget = W.build(modifyTarget.name, info ? info.ingredients : [], sizeOnly, [], {
+          allowHalf: false, choice: null,
+          onAdd: function (line) { submitAddendum("modify", [lineToAddendumItem(line)], modifyTarget); }
+        });
+        panel.appendChild(widget);
+      });
+      return;
+    }
+
+    panel.innerHTML = '<p class="account-hint">Chargement du menu…</p>';
+    W.loadMenuCatalog().then(function (catalog) {
+      if (addPanelBusy && !modifyTarget) { /* une soumission est déjà en cours : le panneau sera reconstruit juste après */ }
+      panel.innerHTML = "";
+      const byCategory = {};
+      catalog.items.forEach(function (it) {
+        if (it.kind !== "product") return;
+        const cat = it.categoryId || "autres";
+        (byCategory[cat] = byCategory[cat] || []).push(it);
+      });
+      Object.keys(byCategory).forEach(function (cat) {
+        const title = document.createElement("p");
+        title.className = "order-track-add-category";
+        title.textContent = ADD_PANEL_CATEGORY_TITLES[cat] || cat;
+        panel.appendChild(title);
+        byCategory[cat].forEach(function (it) {
+          const row = document.createElement("div");
+          row.className = "order-track-add-item";
+          row.innerHTML = "<span>" + esc(it.name) + " — " + W.formatPrice(it.price) + "</span>";
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = "Ajouter";
+          btn.addEventListener("click", function () {
+            submitAddendum("add", [{ name: it.name, variant: "", qty: 1, unit_price_cents: Math.round(it.price * 100), removed: [], extras: [], half: null, note: "" }], null);
+          });
+          row.appendChild(btn);
+          panel.appendChild(row);
+        });
+      });
+      if (catalog.sizeChart.length) {
+        const pizzaTitle = document.createElement("p");
+        pizzaTitle.className = "order-track-add-category";
+        pizzaTitle.textContent = "Pizzas";
+        panel.appendChild(pizzaTitle);
+        catalog.items.filter(function (it) { return it.kind === "pizza"; }).forEach(function (it) {
+          const wrap = document.createElement("div");
+          wrap.className = "order-track-add-pizza";
+          const label = document.createElement("p");
+          label.textContent = it.name;
+          wrap.appendChild(label);
+          const widget = W.build(it.name, it.ingredients, catalog.sizeChart, catalog.pizzaCatalog, {
+            allowHalf: it.allowHalf, choice: it.choice,
+            onAdd: function (line) { submitAddendum("add", [lineToAddendumItem(line)], null); }
+          });
+          wrap.appendChild(widget);
+          panel.appendChild(wrap);
+        });
+      }
+    });
   }
 
   // Commande introuvable dans ce compte (ou à un autre client) : on n'insiste pas.
@@ -419,6 +737,19 @@
       polling = true;
       fetchStatus();
     });
+
+    // Un seul écouteur délégué (le conteneur est réécrit à chaque rendu, les boutons qu'il contient non) :
+    // annuler, ouvrir/fermer le panneau d'ajout, modifier une pizza précise.
+    if (body) {
+      body.addEventListener("click", function (e) {
+        const btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        const action = btn.getAttribute("data-action");
+        if (action === "cancel-order") cancelOrder();
+        else if (action === "toggle-add-panel") toggleAddPanel();
+        else if (action === "modify-item") openModifyFor(btn.getAttribute("data-source"), btn.getAttribute("data-id"), btn.getAttribute("data-name"), btn.getAttribute("data-variant"));
+      });
+    }
   }
 
   if (document.readyState === "loading") {

@@ -3,9 +3,13 @@ import crypto from 'node:crypto';
 import { fail, failValidation } from './core.js';
 import { all, one } from './db.js';
 import { catalogueCanonicalItems, catalogueSwapKey, checkAvailabilityLines, verifyLinePrices } from './catalogue.js';
-import { isIntBetween, strChars, utcAt, utcToEpoch } from './util.js';
+import { isIntBetween, nowUtc, strChars, utcAt, utcToEpoch } from './util.js';
 
 export const PAYMENT_METHODS = ['card', 'cash', 'ticket', 'ticket_card'];
+// Annulation client (order_cancel.js) : fenêtre depuis created_at, jamais accepted_at ni réinitialisée.
+// Bornes exactes (décision du 21/11/2026) : autorisée strictement avant created_at + 240s, plus du tout à
+// 240s pile ni après (« exactement 4 minutes » = refusé, « 3 min 59 » = encore accepté).
+export const CANCEL_WINDOW_S = 240;
 export const CASH_CHANGE_CHOICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 export const VARIANTS = ['', 'Solo', 'Duo', 'Quatro', 'XXL'];
 export const PIZZA_SIZES = ['Solo', 'Duo', 'Quatro', 'XXL'];
@@ -25,6 +29,103 @@ function liste(v) {
   if (Array.isArray(v)) return v;
   if (estObjet(v) && Object.keys(v).length === 0) return [];
   return null;
+}
+
+/**
+ * Valide une ligne de panier (name/variant/qty/unit_price_cents/removed/extras/half/note), poussant les
+ * erreurs dans `err` sous le préfixe `p`. Réutilisée par order_create (items[i]) et order_addendum_create
+ * (un ajout, ou l'état complet soumis pour une modification). Renvoie null si la ligne elle-même n'est pas
+ * un objet (ligne complètement illisible, jamais ajoutée à la liste par l'appelant).
+ */
+export function validateItemFields(raw, p, err) {
+  // Une ligne est un objet (un tableau vide est lu comme un objet vide, comme en PHP).
+  const it = estObjet(raw) ? raw : (Array.isArray(raw) && raw.length === 0 ? {} : null);
+  if (it === null) {
+    err[p] = 'Ligne invalide.';
+    return null;
+  }
+  const name = typeof it.name === 'string' ? phpTrim(it.name) : '';
+  if (name === '' || strChars(name) > 120) err[`${p}.name`] = 'Nom invalide.';
+  let variant = it.variant ?? '';
+  if (typeof variant !== 'string' || !VARIANTS.includes(variant)) {
+    err[`${p}.variant`] = 'Taille invalide.';
+    variant = '';
+  }
+  let qty = it.qty ?? null;
+  if (!isIntBetween(qty, 1, 20)) {
+    err[`${p}.qty`] = 'Quantité invalide (1 à 20).';
+    qty = 1;
+  }
+  let unit = it.unit_price_cents ?? null;
+  if (!isIntBetween(unit, 1, 50000)) {
+    err[`${p}.unit_price_cents`] = 'Prix invalide.';
+    unit = 0;
+  }
+  const removed = [];
+  const rIn = liste(it.removed ?? []);
+  if (rIn === null || rIn.length > 20) {
+    err[`${p}.removed`] = "Liste d'ingrédients retirés invalide.";
+  } else {
+    for (const r of rIn) {
+      if (typeof r !== 'string' || strChars(phpTrim(r)) > 60) {
+        err[`${p}.removed`] = 'Ingrédient retiré invalide.';
+        break;
+      }
+      removed.push(phpTrim(r));
+    }
+  }
+  const extras = [];
+  const eIn = liste(it.extras ?? []);
+  if (eIn === null || eIn.length > 20) {
+    err[`${p}.extras`] = 'Suppléments invalides.';
+  } else {
+    const seen = new Set();
+    for (let j = 0; j < eIn.length; j++) {
+      const e = eIn[j];
+      const objet = e !== null && typeof e === 'object';
+      const en = objet && typeof e.name === 'string' ? phpTrim(e.name) : null;
+      const ep = objet ? (e.price_cents ?? null) : null;
+      const eq = objet ? (e.qty ?? 1) : null;
+      if (en === null || strChars(en) > 60 || !isIntBetween(ep, 0, 10000)) {
+        err[`${p}.extras`] = 'Supplément invalide.';
+        break;
+      }
+      // Un supplément = une portion : l'interface n'envoie jamais d'autre quantité.
+      if (eq !== 1) {
+        err[`${p}.extras[${j}].qty`] = 'Quantité de supplément invalide (1 uniquement).';
+        break;
+      }
+      const ek = catalogueSwapKey(en);
+      if (seen.has(ek)) {
+        err[`${p}.extras[${j}].name`] = 'Supplément en double.';
+        break;
+      }
+      seen.add(ek);
+      extras.push({ name: en, price_cents: ep, qty: eq });
+    }
+  }
+  let half = null;
+  const hIn = it.half ?? null;
+  if (hIn !== null) {
+    const objet = typeof hIn === 'object';
+    const f1 = objet && typeof hIn.flavor1 === 'string' ? phpTrim(hIn.flavor1) : null;
+    const f2 = objet && typeof hIn.flavor2 === 'string' ? phpTrim(hIn.flavor2) : null;
+    if (f1 === null || f2 === null || strChars(f1) > 120 || strChars(f2) > 120) {
+      err[`${p}.half`] = 'Moitié-moitié invalide.';
+    } else {
+      half = { flavor1: f1, flavor2: f2 };
+    }
+  }
+  let note = it.note ?? '';
+  if (typeof note !== 'string' || strChars(phpTrim(note)) > 300) {
+    err[`${p}.note`] = 'Remarque trop longue (300 caractères au plus).';
+    note = '';
+  } else if (note.includes('\0')) {
+    // Postgres refuse le caractère NUL dans un texte : la remarque est refusée proprement (422) plutôt qu'en erreur 500.
+    err[`${p}.note`] = 'Remarque invalide.';
+    note = '';
+  }
+  return { name, variant, qty, unit_price_cents: unit, removed, extras, half, note: phpTrim(note) };
 }
 
 /**
@@ -93,96 +194,10 @@ export function validateOrderBody(b) {
   } else {
     let qtySum = 0;
     itemsIn.forEach((raw, i) => {
-      const p = `items[${i}]`;
-      // Une ligne est un objet (un tableau vide est lu comme un objet vide, comme en PHP).
-      const it = estObjet(raw) ? raw : (Array.isArray(raw) && raw.length === 0 ? {} : null);
-      if (it === null) {
-        err[p] = 'Ligne invalide.';
-        return;
-      }
-      const name = typeof it.name === 'string' ? phpTrim(it.name) : '';
-      if (name === '' || strChars(name) > 120) err[`${p}.name`] = 'Nom invalide.';
-      let variant = it.variant ?? '';
-      if (typeof variant !== 'string' || !VARIANTS.includes(variant)) {
-        err[`${p}.variant`] = 'Taille invalide.';
-        variant = '';
-      }
-      let qty = it.qty ?? null;
-      if (!isIntBetween(qty, 1, 20)) {
-        err[`${p}.qty`] = 'Quantité invalide (1 à 20).';
-        qty = 1;
-      }
-      qtySum += qty;
-      let unit = it.unit_price_cents ?? null;
-      if (!isIntBetween(unit, 1, 50000)) {
-        err[`${p}.unit_price_cents`] = 'Prix invalide.';
-        unit = 0;
-      }
-      const removed = [];
-      const rIn = liste(it.removed ?? []);
-      if (rIn === null || rIn.length > 20) {
-        err[`${p}.removed`] = "Liste d'ingrédients retirés invalide.";
-      } else {
-        for (const r of rIn) {
-          if (typeof r !== 'string' || strChars(phpTrim(r)) > 60) {
-            err[`${p}.removed`] = 'Ingrédient retiré invalide.';
-            break;
-          }
-          removed.push(phpTrim(r));
-        }
-      }
-      const extras = [];
-      const eIn = liste(it.extras ?? []);
-      if (eIn === null || eIn.length > 20) {
-        err[`${p}.extras`] = 'Suppléments invalides.';
-      } else {
-        const seen = new Set();
-        for (let j = 0; j < eIn.length; j++) {
-          const e = eIn[j];
-          const objet = e !== null && typeof e === 'object';
-          const en = objet && typeof e.name === 'string' ? phpTrim(e.name) : null;
-          const ep = objet ? (e.price_cents ?? null) : null;
-          const eq = objet ? (e.qty ?? 1) : null;
-          if (en === null || strChars(en) > 60 || !isIntBetween(ep, 0, 10000)) {
-            err[`${p}.extras`] = 'Supplément invalide.';
-            break;
-          }
-          // Un supplément = une portion : l'interface n'envoie jamais d'autre quantité.
-          if (eq !== 1) {
-            err[`${p}.extras[${j}].qty`] = 'Quantité de supplément invalide (1 uniquement).';
-            break;
-          }
-          const ek = catalogueSwapKey(en);
-          if (seen.has(ek)) {
-            err[`${p}.extras[${j}].name`] = 'Supplément en double.';
-            break;
-          }
-          seen.add(ek);
-          extras.push({ name: en, price_cents: ep, qty: eq });
-        }
-      }
-      let half = null;
-      const hIn = it.half ?? null;
-      if (hIn !== null) {
-        const objet = typeof hIn === 'object';
-        const f1 = objet && typeof hIn.flavor1 === 'string' ? phpTrim(hIn.flavor1) : null;
-        const f2 = objet && typeof hIn.flavor2 === 'string' ? phpTrim(hIn.flavor2) : null;
-        if (f1 === null || f2 === null || strChars(f1) > 120 || strChars(f2) > 120) {
-          err[`${p}.half`] = 'Moitié-moitié invalide.';
-        } else {
-          half = { flavor1: f1, flavor2: f2 };
-        }
-      }
-      let note = it.note ?? '';
-      if (typeof note !== 'string' || strChars(phpTrim(note)) > 300) {
-        err[`${p}.note`] = 'Remarque trop longue (300 caractères au plus).';
-        note = '';
-      } else if (note.includes('\0')) {
-        // Postgres refuse le caractère NUL dans un texte : la remarque est refusée proprement (422) plutôt qu'en erreur 500.
-        err[`${p}.note`] = 'Remarque invalide.';
-        note = '';
-      }
-      items.push({ name, variant, qty, unit_price_cents: unit, removed, extras, half, note: phpTrim(note) });
+      const item = validateItemFields(raw, `items[${i}]`, err);
+      if (item === null) return;
+      qtySum += item.qty;
+      items.push(item);
     });
     if (qtySum > 60) err.items = "Trop d'articles (60 au plus).";
   }
@@ -229,6 +244,12 @@ function jsonCanonique(v) {
  */
 export function orderPayloadHash(o) {
   const canon = [o.mode, o.payment_methods, o.cash_change_for, o.hot_sauce, o.items, o.delivery_fee_cents, o.total_cents, o.scheduled_for];
+  return crypto.createHash('sha256').update(jsonCanonique(canon)).digest('hex');
+}
+
+/** Même triade replay/conflict que orderPayloadHash, pour order_addendum_create.js. */
+export function addendumPayloadHash(a) {
+  const canon = [a.kind, a.target_item_id ?? null, a.target_addendum_item_id ?? null, a.items ?? null, a.item ?? null, a.total_cents];
   return crypto.createHash('sha256').update(jsonCanonique(canon)).digest('hex');
 }
 
@@ -301,6 +322,66 @@ function jsonOuVide(texte, defaut) {
   }
 }
 
+// Fenêtre d'ajout/modification (order_addendum_create.js) : même base que CANCEL_WINDOW_S (created_at,
+// jamais réinitialisée par un ajout précédent), mais 10 minutes. Bornes strictes, même convention.
+export const ADDENDUM_WINDOW_S = 600;
+
+/**
+ * État effectif de toutes les lignes d'une commande : les order_items d'origine et les articles ajoutés
+ * par un order_addenda kind='add', chacun remplacé par sa dernière modification (kind='modify') confirmée
+ * s'il en existe une. order_items et order_addendum_items restent immuables ; cette fonction « replie »
+ * l'historique en un état courant, pour le calcul du total (promo) et pour résoudre la cible d'une
+ * nouvelle modification. Chaque ligne porte son identité (source + id) : 'item' (order_items.id) ou
+ * 'addendum_item' (order_addendum_items.id d'un ajout précédent), pour qu'un order_addenda puisse la
+ * cibler via target_item_id ou target_addendum_item_id.
+ */
+export async function effectiveOrderLines(orderId) {
+  const items = await all('SELECT * FROM order_items WHERE order_id = ? ORDER BY position', [orderId]);
+  const addenda = await all('SELECT * FROM order_addenda WHERE order_id = ? ORDER BY seq', [orderId]);
+  const addendumIds = addenda.map((a) => Number(a.id));
+  const addendumItems = addendumIds.length
+    ? await all(`SELECT * FROM order_addendum_items WHERE addendum_id IN (${addendumIds.map(() => '?').join(',')}) ORDER BY addendum_id, position`, addendumIds)
+    : [];
+  const itemsByAddendum = new Map();
+  for (const ai of addendumItems) {
+    const list = itemsByAddendum.get(Number(ai.addendum_id)) ?? [];
+    list.push(ai);
+    itemsByAddendum.set(Number(ai.addendum_id), list);
+  }
+
+  // Dernière modification (plus grand seq, l'ordre de la requête ci-dessus) par cible.
+  const latestModify = new Map();
+  for (const a of addenda) {
+    if (String(a.kind) !== 'modify') continue;
+    const row = (itemsByAddendum.get(Number(a.id)) ?? [])[0];
+    if (!row) continue;
+    const key = a.target_item_id !== null && a.target_item_id !== undefined
+      ? `item:${a.target_item_id}`
+      : `addendum_item:${a.target_addendum_item_id}`;
+    latestModify.set(key, row);
+  }
+
+  const asLine = (row) => ({
+    name: String(row.name), variant: String(row.variant), qty: Number(row.qty),
+    unit_price_cents: Number(row.unit_price_cents), line_total_cents: Number(row.line_total_cents),
+    removed: jsonOuVide(row.removed_json, []), extras: jsonOuVide(row.extras_json, []),
+    half: row.half_json === null || row.half_json === undefined ? null : jsonOuVide(row.half_json, null),
+    category: row.category === null || row.category === undefined ? null : String(row.category)
+  });
+
+  const baseLines = items.map((it) => ({ source: 'item', id: Number(it.id), ...asLine(latestModify.get(`item:${it.id}`) ?? it) }));
+
+  const addedLines = [];
+  for (const a of addenda) {
+    if (String(a.kind) !== 'add') continue;
+    for (const ai of itemsByAddendum.get(Number(a.id)) ?? []) {
+      addedLines.push({ source: 'addendum_item', id: Number(ai.id), ...asLine(latestModify.get(`addendum_item:${ai.id}`) ?? ai) });
+    }
+  }
+
+  return [...baseLines, ...addedLines];
+}
+
 /** Lignes des commandes données, groupées par numéro de commande (Map id -> lignes). */
 export async function orderItemsByOrder(orderIds) {
   const map = new Map();
@@ -311,6 +392,8 @@ export async function orderItemsByOrder(orderIds) {
     const id = Number(r.order_id);
     if (!map.has(id)) map.set(id, []);
     map.get(id).push({
+      // id : cible possible d'un order_addenda kind='modify' (target_item_id), voir order_addendum_create.js.
+      id: Number(r.id),
       name: String(r.name),
       variant: String(r.variant),
       qty: Number(r.qty),
@@ -326,7 +409,7 @@ export async function orderItemsByOrder(orderIds) {
   return map;
 }
 
-export function orderView(o, items, owner) {
+export function orderView(o, items, addenda, owner) {
   const delay = o.delay_minutes === null ? null : Number(o.delay_minutes);
   let readyAt = null;
   if (o.accepted_at !== null && delay !== null) {
@@ -334,6 +417,15 @@ export function orderView(o, items, owner) {
   }
   let methods;
   try { methods = JSON.parse(String(o.payment_methods)); } catch { methods = null; }
+  const createdEpoch = utcToEpoch(String(o.created_at));
+  const cancelEligibleUntil = utcAt(createdEpoch + CANCEL_WINDOW_S);
+  const addendumEligibleUntil = utcAt(createdEpoch + ADDENDUM_WINDOW_S);
+  const nowEpoch = utcToEpoch(nowUtc());
+  // Calculés serveur, jamais devinés côté client (même esprit que ready_at) : le client affiche ces
+  // champs, il ne recalcule rien lui-même. Strictement avant l'échéance (voir *_WINDOW_S ci-dessus).
+  const eligibleStatus = o.status === 'new' || o.status === 'accepted';
+  const canCancel = eligibleStatus && nowEpoch < createdEpoch + CANCEL_WINDOW_S;
+  const canAddOrModify = eligibleStatus && nowEpoch < createdEpoch + ADDENDUM_WINDOW_S;
   const v = {
     id: Number(o.id),
     status: String(o.status),
@@ -358,7 +450,13 @@ export function orderView(o, items, owner) {
     ready_at: readyAt,
     service_day: String(o.service_day),
     // Commande planifiée par le client (type Uber Eats) ; null = commande « dès que possible ».
-    scheduled_for: o.scheduled_for === undefined ? null : o.scheduled_for
+    scheduled_for: o.scheduled_for === undefined ? null : o.scheduled_for,
+    cancelled_at: o.cancelled_at === undefined ? null : o.cancelled_at,
+    cancel_eligible_until: cancelEligibleUntil,
+    can_cancel: canCancel,
+    addenda,
+    addendum_eligible_until: addendumEligibleUntil,
+    can_add_or_modify: canAddOrModify
   };
   if (owner) {
     v.customer_id = Number(o.customer_id);
@@ -368,10 +466,63 @@ export function orderView(o, items, owner) {
   return v;
 }
 
+function addendumItemView(it) {
+  return {
+    // id : cible possible d'un order_addenda ultérieur (target_addendum_item_id) — ex. modifier un
+    // article qu'un ajout précédent a lui-même introduit (scénario « ajout puis modification de cet ajout »).
+    id: Number(it.id), name: String(it.name), variant: String(it.variant), qty: Number(it.qty),
+    unit_price_cents: Number(it.unit_price_cents), line_total_cents: Number(it.line_total_cents),
+    removed: jsonOuVide(it.removed_json, []), extras: jsonOuVide(it.extras_json, []), note: String(it.note)
+  };
+}
+
+/** Lignes order_addendum_items des événements donnés, groupées par événement (Map id -> lignes). */
+async function addendumItemsByAddendum(addendumIds) {
+  const map = new Map();
+  if (addendumIds.length === 0) return map;
+  const rows = await all(
+    `SELECT * FROM order_addendum_items WHERE addendum_id IN (${addendumIds.map(() => '?').join(',')}) ORDER BY addendum_id, position`,
+    addendumIds
+  );
+  for (const r of rows) {
+    const id = Number(r.addendum_id);
+    if (!map.has(id)) map.set(id, []);
+    map.get(id).push(addendumItemView(r));
+  }
+  return map;
+}
+
+/**
+ * Événements (ajout/modification/annulation, voir order_addendum_create.js et order_cancel.js) des
+ * commandes données, groupés par commande (Map id -> événements triés par seq).
+ */
+export async function orderAddendaByOrder(orderIds) {
+  const map = new Map();
+  if (orderIds.length === 0) return map;
+  const rows = await all(
+    `SELECT * FROM order_addenda WHERE order_id IN (${orderIds.map(() => '?').join(',')}) ORDER BY order_id, seq`,
+    orderIds
+  );
+  const itemsByAddendum = await addendumItemsByAddendum(rows.map((r) => Number(r.id)));
+  for (const r of rows) {
+    const id = Number(r.order_id);
+    if (!map.has(id)) map.set(id, []);
+    map.get(id).push({
+      id: Number(r.id), seq: Number(r.seq), kind: String(r.kind),
+      target_item_id: r.target_item_id === null || r.target_item_id === undefined ? null : Number(r.target_item_id),
+      target_addendum_item_id: r.target_addendum_item_id === null || r.target_addendum_item_id === undefined ? null : Number(r.target_addendum_item_id),
+      delta_cents: Number(r.delta_cents), created_at: String(r.created_at),
+      items: itemsByAddendum.get(Number(r.id)) ?? []
+    });
+  }
+  return map;
+}
+
 /** Vues pour une liste de lignes `orders`. */
 export async function orderViews(rows, owner) {
   const items = await orderItemsByOrder(rows.map((r) => Number(r.id)));
-  return rows.map((r) => orderView(r, items.get(Number(r.id)) ?? [], owner));
+  const addenda = await orderAddendaByOrder(rows.map((r) => Number(r.id)));
+  return rows.map((r) => orderView(r, items.get(Number(r.id)) ?? [], addenda.get(Number(r.id)) ?? [], owner));
 }
 
 export async function orderLoad(id) {
