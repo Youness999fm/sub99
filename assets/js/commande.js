@@ -579,17 +579,47 @@
         title.textContent = ADD_PANEL_CATEGORY_TITLES[cat] || cat;
         panel.appendChild(title);
         byCategory[cat].forEach(function (it) {
+          // Choix obligatoire (base des subitowichs, crème fraîche ou tomate, décision du 22/11/2026) :
+          // fait partie du nom envoyé, comme côté commande initiale (cart.js) — sinon le serveur refuse
+          // l'ajout (unknown_item), le choix étant requis par le catalogue.
+          const choice = it.choice && it.choice.options && it.choice.options.length ? it.choice : null;
+          let chosen = "";
+          const wrap = document.createElement("div");
+          wrap.className = "order-track-add-item" + (choice ? " has-choice" : "");
           const row = document.createElement("div");
-          row.className = "order-track-add-item";
+          row.className = "order-track-add-item__row";
           row.innerHTML = "<span>" + esc(it.name) + " — " + W.formatPrice(it.price) + "</span>";
           const btn = document.createElement("button");
           btn.type = "button";
           btn.textContent = "Ajouter";
+          function effectiveName() { return choice && chosen ? it.name + " — " + (chosen.charAt(0).toUpperCase() + chosen.slice(1)) : it.name; }
+          function sync() { btn.disabled = !!choice && !chosen; }
           btn.addEventListener("click", function () {
-            submitAddendum([{ name: it.name, variant: "", qty: 1, unit_price_cents: Math.round(it.price * 100), removed: [], extras: [], half: null, note: "" }]);
+            if (choice && !chosen) return;
+            submitAddendum([{ name: effectiveName(), variant: "", qty: 1, unit_price_cents: Math.round(it.price * 100), removed: [], extras: [], half: null, note: "" }]);
           });
           row.appendChild(btn);
-          panel.appendChild(row);
+          wrap.appendChild(row);
+          if (choice) {
+            const choiceWrap = document.createElement("div");
+            choiceWrap.className = "order-track-add-choice";
+            choice.options.forEach(function (opt) {
+              const optBtn = document.createElement("button");
+              optBtn.type = "button";
+              optBtn.setAttribute("aria-pressed", "false");
+              optBtn.textContent = opt.charAt(0).toUpperCase() + opt.slice(1);
+              optBtn.addEventListener("click", function () {
+                chosen = opt;
+                Array.prototype.forEach.call(choiceWrap.children, function (c) { c.setAttribute("aria-pressed", "false"); });
+                optBtn.setAttribute("aria-pressed", "true");
+                sync();
+              });
+              choiceWrap.appendChild(optBtn);
+            });
+            wrap.appendChild(choiceWrap);
+          }
+          sync();
+          panel.appendChild(wrap);
         });
       });
       if (catalog.sizeChart.length) {

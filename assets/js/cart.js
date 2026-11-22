@@ -1301,7 +1301,47 @@ const SUBITO_CART_CONFIG = {
   // Panneau simple (pâtes, Subitowichs) : pas de taille, pas de suppléments
   // (aucun prix fiable de supplément n'existe pour ces catégories sur le
   // site — on ne l'invente pas), seulement retraits + demande libre.
-  function buildSimpleCustomizePanel(productName, basePrice, ingredients) {
+  // Choix obligatoire sur un produit à prix simple (base des subitowichs, crème fraîche ou tomate,
+  // décision du 22/11/2026) : même principe que la garniture obligatoire de la calzone (pizza-widget__filler
+  // ci-dessus), mais partagé entre l'ajout rapide ET le panneau de personnalisation — une seule sélection,
+  // jamais deux UI différentes pour la même chose. `onChange(option)` est appelé à chaque sélection.
+  function buildRequiredChoice(choice, onChange) {
+    const wrap = document.createElement("div");
+    wrap.className = "customize__section simple-choice";
+    const title = document.createElement("p");
+    title.className = "customize__title";
+    title.textContent = choice.label + " (obligatoire)";
+    const chips = document.createElement("div");
+    chips.className = "customize__chips";
+    const buttons = [];
+    choice.options.forEach(function (opt) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "pizza-widget__filler-btn";
+      b.textContent = capitalizeFirst(opt);
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function () {
+        buttons.forEach(function (el) { el.classList.remove("is-active"); el.setAttribute("aria-pressed", "false"); });
+        b.classList.add("is-active");
+        b.setAttribute("aria-pressed", "true");
+        onChange(opt);
+      });
+      buttons.push(b);
+      chips.appendChild(b);
+    });
+    const hint = document.createElement("p");
+    hint.className = "customize__hint";
+    hint.textContent = "Choisissez une option pour pouvoir l’ajouter au panier.";
+    wrap.appendChild(title);
+    wrap.appendChild(chips);
+    wrap.appendChild(hint);
+    return wrap;
+  }
+
+  function buildSimpleCustomizePanel(productName, basePrice, ingredients, simpleOpts) {
+    const simple = simpleOpts || {};
+    const getName = simple.getName || function () { return productName; };
+    const isBlocked = simple.isBlocked || function () { return false; };
     const wrap = document.createElement("div");
     wrap.className = "customize";
 
@@ -1356,11 +1396,14 @@ const SUBITO_CART_CONFIG = {
     addBtn.className = "btn-solid customize__add";
     addBtn.textContent = "Ajouter au panier";
     addBtn.addEventListener("click", function () {
-      addLine({ name: productName, variant: "", basePrice: basePrice, removed: removed.slice(), extras: [], half: null, note: noteInput.value.trim() });
+      if (isBlocked()) return;
+      addLine({ name: getName(), variant: "", basePrice: basePrice, removed: removed.slice(), extras: [], half: null, note: noteInput.value.trim() });
     });
 
     function refresh() {
-      const parts = [productName];
+      const blocked = isBlocked();
+      addBtn.disabled = blocked;
+      const parts = [getName()];
       if (removed.length) parts.push("Sans : " + removed.join(", "));
       if (noteInput.value.trim()) parts.push("Autre demande : " + noteInput.value.trim());
       summary.textContent = parts.join(" — ");
@@ -1374,10 +1417,14 @@ const SUBITO_CART_CONFIG = {
 
     wrap.appendChild(toggle);
     wrap.appendChild(panel);
+    wrap.refresh = refresh;
     return wrap;
   }
 
-  function buildSimpleAdd(productName, price) {
+  function buildSimpleAdd(productName, price, simpleOpts) {
+    const simple = simpleOpts || {};
+    const getName = simple.getName || function () { return productName; };
+    const isBlocked = simple.isBlocked || function () { return false; };
     const wrap = document.createElement("div");
     wrap.className = "add-to-cart";
 
@@ -1395,8 +1442,15 @@ const SUBITO_CART_CONFIG = {
       '<button type="button" class="add-to-cart__inc" aria-label="Augmenter">+</button>';
 
     function syncFromCart() {
+      if (isBlocked()) {
+        btn.disabled = true;
+        btn.hidden = false;
+        stepper.hidden = true;
+        return;
+      }
+      btn.disabled = false;
       const cart = readCart();
-      const line = cart.find(function (l) { return l.id === lineId(productName, ""); });
+      const line = cart.find(function (l) { return l.id === lineId(getName(), ""); });
       const qty = line ? line.qty : 0;
       stepper.querySelector(".add-to-cart__qty").textContent = String(qty);
       stepper.hidden = qty === 0;
@@ -1404,16 +1458,18 @@ const SUBITO_CART_CONFIG = {
     }
 
     btn.addEventListener("click", function () {
-      addItem(productName, "", price);
+      if (isBlocked()) return;
+      addItem(getName(), "", price);
       syncFromCart();
     });
     stepper.querySelector(".add-to-cart__inc").addEventListener("click", function () {
-      addItem(productName, "", price);
+      if (isBlocked()) return;
+      addItem(getName(), "", price);
       syncFromCart();
     });
     stepper.querySelector(".add-to-cart__dec").addEventListener("click", function () {
       const cart = readCart();
-      const line = cart.find(function (l) { return l.id === lineId(productName, ""); });
+      const line = cart.find(function (l) { return l.id === lineId(getName(), ""); });
       if (line) setQty(line.id, line.qty - 1);
       syncFromCart();
     });
@@ -1422,6 +1478,7 @@ const SUBITO_CART_CONFIG = {
     wrap.appendChild(stepper);
     syncFromCart();
     wrap.addEventListener("cart:sync", syncFromCart);
+    wrap.refresh = syncFromCart;
     return wrap;
   }
 
@@ -1462,12 +1519,30 @@ const SUBITO_CART_CONFIG = {
       if (category) {
         const price = priceFromCategoryNote(category);
         if (price !== null) {
-          const widget = buildSimpleAdd(displayName, price);
+          // Choix obligatoire (base des subitowichs, crème fraîche ou tomate, décision du 22/11/2026) :
+          // fait partie du nom de ligne, comme la garniture de la calzone — deux bases = deux lignes
+          // distinctes. Tant qu'aucune option n'est choisie, ni l'ajout rapide ni le panneau de
+          // personnalisation ne peuvent envoyer l'article (rejeté par le serveur sans ça).
+          const choice = parsed.choice && parsed.choice.options.length ? parsed.choice : null;
+          let chosen = "";
+          const simpleOpts = {
+            getName: function () { return choice && chosen ? displayName + " — " + capitalizeFirst(chosen) : displayName; },
+            isBlocked: function () { return !!choice && !chosen; }
+          };
+          const widget = buildSimpleAdd(displayName, price, simpleOpts);
+          const panel = (CUSTOMIZABLE_CATEGORIES[category.id] && ingredients.length)
+            ? buildSimpleCustomizePanel(displayName, price, ingredients, simpleOpts) : null;
+          if (choice) {
+            const choiceEl = buildRequiredChoice(choice, function (opt) {
+              chosen = opt;
+              widget.refresh();
+              if (panel) panel.refresh();
+            });
+            body.appendChild(choiceEl);
+          }
           body.appendChild(widget);
           simpleAddWidgets.push(widget);
-          if (CUSTOMIZABLE_CATEGORIES[category.id] && ingredients.length) {
-            body.appendChild(buildSimpleCustomizePanel(displayName, price, ingredients));
-          }
+          if (panel) body.appendChild(panel);
           return;
         }
       }
@@ -1508,9 +1583,11 @@ const SUBITO_CART_CONFIG = {
       if (category) {
         const price = priceFromCategoryNote(category);
         if (price !== null) {
+          const choice = parsed.choice && parsed.choice.options.length ? parsed.choice : null;
           items.push({
             kind: "product", name: displayName, price: price, categoryId: category.id,
-            ingredients: CUSTOMIZABLE_CATEGORIES[category.id] ? ingredients : []
+            ingredients: CUSTOMIZABLE_CATEGORIES[category.id] ? ingredients : [],
+            choice: choice
           });
           return;
         }

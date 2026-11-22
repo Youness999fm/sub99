@@ -58,14 +58,18 @@
       { name: "Saumon", ing: ["crème fraîche", "saumon"] },
       { name: "Carbonara", ing: ["crème fraîche", "lardons"] }
     ] },
+    // Base au choix (crème fraîche ou tomate) ajoutée pour tous les subitowichs, décision du 22/11/2026 :
+    // groupe au choix (séparateur « | », voir availabilityFrom() de tools/build-catalogue.mjs), jamais un
+    // ingrédient fixe — doit rester identique, une fois les options triées, au choix de menu.html
+    // (vérifié par le script de génération du catalogue).
     { key: 'subitowichs', label: 'Subitowichs (paninis)', items: [
-      { name: "Milano", ing: ["fromage", "poulet"] },
-      { name: "Vesuvio", ing: ["fromage", "viande hachée"] },
-      { name: "4 fromages", ing: ["fromage", "brie", "bleu", "parmesan"] },
-      { name: "Rome", ing: ["fromage", "thon"] },
-      { name: "Venise", ing: ["fromage", "jambon"] },
-      { name: "Norvégien", ing: ["fromage", "saumon fumé"] },
-      { name: "Kebab", ing: ["fromage", "kebab"] }
+      { name: "Milano", ing: ["crème fraîche|tomate", "fromage", "poulet"] },
+      { name: "Vesuvio", ing: ["crème fraîche|tomate", "fromage", "viande hachée"] },
+      { name: "4 fromages", ing: ["crème fraîche|tomate", "fromage", "brie", "bleu", "parmesan"] },
+      { name: "Rome", ing: ["crème fraîche|tomate", "fromage", "thon"] },
+      { name: "Venise", ing: ["crème fraîche|tomate", "fromage", "jambon"] },
+      { name: "Norvégien", ing: ["crème fraîche|tomate", "fromage", "saumon fumé"] },
+      { name: "Kebab", ing: ["crème fraîche|tomate", "fromage", "kebab"] }
     ] },
     { key: 'tex-mex', label: 'Tex-Mex', items: [
       { name: "Wings (5 pièces)", ing: ["ailes de poulet frites", "poulet"] },
@@ -2058,6 +2062,11 @@
   //  - « Subitowich » renommé « Panini » (demande explicite). Pâtes/Tex-Mex/Salade : préfixe inchangé.
   //  - Dessert : préfixe inchangé, mais traité à part (voir splitTicketItems, isTicketDessert ci-dessous).
   const TICKET_PREFIX_RENAME = { Subitowich: 'Panini' };
+  // La garniture de la calzone est embarquée dans le nom lui-même (« Calzone (soufflée) — Jambon »,
+  // jamais un champ à part, voir serveur/catalogue.js) : le ticket doit afficher juste « Calzone Jambon »,
+  // jamais le « (soufflée) » du nom de carte (demande du 22/11/2026). Jamais en moitié-moitié (la calzone
+  // y est refusée, voir order_create.js/validateOrderBody) : pas besoin de traiter ce cas ici.
+  const CALZONE_TICKET_NAME = /^Calzone \(soufflée\)(?:\s*—\s*(.+))?$/;
   // Renvoie { main, size } : `size` est la taille à aligner à droite (DUO/QUATTRO/XXL), vide si l'article
   // n'en a pas. Moitié-moitié compris : « saveur1 / saveur2 » en `main`, la taille reste à part.
   function ticketItemTitle(it) {
@@ -2065,6 +2074,8 @@
       return { main: `${it.half.flavor1 || '?'} / ${it.half.flavor2 || '?'}`, size: it.variant || '' };
     }
     const name = String(it.name || '');
+    const calzone = CALZONE_TICKET_NAME.exec(name);
+    if (calzone) return { main: calzone[1] ? `Calzone ${calzone[1]}` : 'Calzone', size: it.variant || '' };
     if (it.variant) return { main: name, size: it.variant };
     const m = /^(\S+)\s+(.+)$/.exec(name);
     if (m && TICKET_PREFIX_RENAME[m[1]]) return { main: `${TICKET_PREFIX_RENAME[m[1]]} ${m[2]}`, size: '' };

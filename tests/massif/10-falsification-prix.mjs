@@ -202,7 +202,18 @@ try {
     controle(nom, n === banc.acceptes.size, `${n} commande(s) en base, ${banc.acceptes.size} acceptée(s) par le serveur`);
   };
   const ligneBase = (id) => site.db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
-  const lp = (nom, variant, qty = 1, o = {}) => O.calerLigne(idx, { name: nom, variant, qty, unit_price_cents: 1, removed: [], extras: [], half: null, note: '', ...o }).ligne;
+  // Un appelant a écrit le nom nu d'un produit à choix obligatoire (base des subitowichs, décision du
+  // 22/11/2026), sans l'option — complète avec la première option plutôt que de faire planter calerLigne() :
+  // ces lignes servent à bâtir des commandes VALIDES de référence, jamais à tester le choix lui-même.
+  const completerChoixManquant = (nom, variant) => {
+    if (variant) return nom; // jamais les pizzas : déjà gérées par leurs propres appelants
+    const [base, reste] = O.decouper(nom);
+    if (reste !== null && reste !== '') return nom;
+    const p = idx.produits.find((x) => x.line_name === base);
+    if (!p || !p.choice || !p.choice.required) return nom;
+    return `${nom} — ${O.capPremiere(p.choice.options[0])}`;
+  };
+  const lp = (nom, variant, qty = 1, o = {}) => O.calerLigne(idx, { name: completerChoixManquant(nom, variant), variant, qty, unit_price_cents: 1, removed: [], extras: [], half: null, note: '', ...o }).ligne;
   const any = () => banc.suivant();
   const henin = () => banc.clientDe(VH);
 
@@ -214,7 +225,12 @@ try {
     const garnitures = p.choice ? (p.choice.required ? p.choice.options : [null, ...p.choice.options]) : [null];
     for (const g of garnitures) for (const t of O.TAILLES) toutes.push(lp(p.line_name + (g ? ' — ' + O.capPremiere(g) : ''), t));
   }
-  for (const p of idx.produits) toutes.push(lp(p.line_name, ''));
+  for (const p of idx.produits) {
+    // Choix obligatoire sur un produit (base des subitowichs, décision du 22/11/2026) : même traitement
+    // que les garnitures de pizza ci-dessus, jamais le nom nu seul quand le choix est requis.
+    const garnitures = p.choice ? (p.choice.required ? p.choice.options : [null, ...p.choice.options]) : [null];
+    for (const g of garnitures) toutes.push(lp(p.line_name + (g ? ' — ' + O.capPremiere(g) : ''), ''));
+  }
   for (let k = 0; k * 40 < toutes.length; k++) {
     const morceau = toutes.slice(k * 40, k * 40 + 40);
     await accepte(`T${k + 1} commande de ${morceau.length} lignes du catalogue (n° ${k * 40 + 1} à ${k * 40 + morceau.length}), prix officiels`, any(), cmd(morceau, { ville: VH }));
