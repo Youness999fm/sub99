@@ -127,9 +127,23 @@ cible, ce qui n'a jamais été donné). Marche à suivre, identique à ce qui av
   d'authentification, même un code de test local. Le rendu a donc été vérifié par injection directe du
   balisage produit par le code, pas par un vrai parcours connecté. À confirmer par vous (ou lors d'une
   session où la connexion pourra se faire autrement) avant de considérer ce point 100 % bouclé.
-- **Non fait dans cette section** : les deux autres fonctionnalités commerçant demandées (section « refusées/
-  annulées » en haut avec compteurs, suppression avec corbeille/restauration) — chacune comparable en
-  ampleur à ce qui vient d'être fait, pas commencées faute de temps.
+### 7. Section « Refusées / annulées » en haut avec compteurs (section 12 du brief) — fait et vérifié visuellement
+
+- **Constat utile** : aucune modification serveur n'était nécessaire — `owner_orders.js` renvoyait déjà les
+  commandes refusées/annulées du jour (`service_day` est fixé dès la création, quel que soit le statut
+  final), elles n'étaient simplement affichées nulle part à part dans l'interface commerçant.
+- **Fait** (`assets/js/commercant.js` : nouvelles `refusedOrCancelledOrders()` + `renderRefused()` ;
+  `commercant/index.html` : nouvelle section tout en haut de la file, avant « À traiter » ; CSS dédié) : une
+  section dédiée liste les commandes refusées (gris neutre) et annulées (rouge) du jour de service, avec un
+  compteur dans le titre (ex. « Refusées / annulées (1 refusée · 2 annulées) »), masquée automatiquement s'il
+  n'y en a aucune. Chaque puce ouvre le ticket en lecture (même dialogue que partout ailleurs), sans jamais
+  les mélanger à la recette du jour (qui ne garde que les commandes honorées).
+- **Vérifié** : `node --check` (syntaxe OK), capture d'écran du rendu réel dans le navigateur (balisage
+  injecté, mêmes limites de vérification que pour les boutons Voir/Imprimer ci-dessus — pas de parcours
+  connecté réel), aucune erreur console.
+- **Non fait dans cette section** : la suppression de commande avec corbeille/restauration (soft-delete) —
+  fonctionnalité à part entière (nouvelle colonne, route, confirmation, UI de restauration), pas commencée
+  faute de temps.
 
 ## Ce qui N'A PAS pu être fait cette nuit (honnêtement, sans survendre)
 
@@ -147,7 +161,8 @@ Le brief demande un audit exhaustif en 16 sections, comparable à plusieurs sema
 | 10. Tests de bout en bout exhaustifs | Partiel | Une large suite automatisée existe déjà (202 tests) couvrant une bonne partie de ces scénarios depuis la mission précédente, mais pas tous les cas listés ici (panier mêlant toutes les catégories, perte réseau simulée, etc.). |
 | 11. Audit prix/promos/livraison | Non fait spécifiquement | Les règles de promo existantes sont couvertes par les tests automatisés déjà en place, mais pas ré-auditées ligne à ligne contre le brief. |
 | 12. Section commerçant — boutons Voir/Imprimer sur commandes programmées | **Fait, vérifié visuellement** (pas encore en conditions réelles connectées — voir détail plus haut) | |
-| 12. Section commerçant — refusées/annulées en haut avec compteurs, suppression avec corbeille | Non fait | Deux fonctionnalités neuves, chacune comparable en ampleur à une mission complète. Non commencées faute de temps — à prioriser à la prochaine session. |
+| 12. Section commerçant — refusées/annulées en haut avec compteurs | **Fait, vérifié visuellement** (même réserve que ci-dessus) | |
+| 12. Section commerçant — suppression avec corbeille/restauration | Non fait | Fonctionnalité à part entière (nouvelle colonne, route, confirmation, UI de restauration). Non commencée faute de temps — à prioriser à la prochaine session. |
 | 13. Test de charge 4000 commandes | Non fait | Nécessite un harnais de charge dédié (k6, autocannon ou équivalent) contre l'environnement de test ; non construit cette nuit. **Jamais testé en production, comme exigé.** |
 | 14. Google Business Profile + SEO | SEO on-site déjà en place ; profil Google non vérifiable | Vérifié : `robots.txt`, `sitemap.xml`, balises title/description/OG/canonical, données structurées JSON-LD (Restaurant, BreadcrumbList, WebSite) présentes et correctement renseignées sur les pages principales. Aucun accès à la fiche Google Business Profile (ni identifiants, ni accès fourni) — à signaler précisément comme demandé : **accès manquant, impossible de le faire sans lui**. |
 

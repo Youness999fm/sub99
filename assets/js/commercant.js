@@ -334,6 +334,13 @@
       .filter(o => o.status === 'new' && o.scheduled_for && !surfaced(o))
       .sort((a, b) => String(a.scheduled_for).localeCompare(String(b.scheduled_for)));
   }
+  // Refusées/annulées du jour : affichées à part, en haut, pour ne jamais les mélanger avec la file active
+  // ni avec la recette (qui ne compte que les commandes réellement honorées).
+  function refusedOrCancelledOrders() {
+    return state.orders
+      .filter(o => (o.status === 'refused' || o.status === 'cancelled') && o.service_day === state.serviceDay)
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  }
   // Recette du jour : commandes acceptées, qu'elles soient encore en préparation ou déjà prêtes.
   function recapOrders() {
     return state.orders
@@ -1024,7 +1031,8 @@
       new: ['pill-new', 'Nouvelle'],
       accepted: ['pill-accepted', 'Acceptée'],
       ready: ['pill-ready', 'Prête'],
-      refused: ['pill-refused', 'Refusée']
+      refused: ['pill-refused', 'Refusée'],
+      cancelled: ['pill-cancelled', 'Annulée']
     };
     const [cls, label] = map[status] || ['pill-refused', String(status)];
     return `<span class="pill ${cls}">${esc(label)}</span>`;
@@ -1068,6 +1076,36 @@
           aria-label="Commande de ${esc(customerLabel(o))}, en préparation, ${esc(eur(o.total_cents))}. Ouvrir pour la marquer prête">
           <span class="qchip-title">${esc(customerLabel(o))}</span>
           <span class="qchip-sub">${ready ? 'Prête vers ' + esc(hm(ready)) + ' · ' : ''}${esc(eur(o.total_cents))}</span>
+        </button>`;
+    }).join(''));
+  }
+
+  // « Refusées / annulées » : section dédiée en haut, avec un compteur par motif, pour que le commerçant
+  // les retrouve sans avoir à les chercher dans la recette (qui ne garde que les commandes honorées).
+  function renderRefused() {
+    const strip = document.getElementById('refused-strip');
+    const box = document.getElementById('refused-queue');
+    const countEl = document.getElementById('refused-count');
+    if (!strip || !box) return;
+    const list = refusedOrCancelledOrders();
+    strip.hidden = list.length === 0;
+    if (countEl) {
+      const nbRefused = list.filter(o => o.status === 'refused').length;
+      const nbCancelled = list.filter(o => o.status === 'cancelled').length;
+      const parts = [];
+      if (nbRefused) parts.push(nbRefused + ' refusée' + (nbRefused > 1 ? 's' : ''));
+      if (nbCancelled) parts.push(nbCancelled + ' annulée' + (nbCancelled > 1 ? 's' : ''));
+      countEl.textContent = parts.length ? ' (' + parts.join(' · ') + ')' : '';
+    }
+    setHTML(box, list.map(o => {
+      const d = toDate(o.created_at);
+      // « print-order » (pas « select ») : ouvre le ticket en lecture dans un dialogue, car « select » est
+      // réservé aux commandes encore à traiter (statut "new") et resterait sans effet sur ces états terminaux.
+      return `
+        <button type="button" class="qchip ${o.status === 'cancelled' ? 'is-cancelled' : 'is-refused-chip'}" data-action="print-order" data-id="${esc(o.id)}"
+          aria-label="Voir la commande ${o.status === 'cancelled' ? 'annulée' : 'refusée'} de ${esc(customerLabel(o))}, ${esc(eur(o.total_cents))}">
+          <span class="qchip-title">${esc(customerLabel(o))}</span>
+          <span class="qchip-sub">${d ? esc(hm(d)) + ' · ' : ''}${esc(eur(o.total_cents))} · ${o.status === 'cancelled' ? 'Annulée' : 'Refusée'}</span>
         </button>`;
     }).join(''));
   }
@@ -1709,6 +1747,7 @@
       ob.classList.toggle('is-forced', force);
     }
     renderNotifSlot();
+    renderRefused();
     renderQueue();
     renderScheduled();
     renderPrep();
