@@ -616,24 +616,26 @@
     }
   }
 
+  // Sonnerie « Triple bip urgent » (choisie le 23/11/2026 parmi 6 essayées) : trois bips secs au carré,
+  // pensés pour percer dans le bruit de cuisine sans traîner — remplace l'ancien double ding sinusoïdal.
   function playBeep() {
     const ctx = getCtx();
     if (!ctx) return;
     if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); return; }
     try {
       const now = ctx.currentTime;
-      [[880, 0], [1175, 0.22]].forEach(([freq, delay]) => {
+      [[0, 0.09, 0.16], [0.14, 0.09, 0.16], [0.28, 0.14, 0.18]].forEach(([delay, dur, peak]) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
+        osc.type = 'square';
+        osc.frequency.value = 1046.5;
         gain.gain.setValueAtTime(0.0001, now + delay);
-        gain.gain.exponentialRampToValueAtTime(0.35, now + delay + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.25);
+        gain.gain.exponentialRampToValueAtTime(peak, now + delay + Math.min(0.02, dur * 0.25));
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(now + delay);
-        osc.stop(now + delay + 0.3);
+        osc.stop(now + delay + dur + 0.03);
       });
     } catch (e) { /* audio indisponible : l'alerte visuelle reste */ }
   }
