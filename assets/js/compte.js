@@ -172,8 +172,17 @@
   // En cours : le client peut encore avoir besoin de suivre ou d'agir sur la commande (new/accepted), ou
   // une demande d'annulation est en attente de décision du restaurant. Précédentes : plus rien à suivre
   // (prête, refusée, ou annulation déjà tranchée) — l'historique, pas l'actualité.
-  function isOngoing(o) {
-    return o.status === "new" || o.status === "accepted" || !!o.cancel_requested_at;
+  // Au-delà de 10h après created_at (décision du 24/11/2026), une commande ne compte plus comme « en
+  // cours » même si son statut n'a pas bougé (ex. jamais décidée) : elle rejoint les précédentes, pour que
+  // la liste "en cours" reste fiable au jour le jour plutôt que d'accumuler du très ancien. nowMs vient de
+  // server_now (customer_orders.php) quand disponible, jamais l'horloge de l'appareil — potentiellement décalée.
+  const ONGOING_MAX_MS = 10 * 60 * 60 * 1000;
+  function isOngoing(o, nowMs) {
+    const statusOngoing = o.status === "new" || o.status === "accepted" || !!o.cancel_requested_at;
+    if (!statusOngoing) return false;
+    const createdMs = new Date(o.created_at).getTime();
+    if (isNaN(createdMs)) return true;
+    return nowMs - createdMs < ONGOING_MAX_MS;
   }
 
   function orderCardHtml(o) {
@@ -197,11 +206,13 @@
     );
   }
 
-  function renderOrders(orders) {
+  function renderOrders(orders, serverNow) {
     const current = qs("accountOrdersCurrent");
     const past = qs("accountOrdersPast");
-    const currentOrders = orders.filter(isOngoing);
-    const pastOrders = orders.filter(function (o) { return !isOngoing(o); });
+    const nowMs = serverNow ? new Date(serverNow).getTime() : Date.now();
+    const ongoing = function (o) { return isOngoing(o, nowMs); };
+    const currentOrders = orders.filter(ongoing);
+    const pastOrders = orders.filter(function (o) { return !ongoing(o); });
     current.innerHTML = currentOrders.length
       ? currentOrders.map(orderCardHtml).join("")
       : '<p class="account-hint">Aucune commande en cours.</p>';
@@ -243,7 +254,9 @@
     }
 
     if (window.SubitoAccount) {
-      window.SubitoAccount.myOrders().then(renderOrders).catch(function () {
+      window.SubitoAccount.myOrders().then(function (r) {
+        renderOrders(r.orders, r.serverNow);
+      }).catch(function () {
         const message = '<p class="account-hint">Historique indisponible pour l’instant.</p>';
         qs("accountOrdersCurrent").innerHTML = message;
         qs("accountOrdersPast").innerHTML = message;

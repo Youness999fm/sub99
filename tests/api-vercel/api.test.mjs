@@ -495,6 +495,9 @@ test('3. création de commande', async (t) => {
     const listB = await custB.get('customer_orders.php');
     assert.equal(listB.status, 200);
     assert.deepEqual(listB.json.orders.map((o) => o.id), [ids.orderB1]);
+    // server_now (décision du 24/11/2026) : "Mes commandes" bascule une commande en cours vers l'historique
+    // 10h après created_at côté client (compte.js), sur l'heure serveur plutôt que l'horloge de l'appareil.
+    assert.match(listB.json.server_now, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
     const listA = await custA.get('customer_orders.php');
     const mine = db.prepare('SELECT id FROM orders WHERE customer_id = ? ORDER BY created_at DESC, id DESC').all(ids.custA).map((r) => r.id);
     assert.deepEqual(listA.json.orders.map((o) => o.id), mine);

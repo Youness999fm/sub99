@@ -164,7 +164,7 @@ window.SubitoAccount = (function () {
 
   function myOrders() {
     return request("customer_orders.php", { method: "GET" }).then(function (data) {
-      return (data && data.orders) || [];
+      return { orders: (data && data.orders) || [], serverNow: data && data.server_now };
     });
   }
 
