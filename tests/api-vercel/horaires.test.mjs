@@ -11,10 +11,22 @@ test('lecture du créneau', () => {
 });
 
 test('créneau actif : Vercel par défaut, local sans contrôle, variable prioritaire', () => {
-  assert.equal(creneauActif({}), null);
-  assert.deepEqual(creneauActif({ VERCEL: '1' }), { debut: 1080, fin: 1367 });
-  assert.equal(creneauActif({ VERCEL: '1', HORAIRES_COMMANDES: 'off' }), null);
-  assert.deepEqual(creneauActif({ HORAIRES_COMMANDES: '11:00-14:00' }), { debut: 660, fin: 840 });
+  assert.equal(creneauActif('pickup', {}), null);
+  assert.deepEqual(creneauActif('pickup', { VERCEL: '1' }), { debut: 1080, fin: 1367 });
+  assert.equal(creneauActif('pickup', { VERCEL: '1', HORAIRES_COMMANDES: 'off' }), null);
+  assert.deepEqual(creneauActif('pickup', { HORAIRES_COMMANDES: '11:00-14:00' }), { debut: 660, fin: 840 });
+});
+
+// Livraison (décision du 24/11/2026) : horaire indépendant du retrait, défaut 19h00-22h00, même logique
+// Vercel/local/variable que pickup mais sa propre variable d'environnement.
+test('créneau actif livraison : indépendant du retrait, défaut 19h-22h, variable dédiée', () => {
+  assert.equal(creneauActif('delivery', {}), null, 'local sans contrôle, comme pickup');
+  assert.deepEqual(creneauActif('delivery', { VERCEL: '1' }), { debut: 19 * 60, fin: 22 * 60 });
+  assert.equal(creneauActif('delivery', { VERCEL: '1', HORAIRES_LIVRAISON_COMMANDES: 'off' }), null);
+  assert.deepEqual(creneauActif('delivery', { HORAIRES_LIVRAISON_COMMANDES: '20:00-21:00' }), { debut: 1200, fin: 1260 });
+  // La variable du retrait ne doit jamais influencer la livraison, et inversement.
+  assert.deepEqual(creneauActif('delivery', { VERCEL: '1', HORAIRES_COMMANDES: '10:00-11:00' }), { debut: 19 * 60, fin: 22 * 60 });
+  assert.deepEqual(creneauActif('pickup', { VERCEL: '1', HORAIRES_LIVRAISON_COMMANDES: '10:00-11:00' }), { debut: 1080, fin: 1367 });
 });
 
 test('ouvert / fermé, bornes comprises', () => {
@@ -47,6 +59,7 @@ const { makeEnv, runTool, startServer, stopServer, Client } = await import('./li
 let ctx;
 let proc;
 let alice;
+let bob;
 before(async () => {
   ctx = makeEnv();
   assert.equal((await runTool(ctx, 'install.php')).code, 0);
@@ -57,11 +70,23 @@ before(async () => {
     password: 'Motdepasse-horairesxA1', street: null, city: null
   });
   assert.equal(r.status, 201, r.text);
+  // Client livré (zone Hénin-Beaumont) : pour les tests de livraison ci-dessous, horaire indépendant du retrait.
+  bob = new Client('bob-horaires-livraison');
+  const rb = await bob.post('customer_signup.php', {
+    first_name: 'Test', last_name: 'Livraison', email: 'horaires-livraison@example.test', phone: '06 00 00 00 03',
+    password: 'Motdepasse-livraisonxA1', street: '1 rue des Tests', city: 'Hénin-Beaumont', housing_type: 'maison'
+  });
+  assert.equal(rb.status, 201, rb.text);
 });
-after(() => { delete process.env.HORAIRES_COMMANDES; return stopServer(proc); });
+after(() => { delete process.env.HORAIRES_COMMANDES; delete process.env.HORAIRES_LIVRAISON_COMMANDES; return stopServer(proc); });
 
 const corps = (cle) => ({
   idempotency_key: cle, mode: 'pickup', payment_methods: [], cash_change_for: null,
+  items: [{ name: 'Régina', variant: 'Duo', qty: 1, unit_price_cents: 1600, removed: [], extras: [], half: null, note: '' }],
+  delivery_fee_cents: 0, total_cents: 1600
+});
+const corpsLivraison = (cle) => ({
+  idempotency_key: cle, mode: 'delivery', payment_methods: ['cash'], cash_change_for: 0, hot_sauce: false,
   items: [{ name: 'Régina', variant: 'Duo', qty: 1, unit_price_cents: 1600, removed: [], extras: [], half: null, note: '' }],
   delivery_fee_cents: 0, total_cents: 1600
 });
@@ -80,4 +105,30 @@ test('order_create : fermé hors créneau, ouvert avec « off »', async () => {
   process.env.HORAIRES_COMMANDES = 'off';
   const ouvert = await alice.post('order_create.php', corps('horaires-2'));
   assert.equal(ouvert.status, 201, ouvert.text);
+});
+
+// Livraison (décision du 24/11/2026) : son propre horaire (HORAIRES_LIVRAISON_COMMANDES), totalement
+// indépendant de celui du retrait — fermer l'un n'affecte jamais l'autre, dans les deux sens.
+test('order_create : la livraison a son propre horaire, indépendant du retrait', async () => {
+  const m = (minutesParis() + 720) % 1440;
+  const hhmm = (x) => String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0');
+  const creneauFerme = hhmm(m) + '-' + hhmm((m + 1) % 1440);
+
+  // Livraison fermée (son propre horaire), retrait grand ouvert ("off") : le retrait ne doit pas en pâtir.
+  process.env.HORAIRES_LIVRAISON_COMMANDES = creneauFerme;
+  process.env.HORAIRES_COMMANDES = 'off';
+  const livraisonFermee = await bob.post('order_create.php', corpsLivraison('horaires-liv-1'));
+  assert.equal(livraisonFermee.status, 422, livraisonFermee.text);
+  assert.equal(livraisonFermee.json.error, 'closed');
+  const retraitToujoursOuvert = await bob.post('order_create.php', corps('horaires-liv-2'));
+  assert.equal(retraitToujoursOuvert.status, 201, retraitToujoursOuvert.text, 'le retrait doit rester ouvert malgré la livraison fermée');
+
+  // Et inversement : retrait fermé (son propre horaire), livraison grand ouverte ("off").
+  process.env.HORAIRES_COMMANDES = creneauFerme;
+  process.env.HORAIRES_LIVRAISON_COMMANDES = 'off';
+  const retraitFerme = await bob.post('order_create.php', corps('horaires-liv-3'));
+  assert.equal(retraitFerme.status, 422, retraitFerme.text);
+  assert.equal(retraitFerme.json.error, 'closed');
+  const livraisonToujoursOuverte = await bob.post('order_create.php', corpsLivraison('horaires-liv-4'));
+  assert.equal(livraisonToujoursOuverte.status, 201, livraisonToujoursOuverte.text, 'la livraison doit rester ouverte malgré le retrait fermé');
 });

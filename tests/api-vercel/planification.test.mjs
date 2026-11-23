@@ -1,14 +1,14 @@
 // Commande planifiée, type Uber Eats (serveur/planification.js + schedule_slots.php + order_create.php).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { creneauxDisponibles, creneauValide, FENETRE_RETRAIT, DELAI_MIN_MINUTES, JOURS_MAX, PAS_MINUTES } from '../../serveur/planification.js';
+import { creneauxDisponibles, creneauValide, FENETRE_RETRAIT, FENETRE_LIVRAISON, DELAI_MIN_MINUTES, JOURS_MAX, PAS_MINUTES } from '../../serveur/planification.js';
 
 // ---------------------------------------------------------------- 1. module pur (dates/créneaux)
 
-test('créneaux disponibles : fenêtre fixe 18h20-22h30, pas de 30 min, bornes incluses', () => {
+test('créneaux disponibles (retrait) : fenêtre fixe 18h20-22h30, pas de 30 min, bornes incluses', () => {
   // Hiver, bien avant l'ouverture : le délai minimum (1h) n'entre pas en jeu, seule la fenêtre compte.
   const maintenant = Math.floor(Date.UTC(2026, 10, 20, 8, 0, 0) / 1000); // 09:00 Paris (UTC+1)
-  const jours = creneauxDisponibles(maintenant);
+  const jours = creneauxDisponibles('pickup', maintenant);
   assert.equal(jours.length, JOURS_MAX);
   assert.equal(jours[0].date, '2026-11-20');
   assert.equal(jours[0].slots[0].time, '18h30'); // premier multiple de 30 min >= 18h20
@@ -19,25 +19,51 @@ test('créneaux disponibles : fenêtre fixe 18h20-22h30, pas de 30 min, bornes i
   assert.equal(jours[0].slots.length, 9); // 18h30, 19h00, ..., 22h30 : 9 créneaux de 30 min
 });
 
+// Livraison (décision du 24/11/2026) : fenêtre propre 19h00-22h00, aucun tampon (contrairement au retrait).
+test('créneaux disponibles (livraison) : fenêtre fixe 19h00-22h00, pas de 30 min, bornes incluses', () => {
+  const maintenant = Math.floor(Date.UTC(2026, 10, 20, 8, 0, 0) / 1000); // 09:00 Paris
+  const jours = creneauxDisponibles('delivery', maintenant);
+  assert.equal(jours.length, JOURS_MAX);
+  assert.equal(jours[0].date, '2026-11-20');
+  assert.equal(jours[0].slots[0].time, '19h00'); // pas de tampon : premier créneau = l'ouverture elle-même
+  assert.equal(jours[0].slots[0].iso, '2026-11-20T18:00:00Z'); // 19h00 Paris (hiver) = 18h00 UTC
+  const dernier = jours[0].slots[jours[0].slots.length - 1];
+  assert.equal(dernier.time, '22h00');
+  assert.equal(dernier.iso, '2026-11-20T21:00:00Z');
+  assert.equal(jours[0].slots.length, 7); // 19h00, 19h30, ..., 22h00 : 7 créneaux de 30 min
+});
+
 test('créneaux disponibles : le délai minimum (1h) masque les créneaux trop proches', () => {
   // 21h50 Paris (hiver) un jour donné : le délai minimum pousse le premier créneau du jour à 22h50 (hors fenêtre) -> aucun créneau ce jour-là.
   const maintenant = Math.floor(Date.UTC(2026, 10, 20, 20, 50, 0) / 1000); // 21h50 Paris
-  const jours = creneauxDisponibles(maintenant);
+  const jours = creneauxDisponibles('pickup', maintenant);
   assert.equal(jours[0].date, '2026-11-21', 'le 20/11 ne doit plus avoir de créneau (tous sous le délai minimum)');
 });
 
-test('créneauValide : alignement, délai minimum, fenêtre 18h20-22h30, 7 jours max', () => {
+test('créneauValide (retrait) : alignement, délai minimum, fenêtre 18h20-22h30, 7 jours max', () => {
   const maintenant = Math.floor(Date.UTC(2026, 10, 20, 8, 0, 0) / 1000); // 09:00 Paris
   const paris = (h, m, joursPlus = 1) => Math.floor(Date.UTC(2026, 10, 20 + joursPlus, h - 1, m, 0) / 1000); // -1h : hiver UTC+1
-  assert.equal(creneauValide(paris(19, 0), maintenant), true, '19h00 demain : dans la fenêtre, aligné, largement au-delà du délai');
-  assert.equal(creneauValide(paris(22, 30), maintenant), true, '22h30 inclus');
-  assert.equal(creneauValide(paris(22, 31), maintenant), false, 'non aligné sur 30 min');
-  assert.equal(creneauValide(paris(18, 0), maintenant), false, 'avant 18h20');
-  assert.equal(creneauValide(paris(23, 0), maintenant), false, 'après 22h30');
-  assert.equal(creneauValide(paris(20, 0, 0), maintenant), true, 'aujourd’hui 20h00 : largement plus d’1h après 09h00, dans la fenêtre');
-  assert.equal(creneauValide(paris(9, 30, 0), maintenant), false, 'aujourd’hui 09h30 : hors fenêtre et moins d’1h après maintenant (09h00)');
-  assert.equal(creneauValide(paris(19, 0, JOURS_MAX), maintenant), false, `plus de ${JOURS_MAX} jours à l'avance`);
-  assert.equal(creneauValide(NaN, maintenant), false, 'epoch non entier');
+  assert.equal(creneauValide(paris(19, 0), 'pickup', maintenant), true, '19h00 demain : dans la fenêtre, aligné, largement au-delà du délai');
+  assert.equal(creneauValide(paris(22, 30), 'pickup', maintenant), true, '22h30 inclus');
+  assert.equal(creneauValide(paris(22, 31), 'pickup', maintenant), false, 'non aligné sur 30 min');
+  assert.equal(creneauValide(paris(18, 0), 'pickup', maintenant), false, 'avant 18h20');
+  assert.equal(creneauValide(paris(23, 0), 'pickup', maintenant), false, 'après 22h30');
+  assert.equal(creneauValide(paris(20, 0, 0), 'pickup', maintenant), true, 'aujourd’hui 20h00 : largement plus d’1h après 09h00, dans la fenêtre');
+  assert.equal(creneauValide(paris(9, 30, 0), 'pickup', maintenant), false, 'aujourd’hui 09h30 : hors fenêtre et moins d’1h après maintenant (09h00)');
+  assert.equal(creneauValide(paris(19, 0, JOURS_MAX), 'pickup', maintenant), false, `plus de ${JOURS_MAX} jours à l'avance`);
+  assert.equal(creneauValide(NaN, 'pickup', maintenant), false, 'epoch non entier');
+});
+
+test('créneauValide (livraison) : fenêtre propre 19h00-22h00, indépendante du retrait', () => {
+  const maintenant = Math.floor(Date.UTC(2026, 10, 20, 8, 0, 0) / 1000); // 09:00 Paris
+  const paris = (h, m, joursPlus = 1) => Math.floor(Date.UTC(2026, 10, 20 + joursPlus, h - 1, m, 0) / 1000);
+  assert.equal(creneauValide(paris(19, 0), 'delivery', maintenant), true, '19h00 inclus (pas de tampon)');
+  assert.equal(creneauValide(paris(22, 0), 'delivery', maintenant), true, '22h00 inclus');
+  assert.equal(creneauValide(paris(18, 30), 'delivery', maintenant), false, 'avant 19h00 : valide pour le retrait, pas pour la livraison');
+  assert.equal(creneauValide(paris(22, 30), 'delivery', maintenant), false, '22h30 valide pour le retrait, pas pour la livraison (après 22h00)');
+  // Même instant, deux verdicts différents selon le service : preuve que les deux fenêtres sont bien indépendantes.
+  assert.equal(creneauValide(paris(18, 30), 'pickup', maintenant), true);
+  assert.equal(creneauValide(paris(22, 30), 'pickup', maintenant), true);
 });
 
 test('constantes exposées (type Uber Eats : créneaux 30 min, 7 jours, 1h de délai)', () => {
@@ -45,6 +71,7 @@ test('constantes exposées (type Uber Eats : créneaux 30 min, 7 jours, 1h de d�
   assert.equal(JOURS_MAX, 7);
   assert.equal(DELAI_MIN_MINUTES, 60);
   assert.deepEqual(FENETRE_RETRAIT, { debut: 18 * 60 + 20, fin: 22 * 60 + 30 });
+  assert.deepEqual(FENETRE_LIVRAISON, { debut: 19 * 60, fin: 22 * 60 });
 });
 
 // ---------------------------------------------------------------- 2. parcours réel (serveur + DB)
@@ -139,8 +166,9 @@ test('order_create : créneau non aligné, trop proche, trop lointain ou hors fe
 });
 
 test('fermeture manuelle (accès supérieur, FORCE_CLOSED) : bloque « dès que possible », jamais les commandes programmées (SBT-003)', async () => {
-  const close = await owner.post('owner_open_mode.php', { mode: 'closed', code: SUPER_CODE });
+  const close = await owner.post('owner_open_mode.php', { service: 'pickup', mode: 'closed', code: SUPER_CODE });
   assert.equal(close.status, 200, close.text);
+  assert.equal(close.json.service, 'pickup');
   assert.equal(close.json.mode, 'closed');
   assert.equal(close.json.ouvert, false);
   try {
@@ -156,16 +184,43 @@ test('fermeture manuelle (accès supérieur, FORCE_CLOSED) : bloque « dès que 
     const r = await alice.post('order_create.php', corps('planif-ferme-programmee', slot.iso));
     assert.equal(r.status, 201, r.text); // une commande planifiée reste acceptée même fermé
   } finally {
-    const reopen = await owner.post('owner_open_mode.php', { mode: 'auto', code: SUPER_CODE });
+    const reopen = await owner.post('owner_open_mode.php', { service: 'pickup', mode: 'auto', code: SUPER_CODE });
     assert.equal(reopen.json.mode, 'auto');
   }
 });
 
 test('owner_open_mode.php : POST réservé au code supérieur (le code commerçant seul ne suffit pas)', async () => {
-  const sansCode = await owner.post('owner_open_mode.php', { mode: 'closed', code: 'faux-code' });
+  const sansCode = await owner.post('owner_open_mode.php', { service: 'pickup', mode: 'closed', code: 'faux-code' });
   assert.equal(sansCode.status, 403, sansCode.text);
   assert.equal(sansCode.json.error, 'invalid_super_code');
-  const get = await owner.get('owner_open_mode.php'); // la LECTURE ne demande pas le code supérieur
+  const get = await owner.get('owner_open_mode.php'); // la LECTURE ne demande pas le code supérieur ; défaut pickup
   assert.equal(get.status, 200, get.text);
+  assert.equal(get.json.service, 'pickup');
   assert.equal(get.json.mode, 'auto');
+});
+
+test('owner_open_mode.php : service invalide ou absent -> validation_error (jamais un défaut silencieux en écriture)', async () => {
+  const sansService = await owner.post('owner_open_mode.php', { mode: 'closed', code: SUPER_CODE });
+  assert.equal(sansService.status, 422, sansService.text);
+  const mauvaisService = await owner.post('owner_open_mode.php', { service: 'autre', mode: 'closed', code: SUPER_CODE });
+  assert.equal(mauvaisService.status, 422, mauvaisService.text);
+});
+
+test('owner_open_mode.php : livraison et retrait sont deux bascules indépendantes', async () => {
+  const closeLivraison = await owner.post('owner_open_mode.php', { service: 'delivery', mode: 'closed', code: SUPER_CODE });
+  assert.equal(closeLivraison.status, 200, closeLivraison.text);
+  assert.equal(closeLivraison.json.service, 'delivery');
+  assert.equal(closeLivraison.json.ouvert, false);
+  try {
+    // Le retrait doit rester inchangé (auto) malgré la fermeture manuelle de la livraison.
+    const getPickup = await owner.get('owner_open_mode.php?service=pickup');
+    assert.equal(getPickup.json.service, 'pickup');
+    assert.equal(getPickup.json.mode, 'auto');
+    const getDelivery = await owner.get('owner_open_mode.php?service=delivery');
+    assert.equal(getDelivery.json.service, 'delivery');
+    assert.equal(getDelivery.json.mode, 'closed');
+  } finally {
+    const reopen = await owner.post('owner_open_mode.php', { service: 'delivery', mode: 'auto', code: SUPER_CODE });
+    assert.equal(reopen.json.mode, 'auto');
+  }
 });

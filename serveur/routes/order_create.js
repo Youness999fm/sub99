@@ -50,26 +50,31 @@ export default async function orderCreate(c) {
   // commerçant lui-même pendant le service, voir owner_order_decide.js).
   let autoAcceptee = false;
   let creneauPourTicket = null;
+  // Chaque service (retrait sur place / livraison) a son propre horaire et sa propre bascule manuelle
+  // (décision du 24/11/2026) : une commande de livraison vérifie toujours l'état de la livraison, jamais
+  // celui du retrait, et inversement — fermer l'un n'affecte jamais l'autre.
+  const service = o.mode === 'delivery' ? 'delivery' : 'pickup';
   if (o.scheduled_for === null) {
     // Commande « dès que possible » : fermeture manuelle (FORCE_CLOSED) OU hors créneau automatique (AUTO) ->
     // aucune commande nouvelle (personne ne la verrait). Jamais appliqué aux commandes planifiées (SBT-003) :
     // le client doit pouvoir programmer une commande même restaurant fermé.
-    const etat = await etatOuverture();
+    const etat = await etatOuverture(service);
     if (!etat.ouvert) {
       // Fermeture manuelle : pas d'heure annoncée (le commerçant peut rouvrir à tout moment, avant l'expiration
       // automatique de la bascule). Fermé par l'horaire automatique : on annonce l'heure d'ouverture habituelle.
       fail(422, 'closed',
         etat.mode === 'closed'
-          ? 'Le commerçant a fermé la prise de commandes pour le moment. Réessayez plus tard.'
-          : 'Les commandes en ligne sont fermées pour le moment.',
+          ? (service === 'delivery' ? 'Le commerçant a fermé la livraison pour le moment. Réessayez plus tard.' : 'Le commerçant a fermé la prise de commandes pour le moment. Réessayez plus tard.')
+          : (service === 'delivery' ? 'La livraison est fermée pour le moment.' : 'Les commandes en ligne sont fermées pour le moment.'),
         etat.mode === 'auto' && etat.creneau ? { opens_at: libelleHeure(etat.creneau.debut), closes_at: libelleHeure(etat.creneau.fin) } : {});
     }
   } else {
-    // Commande planifiée : le créneau choisi doit être un horaire réellement proposé (délai, alignement, fenêtre de retrait 18h20-22h30).
-    if (!creneauValide(utcToEpoch(o.scheduled_for))) {
+    // Commande planifiée : le créneau choisi doit être un horaire réellement proposé pour CE service
+    // (délai, alignement, fenêtre propre au retrait ou à la livraison — voir planification.js).
+    if (!creneauValide(utcToEpoch(o.scheduled_for), service)) {
       fail(422, 'invalid_schedule', "L'horaire choisi n'est plus disponible. Choisissez-en un autre.");
     }
-    const etat = await etatOuverture();
+    const etat = await etatOuverture(service);
     autoAcceptee = !etat.ouvert;
     creneauPourTicket = etat.creneau;
   }

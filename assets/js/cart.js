@@ -223,10 +223,12 @@ const SUBITO_CART_CONFIG = {
   const SCHEDULE_TZ = "Europe/Paris";
   let scheduleChoice = "now";
   let scheduledFor = null; // ISO UTC du créneau choisi, ou null tant que rien n'est sélectionné
-  let scheduleData = null; // réponse mise en cache de schedule_slots.php ({ immediate_open, days: [...] })
-  let scheduleLoading = false;
-  let scheduleError = false;
-  let scheduleActiveDate = null; // date (AAAA-MM-JJ) affichée dans les onglets jours
+  // Retrait et livraison ont chacun leur propre horaire (décision du 24/11/2026, serveur/horaires.js) :
+  // un cache et un état de chargement par service, jamais partagés entre les deux.
+  const scheduleCache = { pickup: null, delivery: null }; // réponses mises en cache de schedule_slots.php ({ immediate_open, days: [...] })
+  const scheduleLoading = { pickup: false, delivery: false };
+  const scheduleError = { pickup: false, delivery: false };
+  const scheduleActiveDateByMode = { pickup: null, delivery: null }; // date (AAAA-MM-JJ) affichée dans les onglets jours, par service
 
   function scheduleDayKey(d) {
     return new Intl.DateTimeFormat("en-CA", { timeZone: SCHEDULE_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
@@ -238,33 +240,38 @@ const SUBITO_CART_CONFIG = {
     return new Intl.DateTimeFormat("fr-FR", { timeZone: SCHEDULE_TZ, weekday: "short", day: "numeric", month: "short" }).format(new Date(dateStr + "T12:00:00Z"));
   }
 
-  function loadScheduleSlots() {
-    if (scheduleData || scheduleLoading) return;
-    scheduleLoading = true;
-    scheduleError = false;
-    fetch(SUBITO_CART_CONFIG.apiBase + "schedule_slots.php", { credentials: "include", cache: "no-store" })
+  function loadScheduleSlots(mode) {
+    const svc = mode === "delivery" ? "delivery" : (mode === "pickup" ? "pickup" : orderMode);
+    if (scheduleCache[svc] || scheduleLoading[svc]) return;
+    scheduleLoading[svc] = true;
+    scheduleError[svc] = false;
+    fetch(SUBITO_CART_CONFIG.apiBase + "schedule_slots.php?mode=" + svc, { credentials: "include", cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        scheduleLoading = false;
-        scheduleData = data && Array.isArray(data.days) ? data : { immediate_open: false, days: [] };
-        scheduleActiveDate = scheduleData.days.length ? scheduleData.days[0].date : null;
+        scheduleLoading[svc] = false;
+        const got = data && Array.isArray(data.days) ? data : { immediate_open: false, days: [] };
+        scheduleCache[svc] = got;
+        if (scheduleActiveDateByMode[svc] === null) scheduleActiveDateByMode[svc] = got.days.length ? got.days[0].date : null;
         renderDrawerExtra(sortedCart());
       })
       .catch(function () {
-        scheduleLoading = false;
-        scheduleError = true;
+        scheduleLoading[svc] = false;
+        scheduleError[svc] = true;
         renderDrawerExtra(sortedCart());
       });
   }
 
   function scheduleLaterHtml() {
-    if (scheduleLoading) return '<p class="schedule-status schedule-status--pending">Chargement des horaires…</p>';
-    if (scheduleError) return '<p class="schedule-status schedule-status--error">Impossible de charger les horaires — réessayez dans un instant.</p>';
-    if (!scheduleData || !scheduleData.days.length) {
+    const svc = orderMode;
+    if (scheduleLoading[svc]) return '<p class="schedule-status schedule-status--pending">Chargement des horaires…</p>';
+    if (scheduleError[svc]) return '<p class="schedule-status schedule-status--error">Impossible de charger les horaires — réessayez dans un instant.</p>';
+    const data = scheduleCache[svc];
+    if (!data || !data.days.length) {
       return '<p class="schedule-status schedule-status--warn">Aucun horaire disponible pour une commande programmée pour le moment.</p>';
     }
-    const days = scheduleData.days;
-    const activeDay = days.find(function (d) { return d.date === scheduleActiveDate; }) || days[0];
+    const days = data.days;
+    const activeDate = scheduleActiveDateByMode[svc];
+    const activeDay = days.find(function (d) { return d.date === activeDate; }) || days[0];
     const dayTabs = days.map(function (d) {
       return '<button type="button" class="schedule-day' + (d.date === activeDay.date ? " is-active" : "") + '" data-date="' + d.date + '">' + escapeHtml(scheduleDayLabel(d.date)) + '</button>';
     }).join("");
@@ -273,10 +280,12 @@ const SUBITO_CART_CONFIG = {
     }).join("");
     // Pour une livraison, l'heure choisie reste une estimation (le livreur part à ce moment-là, mais le
     // trajet n'est jamais garanti à la minute près) — jamais annoncée comme un horaire fixe, contrairement
-    // au retrait sur place où l'heure choisie est celle à laquelle la commande est prête.
+    // au retrait sur place où l'heure choisie est celle à laquelle la commande est prête. La livraison a
+    // par ailleurs son propre horaire (19h-22h, indépendant du retrait 18h-22h47) : rappelé ici pour que
+    // le client comprenne pourquoi les créneaux proposés diffèrent selon le mode choisi.
     const approxNote = orderMode === "delivery"
-      ? '<p class="schedule-approx">' + SubitoIcons.svg("clock") + ' Pour une livraison, l’heure choisie est approximative (le temps de trajet du livreur peut varier).</p>'
-      : "";
+      ? '<p class="schedule-approx">' + SubitoIcons.svg("clock") + ' Livraison ouverte de 19h00 à 22h00. L’heure choisie est approximative (le temps de trajet du livreur peut varier).</p>'
+      : '<p class="schedule-approx">' + SubitoIcons.svg("clock") + ' Retrait sur place ouvert de 18h00 à 22h47.</p>';
     return (
       '<div class="schedule-picker">' +
         '<div class="schedule-days" role="tablist" aria-label="Jour">' + dayTabs + '</div>' +
@@ -1910,6 +1919,10 @@ const SUBITO_CART_CONFIG = {
         if (cartLocked()) { showToast("Commande en cours d’envoi : changez le mode après la réponse."); return; }
         if (mode === orderMode) return;
         orderMode = mode;
+        // Retrait et livraison ont chacun leur propre horaire (serveur/horaires.js) : un créneau choisi
+        // pour l'un n'a aucun sens pour l'autre, donc on l'efface plutôt que de risquer un envoi invalide.
+        scheduledFor = null;
+        if (scheduleChoice === "later") loadScheduleSlots(mode); // sans effet si déjà chargé ou en cours
         const sorted = sortedCart();
         renderDrawerExtra(sorted);
         renderStickyFooter(sorted);
@@ -1945,8 +1958,8 @@ const SUBITO_CART_CONFIG = {
     extra.querySelectorAll(".schedule-day").forEach(function (btn) {
       btn.addEventListener("click", function () {
         const date = btn.getAttribute("data-date");
-        if (date === scheduleActiveDate) return;
-        scheduleActiveDate = date;
+        if (date === scheduleActiveDateByMode[orderMode]) return;
+        scheduleActiveDateByMode[orderMode] = date;
         renderDrawerExtra(sortedCart());
       });
     });

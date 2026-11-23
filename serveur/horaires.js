@@ -1,14 +1,30 @@
-// Horaires de prise de commande en ligne, à l'heure de Paris.
-// Réglage : variable HORAIRES_COMMANDES, au format « HH:MM-HH:MM » (ex. « 18:00-22:47 »),
-// ou « off » pour accepter les commandes à toute heure (utile pour un essai en dehors du service).
-// Sans variable : contrôle actif uniquement sur Vercel, avec le créneau affiché sur le site (18h00–22h47).
+// Horaires de prise de commande en ligne, à l'heure de Paris — DEUX horaires indépendants (décision du
+// 24/11/2026) : retrait sur place (18h00-22h47, comme avant) et livraison (19h00-22h00, plus court — pas
+// de livreur disponible avant 19h ni après 22h). Chacun a sa propre bascule manuelle (ouverture/fermeture
+// forcée, accès supérieur) : fermer la livraison (ex. plus de livreur ce soir) n'affecte jamais le retrait
+// sur place, et inversement.
+// Réglage retrait : variable HORAIRES_COMMANDES, au format « HH:MM-HH:MM » (ex. « 18:00-22:47 »), ou
+// « off » pour accepter les commandes à toute heure (utile pour un essai en dehors du service).
+// Réglage livraison : variable HORAIRES_LIVRAISON_COMMANDES, même format, défaut « 19:00-22:00 ».
+// Sans variable : contrôle actif uniquement sur Vercel, avec les créneaux affichés sur le site.
 // En local et dans les tests (hors Vercel), aucun contrôle sauf si la variable est posée.
 import { maintenantEpoch } from './horloge.js';
 import { FUSEAU, parisLocalVersEpoch, jourParisDecale } from './util.js';
 import { one, exec, estViolationUnique } from './db.js';
 
 export const HORAIRES_PAR_DEFAUT = '18:00-22:47';
+export const HORAIRES_LIVRAISON_PAR_DEFAUT = '19:00-22:00';
 export const MODES_OUVERTURE = ['auto', 'open', 'closed'];
+export const SERVICES = ['pickup', 'delivery'];
+
+/** Clés settings de la bascule manuelle pour un service donné : pickup garde les clés historiques
+ * (compat), livraison utilise de nouvelles clés dédiées — jamais de migration de schéma nécessaire,
+ * `settings` est déjà une table clé/valeur générique. */
+function clesBascule(service) {
+  return service === 'delivery'
+    ? { mode: 'open_mode_delivery', expires: 'open_mode_delivery_expires_at' }
+    : { mode: 'open_mode', expires: 'open_mode_expires_at' };
+}
 
 async function ecrireReglage(cle, valeur) {
   if (valeur === null) { await exec('DELETE FROM settings WHERE skey = ?', [cle]); return; }
@@ -23,57 +39,68 @@ async function ecrireReglage(cle, valeur) {
 }
 
 /**
- * Bascule manuelle ouverture/fermeture (accès supérieur, 1109 — voir owner_open_mode.js) :
- * AUTO (horaire programmé), FORCE_OPEN ou FORCE_CLOSED. Une bascule manuelle expire d'elle-même à la
- * prochaine transition automatique (voir prochaineTransition()) : jamais besoin d'y repenser le lendemain.
- * Stockée dans la table settings (clés « open_mode » et « open_mode_expires_at ») ; absente -> auto.
+ * Bascule manuelle ouverture/fermeture, PAR SERVICE — pickup ou delivery (accès supérieur, 1109 — voir
+ * owner_open_mode.js) : AUTO (horaire programmé), FORCE_OPEN ou FORCE_CLOSED. Une bascule manuelle expire
+ * d'elle-même à la prochaine transition automatique DE CE SERVICE (voir prochaineTransition()) : jamais
+ * besoin d'y repenser le lendemain. Stockée dans la table settings (clesBascule(service)) ; absente -> auto.
  */
-async function lireBascule(maintenant) {
+async function lireBascule(service, maintenant) {
+  const { mode: cleMode, expires: cleExp } = clesBascule(service);
   const [modeRow, expRow] = await Promise.all([
-    one('SELECT svalue FROM settings WHERE skey = ?', ['open_mode']),
-    one('SELECT svalue FROM settings WHERE skey = ?', ['open_mode_expires_at'])
+    one('SELECT svalue FROM settings WHERE skey = ?', [cleMode]),
+    one('SELECT svalue FROM settings WHERE skey = ?', [cleExp])
   ]);
   const mode = modeRow !== null && MODES_OUVERTURE.includes(modeRow.svalue) ? modeRow.svalue : 'auto';
   const expiresAt = expRow !== null && /^\d+$/.test(expRow.svalue) ? Number(expRow.svalue) : null;
   if (mode !== 'auto' && expiresAt !== null && maintenant >= expiresAt) {
     // Expirée : on revient à l'automatique, et on l'écrit tout de suite (ne dépend pas du prochain appel).
-    await Promise.all([ecrireReglage('open_mode', 'auto'), ecrireReglage('open_mode_expires_at', null)]);
+    await Promise.all([ecrireReglage(cleMode, 'auto'), ecrireReglage(cleExp, null)]);
     return { mode: 'auto', expiresAt: null };
   }
   return { mode, expiresAt };
 }
 
-/** Fixe la bascule manuelle. `mode` parmi MODES_OUVERTURE ; l'expiration est calculée par l'appelant. */
-export async function ecrireBascule(mode, expiresAt) {
+/** Fixe la bascule manuelle d'un service (pickup/delivery). `mode` parmi MODES_OUVERTURE ; l'expiration est calculée par l'appelant. */
+export async function ecrireBascule(service, mode, expiresAt) {
+  if (!SERVICES.includes(service)) throw new Error('Service invalide : ' + service);
   if (!MODES_OUVERTURE.includes(mode)) throw new Error('Mode invalide : ' + mode);
+  const { mode: cleMode, expires: cleExp } = clesBascule(service);
   await Promise.all([
-    ecrireReglage('open_mode', mode),
-    ecrireReglage('open_mode_expires_at', expiresAt === null ? null : String(expiresAt))
+    ecrireReglage(cleMode, mode),
+    ecrireReglage(cleExp, expiresAt === null ? null : String(expiresAt))
   ]);
 }
 
 /**
- * Fermeture manuelle (compat) : vrai si la bascule FORCE_CLOSED est active. Les commandes planifiées ne
- * sont jamais bloquées par cette fonction (voir SBT-003) — seules les commandes « dès que possible » le sont,
- * via etatOuverture().
+ * Fermeture manuelle d'un service (compat) : vrai si sa bascule FORCE_CLOSED est active. Les commandes
+ * planifiées ne sont jamais bloquées par cette fonction (voir SBT-003) — seules les commandes « dès que
+ * possible » le sont, via etatOuverture().
  */
-export async function fermetureManuelle(maintenant = maintenantEpoch()) {
-  return (await lireBascule(maintenant)).mode === 'closed';
+export async function fermetureManuelle(service = 'pickup', maintenant = maintenantEpoch()) {
+  return (await lireBascule(service, maintenant)).mode === 'closed';
 }
 
 const FORMAT_HEURE = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
 /** « 18:00-22:47 » → { debut: 1080, fin: 1367 } (minutes depuis minuit), « off » → null, invalide → défaut. */
-export function lireCreneau(valeur) {
+export function lireCreneau(valeur, defaut = HORAIRES_PAR_DEFAUT) {
   const v = String(valeur ?? '').trim().toLowerCase();
   if (v === 'off' || v === 'non' || v === '24h') return null;
   const m = /^([01]?\d|2[0-3])[:h]([0-5]\d)\s*-\s*([01]?\d|2[0-3])[:h]([0-5]\d)$/.exec(v);
-  const src = m ? m : /^(\d+):(\d+)-(\d+):(\d+)$/.exec(HORAIRES_PAR_DEFAUT);
+  const src = m ? m : /^(\d+):(\d+)-(\d+):(\d+)$/.exec(defaut);
   return { debut: Number(src[1]) * 60 + Number(src[2]), fin: Number(src[3]) * 60 + Number(src[4]) };
 }
 
-/** Créneau applicable à cette exécution, ou null si les commandes sont acceptées à toute heure. */
-export function creneauActif(env = process.env) {
+/** Créneau applicable à cette exécution pour un service (pickup/delivery), ou null si les commandes de ce
+ * service sont acceptées à toute heure. Variables distinctes : HORAIRES_COMMANDES (pickup, comme avant) et
+ * HORAIRES_LIVRAISON_COMMANDES (delivery, nouvelle). */
+export function creneauActif(service = 'pickup', env = process.env) {
+  if (service === 'delivery') {
+    if (env.HORAIRES_LIVRAISON_COMMANDES !== undefined && env.HORAIRES_LIVRAISON_COMMANDES !== '') {
+      return lireCreneau(env.HORAIRES_LIVRAISON_COMMANDES, HORAIRES_LIVRAISON_PAR_DEFAUT);
+    }
+    return env.VERCEL ? lireCreneau(HORAIRES_LIVRAISON_PAR_DEFAUT, HORAIRES_LIVRAISON_PAR_DEFAUT) : null;
+  }
   if (env.HORAIRES_COMMANDES !== undefined && env.HORAIRES_COMMANDES !== '') return lireCreneau(env.HORAIRES_COMMANDES);
   return env.VERCEL ? lireCreneau(HORAIRES_PAR_DEFAUT) : null;
 }
@@ -98,10 +125,10 @@ export function libelleHeure(minutes) {
 }
 
 /**
- * Prochain instant (epoch UTC) où l'ouverture automatique bascule (18h00 ou 22h47, le plus proche après
- * `maintenant`). Null si aucun horaire automatique n'est actif (créneau désactivé, HORAIRES_COMMANDES=off).
+ * Prochain instant (epoch UTC) où l'ouverture automatique bascule (borne de `creneau` la plus proche après
+ * `maintenant`). Null si aucun horaire automatique n'est actif (créneau désactivé, ex. HORAIRES_COMMANDES=off).
  * Cherche sur 2 jours : aujourd'hui et demain suffisent puisque les deux bornes sont dans la même journée
- * civile parisienne (le créneau ne traverse jamais minuit en pratique : 18h00-22h47).
+ * civile parisienne (le créneau ne traverse jamais minuit en pratique, pickup comme livraison).
  */
 export function prochaineTransition(creneau, maintenant = maintenantEpoch()) {
   if (creneau === null || creneau.debut === creneau.fin) return null;
@@ -117,17 +144,18 @@ export function prochaineTransition(creneau, maintenant = maintenantEpoch()) {
 }
 
 /**
- * État d'ouverture complet (automatique + bascule manuelle), pour la vérification (order_create.js) et
- * l'affichage commerçant (owner_open_mode.js) : mode effectif, expiration de la bascule, horaire automatique
- * et ouverture résultante pour une commande « dès que possible ». Ne concerne jamais les commandes planifiées.
+ * État d'ouverture complet d'un SERVICE (pickup ou delivery — automatique + sa propre bascule manuelle),
+ * pour la vérification (order_create.js) et l'affichage commerçant (owner_open_mode.js) : mode effectif,
+ * expiration de la bascule, horaire automatique et ouverture résultante pour une commande « dès que
+ * possible » de ce service. Ne concerne jamais les commandes planifiées (voir planification.js).
  */
-export async function etatOuverture(maintenant = maintenantEpoch()) {
-  const creneau = creneauActif();
+export async function etatOuverture(service = 'pickup', maintenant = maintenantEpoch()) {
+  const creneau = creneauActif(service);
   const minutes = minutesParis(maintenant);
   const autoOuvert = commandesOuvertes(creneau, minutes);
-  const { mode, expiresAt } = await lireBascule(maintenant);
+  const { mode, expiresAt } = await lireBascule(service, maintenant);
   const ouvert = mode === 'open' ? true : mode === 'closed' ? false : autoOuvert;
-  return { mode, expires_at: expiresAt, ouvert, auto_ouvert: autoOuvert, creneau, prochaine_transition: prochaineTransition(creneau, maintenant) };
+  return { service, mode, expires_at: expiresAt, ouvert, auto_ouvert: autoOuvert, creneau, prochaine_transition: prochaineTransition(creneau, maintenant) };
 }
 
 /**

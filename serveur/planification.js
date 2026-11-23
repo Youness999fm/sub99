@@ -3,6 +3,8 @@
 // plus tard 1 heure avant le créneau choisi. Le retrait programmé a en plus sa propre fenêtre fixe, 18h20 à
 // 22h30 (demande explicite du 20/11 : premier retrait possible 20 min après l'ouverture, dernier 17 min
 // avant la fermeture générale) — indépendante de HORAIRES_COMMANDES, qui ne régit que « commander maintenant ».
+// La livraison programmée a SA PROPRE fenêtre, plus courte : 19h00-22h00 (décision du 24/11/2026 — aucun
+// livreur disponible avant 19h ni après 22h, jamais de tampon comme pour le retrait sur place).
 // La fermeture manuelle (store_open) reste vérifiée séparément par l'appelant.
 import { maintenantEpoch } from './horloge.js';
 import { FUSEAU, utcAt } from './util.js';
@@ -13,9 +15,15 @@ export const JOURS_MAX = 7;
 export const PAS_MINUTES = 30;
 // Bornes incluses (22h30 est un créneau réservable, pas une limite exclue) ; ne traverse jamais minuit.
 export const FENETRE_RETRAIT = { debut: 18 * 60 + 20, fin: 22 * 60 + 30 };
+export const FENETRE_LIVRAISON = { debut: 19 * 60, fin: 22 * 60 };
 
-function dansFenetreRetrait(minute) {
-  return minute >= FENETRE_RETRAIT.debut && minute <= FENETRE_RETRAIT.fin;
+function fenetreDuService(service) {
+  return service === 'delivery' ? FENETRE_LIVRAISON : FENETRE_RETRAIT;
+}
+
+function dansFenetre(minute, service) {
+  const { debut, fin } = fenetreDuService(service);
+  return minute >= debut && minute <= fin;
 }
 
 const FORMAT_JOUR = new Intl.DateTimeFormat('en-CA', { timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -46,17 +54,18 @@ function joursAPartirDe(epoch, n) {
 }
 
 /**
- * Créneaux programmables des JOURS_MAX prochains jours, groupés par date (AAAA-MM-JJ).
- * Un jour sans créneau valide (horaires fermées, ou tout déjà sous le délai minimum) n'apparaît pas.
+ * Créneaux programmables des JOURS_MAX prochains jours pour un service (pickup/delivery), groupés par
+ * date (AAAA-MM-JJ). Un jour sans créneau valide (horaires fermées, ou tout déjà sous le délai minimum)
+ * n'apparaît pas.
  */
-export function creneauxDisponibles(maintenant = maintenantEpoch()) {
+export function creneauxDisponibles(service = 'pickup', maintenant = maintenantEpoch()) {
   const auPlusTot = maintenant + DELAI_MIN_MINUTES * 60;
   const auPlusTard = maintenant + JOURS_MAX * 86400;
   const resultat = [];
   for (const { year, month, day } of joursAPartirDe(maintenant, JOURS_MAX)) {
     const slots = [];
     for (let minute = 0; minute < 1440; minute += PAS_MINUTES) {
-      if (!dansFenetreRetrait(minute)) continue;
+      if (!dansFenetre(minute, service)) continue;
       const epoch = parisVersEpoch(year, month, day, Math.floor(minute / 60), minute % 60);
       if (epoch < auPlusTot || epoch > auPlusTard) continue;
       slots.push({ time: libelleHeure(minute), iso: utcAt(epoch) });
@@ -66,11 +75,11 @@ export function creneauxDisponibles(maintenant = maintenantEpoch()) {
   return resultat;
 }
 
-/** Vrai si l'epoch UTC donné est un créneau programmable valide (alignement, délai, fenêtre de retrait). */
-export function creneauValide(epoch, maintenant = maintenantEpoch()) {
+/** Vrai si l'epoch UTC donné est un créneau programmable valide pour ce service (alignement, délai, fenêtre). */
+export function creneauValide(epoch, service = 'pickup', maintenant = maintenantEpoch()) {
   if (!Number.isInteger(epoch)) return false;
   if (epoch % (PAS_MINUTES * 60) !== 0) return false; // le décalage Paris est toujours un nombre entier d'heures
   if (epoch < maintenant + DELAI_MIN_MINUTES * 60) return false;
   if (epoch > maintenant + JOURS_MAX * 86400) return false;
-  return dansFenetreRetrait(minutesParis(epoch));
+  return dansFenetre(minutesParis(epoch), service);
 }

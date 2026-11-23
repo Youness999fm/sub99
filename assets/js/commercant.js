@@ -132,14 +132,12 @@
     view: 'orders',
     defaultDelay: 30,
     savingDefault: false,
-    // Ouverture/fermeture du restaurant (accès supérieur) : mode effectif + éléments d'affichage.
-    openMode: 'auto',
-    openModeOuvert: true,
-    openModeAutoOuvert: true,
-    openModeExpiresAt: null,
-    openModeProchaineTransition: null,
-    openModeHoraire: null,
-    savingOpenMode: false,
+    // Ouverture/fermeture (accès supérieur) : retrait et livraison ont chacun leur propre bascule,
+    // totalement indépendante (décision du 24/11/2026) — fermer l'une n'affecte jamais l'autre.
+    openMode: {
+      pickup: { mode: 'auto', ouvert: true, autoOuvert: true, expiresAt: null, prochaineTransition: null, horaire: null, saving: false },
+      delivery: { mode: 'auto', ouvert: true, autoOuvert: true, expiresAt: null, prochaineTransition: null, horaire: null, saving: false }
+    },
     soundOn: true,
     out: [],
     availLoaded: false,
@@ -499,12 +497,10 @@
     state.superUnlocked = false;
     state.superCode = '';
     state.recetteClearBusy = false;
-    state.openMode = 'auto';
-    state.openModeOuvert = true;
-    state.openModeAutoOuvert = true;
-    state.openModeExpiresAt = null;
-    state.openModeProchaineTransition = null;
-    state.openModeHoraire = null;
+    state.openMode = {
+      pickup: { mode: 'auto', ouvert: true, autoOuvert: true, expiresAt: null, prochaineTransition: null, horaire: null, saving: false },
+      delivery: { mode: 'auto', ouvert: true, autoOuvert: true, expiresAt: null, prochaineTransition: null, horaire: null, saving: false }
+    };
     setNetLost(false);
     closeDialog();
     lastHtml.clear();
@@ -1161,35 +1157,41 @@
     } catch (e) { /* les réglages restent à leur dernière valeur connue */ }
   }
 
-  function applyOpenMode(d) {
-    state.openMode = d.mode;
-    state.openModeOuvert = d.ouvert;
-    state.openModeAutoOuvert = d.auto_ouvert;
-    state.openModeExpiresAt = d.expires_at;
-    state.openModeProchaineTransition = d.prochaine_transition;
-    state.openModeHoraire = d.horaire_auto;
+  function applyOpenMode(service, d) {
+    state.openMode[service] = {
+      mode: d.mode, ouvert: d.ouvert, autoOuvert: d.auto_ouvert,
+      expiresAt: d.expires_at, prochaineTransition: d.prochaine_transition, horaire: d.horaire_auto,
+      saving: false
+    };
   }
 
   // Lecture seule : accessible sans code supérieur, pour que le statut s'affiche dans la barre du haut
-  // sans avoir à ressaisir le code à chaque chargement.
-  async function loadOpenMode() {
-    try {
-      const r = await api('owner_open_mode.php');
-      if (r.ok) { applyOpenMode(r.data); scheduleRender(); }
-    } catch (e) { /* le statut reste à sa dernière valeur connue */ }
+  // sans avoir à ressaisir le code à chaque chargement. Retrait et livraison interrogés séparément
+  // (chacun sa propre bascule, serveur/horaires.js).
+  async function loadOpenMode(service) {
+    const services = service ? [service] : ['pickup', 'delivery'];
+    for (const svc of services) {
+      try {
+        const r = await api('owner_open_mode.php?service=' + svc);
+        if (r.ok) applyOpenMode(svc, r.data);
+      } catch (e) { /* le statut reste à sa dernière valeur connue */ }
+    }
+    scheduleRender();
   }
 
-  // Changement de mode : réservé à l'accès supérieur (code déjà saisi, state.superCode).
-  async function saveOpenMode(mode) {
-    if (state.savingOpenMode || !state.superUnlocked) return;
-    state.savingOpenMode = true;
+  // Changement de mode d'UN service : réservé à l'accès supérieur (code déjà saisi, state.superCode).
+  // Ne touche jamais l'état de l'autre service.
+  async function saveOpenMode(service, mode) {
+    if (state.openMode[service].saving || !state.superUnlocked) return;
+    state.openMode[service].saving = true;
     scheduleRender();
     try {
-      const r = await api('owner_open_mode.php', { method: 'POST', body: { mode, code: state.superCode } });
+      const r = await api('owner_open_mode.php', { method: 'POST', body: { service, mode, code: state.superCode } });
       if (r.unauth) return;
       if (r.ok) {
-        applyOpenMode(r.data);
-        toast(mode === 'auto' ? 'Horaires automatiques rétablis.' : mode === 'open' ? 'Ouverture forcée : les clients peuvent commander dès maintenant.' : 'Fermeture forcée : les clients ne peuvent plus commander dès maintenant.');
+        applyOpenMode(service, r.data);
+        const quoi = service === 'delivery' ? 'la livraison' : 'le retrait';
+        toast(mode === 'auto' ? `Horaires automatiques rétablis pour ${quoi}.` : mode === 'open' ? `Ouverture forcée (${quoi}) : les clients peuvent commander dès maintenant.` : `Fermeture forcée (${quoi}) : les clients ne peuvent plus commander dès maintenant.`);
       } else if (r.data.error === 'invalid_super_code') {
         superLock('Accès supérieur invalide, reverrouillé.');
       } else {
@@ -1199,7 +1201,7 @@
       if (e instanceof StaleError) return;
       toast('Connexion impossible : le réglage n\'a pas été enregistré.');
     } finally {
-      state.savingOpenMode = false;
+      state.openMode[service].saving = false;
       scheduleRender();
     }
   }
@@ -1909,44 +1911,59 @@
       </div>`;
   }
 
-  function horairesShell() {
+  // Une carte par service (retrait / livraison) : même structure, bascules totalement indépendantes.
+  function horairesCard(service, titre, sousTitre) {
     return `
       <div class="horaires-card">
         <div class="col-head">
-          <h2>Ouverture et fermeture du restaurant</h2>
-          <p class="muted">Une bascule forcée revient d'elle-même à l'automatique à la prochaine heure d'ouverture ou de fermeture — jamais besoin d'y repenser le lendemain.</p>
+          <h2>${esc(titre)}</h2>
+          <p class="muted">${esc(sousTitre)} Une bascule forcée revient d'elle-même à l'automatique à la prochaine heure d'ouverture ou de fermeture — jamais besoin d'y repenser le lendemain.</p>
         </div>
-        <p class="horaires-status" id="horaires-status"></p>
-        <p class="muted" id="horaires-detail"></p>
+        <p class="horaires-status" id="horaires-status-${service}"></p>
+        <p class="muted" id="horaires-detail-${service}"></p>
         <div class="horaires-actions">
-          <button type="button" class="btn btn-accept" data-action="open-mode-set" data-mode="open" id="horaires-btn-open">Ouvrir maintenant</button>
-          <button type="button" class="btn btn-refuse" data-action="open-mode-set" data-mode="closed" id="horaires-btn-closed">Fermer maintenant</button>
-          <button type="button" class="btn btn-ghost" data-action="open-mode-set" data-mode="auto" id="horaires-btn-auto">Revenir aux horaires automatiques</button>
+          <button type="button" class="btn btn-accept" data-action="open-mode-set" data-service="${service}" data-mode="open" id="horaires-btn-open-${service}">Ouvrir maintenant</button>
+          <button type="button" class="btn btn-refuse" data-action="open-mode-set" data-service="${service}" data-mode="closed" id="horaires-btn-closed-${service}">Fermer maintenant</button>
+          <button type="button" class="btn btn-ghost" data-action="open-mode-set" data-service="${service}" data-mode="auto" id="horaires-btn-auto-${service}">Revenir aux horaires automatiques</button>
         </div>
       </div>`;
   }
 
-  function fillHoraires() {
-    const statusEl = document.getElementById('horaires-status');
-    const detailEl = document.getElementById('horaires-detail');
+  function horairesShell() {
+    return `
+      <div class="horaires-liste">
+        ${horairesCard('pickup', 'Ouverture et fermeture — Retrait sur place', 'Retrait sur place : ouvert automatiquement de 18h00 à 22h47.')}
+        ${horairesCard('delivery', 'Ouverture et fermeture — Livraison', 'Livraison : ouverte automatiquement de 19h00 à 22h00, indépendamment du retrait.')}
+      </div>`;
+  }
+
+  function fillHoraireService(service) {
+    const statusEl = document.getElementById('horaires-status-' + service);
+    const detailEl = document.getElementById('horaires-detail-' + service);
     if (!statusEl || !detailEl) return;
-    statusEl.textContent = state.openModeOuvert ? 'Ouvert actuellement' : 'Fermé actuellement';
-    statusEl.classList.toggle('is-open', state.openModeOuvert);
-    statusEl.classList.toggle('is-closed', !state.openModeOuvert);
-    const modeLabel = state.openMode === 'auto' ? 'Automatique (horaire programmé)' : state.openMode === 'open' ? 'Ouverture forcée' : 'Fermeture forcée';
-    const horaireTxt = state.openModeHoraire
-      ? `Horaire habituel : ${state.openModeHoraire.opens_at} – ${state.openModeHoraire.closes_at}, tous les jours.`
+    const o = state.openMode[service];
+    statusEl.textContent = o.ouvert ? 'Ouvert actuellement' : 'Fermé actuellement';
+    statusEl.classList.toggle('is-open', o.ouvert);
+    statusEl.classList.toggle('is-closed', !o.ouvert);
+    const modeLabel = o.mode === 'auto' ? 'Automatique (horaire programmé)' : o.mode === 'open' ? 'Ouverture forcée' : 'Fermeture forcée';
+    const horaireTxt = o.horaire
+      ? `Horaire habituel : ${o.horaire.opens_at} – ${o.horaire.closes_at}, tous les jours.`
       : 'Horaires automatiques désactivés pour cet essai (commandes acceptées à toute heure par défaut).';
-    const transition = toDate(state.openModeProchaineTransition);
-    const transitionTxt = state.openMode !== 'auto' && transition ? ` Revient automatiquement à l'horaire programmé vers ${hm(transition)}.` : '';
+    const transition = toDate(o.prochaineTransition);
+    const transitionTxt = o.mode !== 'auto' && transition ? ` Revient automatiquement à l'horaire programmé vers ${hm(transition)}.` : '';
     setHTML(detailEl, `Mode : <strong>${esc(modeLabel)}</strong>. ${esc(horaireTxt)}${esc(transitionTxt)}`);
-    const busy = state.savingOpenMode;
-    const bo = document.getElementById('horaires-btn-open');
-    if (bo) bo.disabled = busy || state.openMode === 'open';
-    const bc = document.getElementById('horaires-btn-closed');
-    if (bc) bc.disabled = busy || state.openMode === 'closed';
-    const ba = document.getElementById('horaires-btn-auto');
-    if (ba) ba.disabled = busy || state.openMode === 'auto';
+    const busy = o.saving;
+    const bo = document.getElementById('horaires-btn-open-' + service);
+    if (bo) bo.disabled = busy || o.mode === 'open';
+    const bc = document.getElementById('horaires-btn-closed-' + service);
+    if (bc) bc.disabled = busy || o.mode === 'closed';
+    const ba = document.getElementById('horaires-btn-auto-' + service);
+    if (ba) ba.disabled = busy || o.mode === 'auto';
+  }
+
+  function fillHoraires() {
+    fillHoraireService('pickup');
+    fillHoraireService('delivery');
   }
 
   function clientsShell() {
@@ -2183,10 +2200,13 @@
       // visible d'un coup d'œil dans la barre du haut, sans avoir à ressaisir le code.
       const ob = document.getElementById('store-open-btn');
       if (ob) {
-        const force = state.openMode !== 'auto';
-        ob.textContent = state.openModeOuvert ? (force ? 'Ouvert (forcé)' : 'Ouvert') : (force ? 'Fermé (forcé)' : 'Fermé');
-        ob.classList.toggle('is-open', state.openModeOuvert);
-        ob.classList.toggle('is-closed', !state.openModeOuvert);
+        // Badge de la barre du haut : retrait sur place uniquement (statut détaillé des deux services
+        // dans Espace patron > Horaires, voir horairesShell/fillHoraires).
+        const pickup = state.openMode.pickup;
+        const force = pickup.mode !== 'auto';
+        ob.textContent = pickup.ouvert ? (force ? 'Retrait ouvert (forcé)' : 'Retrait ouvert') : (force ? 'Retrait fermé (forcé)' : 'Retrait fermé');
+        ob.classList.toggle('is-open', pickup.ouvert);
+        ob.classList.toggle('is-closed', !pickup.ouvert);
         ob.classList.toggle('is-forced', force);
       }
     });
@@ -3348,7 +3368,7 @@
         toggleSound();
         break;
       case 'open-mode-set':
-        saveOpenMode(t.dataset.mode);
+        saveOpenMode(t.dataset.service, t.dataset.mode);
         break;
       case 'logout':
         logout();
