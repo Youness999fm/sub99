@@ -201,6 +201,25 @@ export const COUPURE_JOUR_SQL = `to_char((date_trunc('day', now() at time zone '
 /**
  * Purge quotidienne : commandes (et leurs lignes) d'avant aujourd'hui (fuseau Europe/Paris) et sessions expirées.
  * Planifiée par pg_cron (supabase/001_schema.sql) ; les clients et leurs comptes ne sont pas touchés.
+ *
+ * POURQUOI une suppression DÉFINITIVE, pas un simple archivage : ce site est un outil de PRISE DE COMMANDE
+ * (préparation en cuisine, suivi client), pas un système de stockage de données au long cours. Sans purge,
+ * la table `orders` (et ses tables filles : order_items, order_addenda, print_jobs…) grossirait sans fin,
+ * ce qui ralentirait progressivement toutes les requêtes du site (commerçant comme client) et finirait par
+ * dépasser les quotas de la base Supabase utilisée (lignes/espace disque du plan) — d'où le risque réel de
+ * site qui plante ou devient inutilisable si cette purge n'existait pas. Même logique, en version manuelle
+ * et immédiate, pour owner_recette_clear.js (bouton "Nouvelle journée (tout effacer)" de l'espace patron).
+ *
+ * CE QUE ÇA N'EST PAS : une obligation légale de conservation des ventes (encaissements). En France, la loi
+ * anti-fraude TVA (art. 88 de la loi de finances 2016, codifié CGI art. 286 I-3° bis) impose aux logiciels
+ * ou systèmes de CAISSE (qui enregistrent le PAIEMENT du client) des garanties d'inaltérabilité, sécurisation,
+ * conservation et archivage des données (souvent via une certification NF525). CE site ne traite jamais de
+ * paiement en ligne — `payment_methods` n'est que le choix annoncé par le client (carte/espèces/ticket) pour
+ * quand il règle sur place — et n'est donc pas, en lui-même, le « logiciel de caisse » du restaurant : c'est
+ * la caisse physique du commerçant, au moment où le client paie réellement, qui doit être conforme à cette
+ * loi et conserver la trace légale de chaque vente. Si un jour ce site devait lui-même encaisser un paiement
+ * (carte en ligne, etc.), cette purge définitive deviendrait incompatible avec la loi et devrait être revue
+ * AVANT toute mise en production d'un tel paiement.
  */
 export const PURGE_SQL = [
   `DELETE FROM public.order_addendum_items WHERE addendum_id IN (SELECT id FROM public.order_addenda WHERE order_id IN (SELECT id FROM public.orders WHERE created_at < ${COUPURE_JOUR_SQL}))`,

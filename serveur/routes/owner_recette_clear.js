@@ -6,6 +6,11 @@
 // commerçant repart à neuf pour le jour suivant, comme demandé ("chaque jour, les commandes s'effacent").
 // Les commandes encore NOUVELLES (pas encore décidées, ex. une commande programmée plus tard ce jour-là
 // ou un jour suivant) ne sont jamais concernées : il reste du travail dessus, les supprimer les perdrait.
+//
+// Pourquoi une suppression définitive est sans risque ici (ni technique, ni légal) : voir le commentaire
+// détaillé au-dessus de PURGE_SQL dans serveur/schema.js (même raisonnement, en version manuelle/immédiate
+// plutôt qu'automatique/quotidienne) — en résumé : ce site ne stocke pas de paiement (encaissement), c'est
+// un outil de prise de commande ; la trace légale de chaque vente est la caisse physique du commerçant.
 import { allowMethods, readJsonBody, bodyStr, ok } from '../core.js';
 import { requireOwner, requireSuperCode } from '../auth.js';
 import { transaction } from '../db.js';
