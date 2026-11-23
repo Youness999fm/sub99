@@ -13,8 +13,8 @@ import path from 'node:path';
 // HTTP de test sur le même port quand node --test lance les fichiers en parallèle, source d'un blocage
 // silencieux plutôt qu'une erreur claire. +12 est libre (voir owner-cancel-view.test.mjs, qui prend +11).
 process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 12);
-const { Client, openTestDb, makeEnv, runTool, startServer, stopServer } = await import('./lib/harness.mjs');
-const { parisLocalVersEpoch, jourParisDecale } = await import('../../serveur/util.js');
+const { OWNER_CODE, Client, openTestDb, makeEnv, runTool, startServer, stopServer } = await import('./lib/harness.mjs');
+const { parisLocalVersEpoch, jourParisDecale, serviceDayAt } = await import('../../serveur/util.js');
 
 let ctx;
 let server;
@@ -98,4 +98,56 @@ test('commande planifiée déposée PENDANT le service (HORAIRES_COMMANDES couvr
   assert.equal(r.json.order.accepted_at, null);
   const row = db.prepare('SELECT * FROM print_jobs WHERE order_id = ?').get(r.json.order.id);
   assert.equal(row, undefined, 'aucune tâche tant que le commerçant n\'a pas accepté lui-même');
+});
+
+// BUG RÉEL corrigé le 24/11/2026 : service_day était systématiquement celui du jour de la CRÉATION de la
+// commande (serviceDay(), appelée sans argument), jamais celui du créneau demandé. owner_orders.js ne
+// montre une commande déjà "accepted" (jamais "new") que si service_day = aujourd'hui — une commande
+// planifiée acceptée automatiquement restait donc visible le jour de la commande (trop tôt, avant même
+// l'ouverture du jour demandé) puis disparaissait DÉFINITIVEMENT de la vue commerçant le jour venu (plus
+// jamais incluse dans owner_orders.php, son ticket pourtant "dû" restait orphelin, jamais réclamable).
+test("commande planifiée 2 jours à l'avance, acceptée automatiquement le jour de la commande : "
+  + "service_day est celui du CRÉNEAU demandé, pas celui de la création — invisible côté commerçant le "
+  + "jour de la commande, visible et réclamable le jour demandé", async () => {
+  process.env.HORAIRES_COMMANDES = '06:00-06:01';
+  // Jour de la CRÉATION : 2 jours avant le créneau demandé (jamais relatif à « maintenant » réel, pour ne
+  // jamais dépendre de l'heure à laquelle cette suite tourne) — sans ambiguïté un jour calendaire différent
+  // du créneau, contrairement à AVANT_EPOCH (6 h avant, le même jour que le créneau la plupart du temps).
+  const avantHier = jourParisDecale(SCHEDULED_EPOCH, -2);
+  const creationEpoch = parisLocalVersEpoch(avantHier.annee, avantHier.mois, avantHier.jour, 10, 0);
+  poserHorloge(creationEpoch);
+  const owner = new Client('owner-auto-accept-service-day');
+  // remember:true (session longue, 30 jours) : le test avance l'horloge de 2 jours pour atteindre le jour
+  // demandé, largement au-delà des 12h d'une session courte (remember:false) — sans quoi la session
+  // expirerait avant même d'avoir pu vérifier la réapparition de la commande.
+  assert.equal((await owner.post('owner_login.php', { code: OWNER_CODE, remember: true })).status, 200);
+  const client = await nouveauClient('auto-accept-service-day@example.test');
+  const r = await commanderPlanifiee(client, 'auto-accept-service-day-1');
+  assert.equal(r.status, 201, r.text);
+  const id = r.json.order.id;
+  assert.equal(r.json.order.status, 'accepted');
+  assert.equal(r.json.order.service_day, `${demain.annee}-${String(demain.mois).padStart(2, '0')}-${String(demain.jour).padStart(2, '0')}`,
+    "service_day doit être celui du créneau demandé, jamais celui du jour de la commande");
+
+  // Le jour de la commande : ne doit PAS apparaître côté commerçant, bien trop tôt — service_day (le jour
+  // du créneau) ne correspond pas à ce jour-là, et le statut n'est plus "new" (déjà accepté automatiquement).
+  const vueJourCommande = await owner.get('owner_orders.php');
+  assert.ok(!vueJourCommande.json.orders.some((o) => o.id === id),
+    "une commande planifiée 2 jours à l'avance ne doit pas apparaître côté commerçant le jour de la commande");
+
+  // Le jour demandé, à l'heure d'ouverture (créneau de test 06:00) : doit apparaître, et son ticket doit
+  // être réclamable — sinon il resterait orphelin pour toujours (le vrai bug avant correctif).
+  const ouvertureDemain = parisLocalVersEpoch(demain.annee, demain.mois, demain.jour, 6, 0);
+  poserHorloge(ouvertureDemain);
+  const vueDemain = await owner.get('owner_orders.php');
+  const commandeDemain = vueDemain.json.orders.find((o) => o.id === id);
+  assert.ok(commandeDemain, "la commande doit redevenir visible côté commerçant le jour demandé — plus jamais orpheline");
+  assert.equal(commandeDemain.service_day, serviceDayAt(ouvertureDemain));
+  const addendum = commandeDemain.print_job;
+  assert.ok(addendum, 'la tâche d\'impression doit toujours exister');
+  assert.equal(addendum.status, 'pending');
+  assert.ok(commandeDemain.print_due, 'le ticket doit être dû à ce moment précis (ouverture du jour demandé)');
+  const claim = await owner.post('owner_print_claim.php', { id, device: 'tablette-test' });
+  assert.equal(claim.status, 200, claim.text);
+  assert.equal(claim.json.claimed, true, 'le ticket doit rester réellement réclamable le jour demandé');
 });

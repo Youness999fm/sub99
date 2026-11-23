@@ -52,6 +52,16 @@ export function serviceDay() {
   return FORMAT_JOUR.format(new Date(maintenantEpoch() * 1000));
 }
 
+/** Jour de service (AAAA-MM-JJ) de cet epoch précis, en fuseau Europe/Paris — pour une commande planifiée
+ * (order_create.js), c'est le jour DEMANDÉ par le client (scheduled_for), jamais le jour où elle a été
+ * passée : owner_orders.js filtre les commandes déjà décidées par service_day = aujourd'hui, donc une
+ * commande planifiée avec le jour de sa création (et non celui de son créneau) apparaîtrait le jour de la
+ * commande (trop tôt) puis disparaîtrait complètement de la vue commerçant le jour venu (plus jamais vue,
+ * son ticket resterait orphelin). */
+export function serviceDayAt(epoch) {
+  return FORMAT_JOUR.format(new Date(epoch * 1000));
+}
+
 const FORMAT_DATETIME_PARIS = new Intl.DateTimeFormat('en-CA', {
   timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
 });

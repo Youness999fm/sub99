@@ -4,7 +4,7 @@ import { allowMethods, readJsonBody, fail, ok } from '../core.js';
 import { one, transaction, estViolationUnique } from '../db.js';
 import { requireCustomer } from '../auth.js';
 import { throttleGuard, throttleHit } from '../throttle.js';
-import { DELIVERY_ZONES, nowUtc, serviceDay, utcAt, utcToEpoch } from '../util.js';
+import { DELIVERY_ZONES, nowUtc, serviceDay, serviceDayAt, utcAt, utcToEpoch } from '../util.js';
 import { libelleHeure, etatOuverture, ouvertureDuJour } from '../horaires.js';
 import { creneauValide } from '../planification.js';
 import { creerTacheImpressionADate } from '../impression.js';
@@ -138,6 +138,11 @@ export default async function orderCreate(c) {
 
   // 9. Insertion dans une transaction (la commande et ses lignes, ou rien)
   const now = nowUtc();
+  // Jour de service : pour une commande planifiée, celui du CRÉNEAU demandé, jamais celui de la création
+  // (décision du 24/11/2026, bug réel corrigé — owner_orders.js filtre les commandes déjà décidées par
+  // service_day = aujourd'hui ; avec le jour de création, une commande acceptée automatiquement restait
+  // visible le jour de la commande (trop tôt) puis disparaissait pour toujours le jour venu).
+  const jourService = o.scheduled_for === null ? serviceDay() : serviceDayAt(utcToEpoch(o.scheduled_for));
   let orderId;
   try {
     orderId = await transaction(async (tx) => {
@@ -155,7 +160,7 @@ export default async function orderCreate(c) {
           street, city, housingType, JSON.stringify(o.payment_methods), o.cash_change_for,
           o.hot_sauce === null ? null : (o.hot_sauce ? 1 : 0),
           t.products_cents, t.promo_cents, t.delivery_fee_cents, t.total_cents, delayAuto,
-          now, autoAcceptee ? now : null, serviceDay(), o.scheduled_for
+          now, autoAcceptee ? now : null, jourService, o.scheduled_for
         ]
       );
       for (let pos = 0; pos < o.items.length; pos++) {
