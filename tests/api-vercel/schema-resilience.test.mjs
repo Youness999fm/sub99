@@ -1,25 +1,26 @@
 // Résilience face à une migration pas encore appliquée en production : order_addenda/order_addendum_items
-// (ajout/modification) peuvent exister dans serveur/schema.js sans encore exister dans la vraie base
+// (ajout/annulation, désactivés en libre-service depuis le 24/11/2026 — voir order_cancel.js et
+// order_addendum_create.js) peuvent exister dans serveur/schema.js sans encore exister dans la vraie base
 // Supabase (le schéma ne s'applique jamais tout seul au déploiement). Bug réel observé en production le
 // 22/11/2026 : orderAddendaByOrder() (appelée par TOUTE réponse de commande, y compris order_create.php)
 // n'avait aucune tolérance à l'absence de ces tables, contrairement à print_jobs (voir owner_orders.js) —
 // une commande était enregistrée avec succès, mais la réponse plantait (500) juste après, affichée au
 // client comme « connexion interrompue » alors que la commande existait bel et bien côté commerçant.
 // Ce fichier reproduit l'absence des tables (DROP, jamais un schéma partiel deviné) et vérifie que la
-// prise de commande reste utilisable malgré tout.
+// prise de commande reste utilisable malgré tout, et que order_cancel.php/order_addendum_create.php
+// (désactivées, elles ne touchent plus du tout ces tables) ne dépendent plus de leur existence non plus.
 // Lancer depuis la racine :  SUBITO_TEST_PORT=18430 node --test tests/api-vercel/schema-resilience.test.mjs
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 8);
-const { OWNER_CODE, Client, openTestDb, makeEnv, runTool, startServer, stopServer } = await import('./lib/harness.mjs');
+const { Client, openTestDb, makeEnv, runTool, startServer, stopServer } = await import('./lib/harness.mjs');
 
 const randomPassword = () => Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(18))).toString('base64url') + 'Aa1!';
 
 let ctx;
 let server;
 let db;
-let owner;
 
 before(async () => {
   ctx = makeEnv();
@@ -32,8 +33,6 @@ before(async () => {
   db.exec('DROP TABLE addendum_print_jobs');
   db.exec('DROP TABLE order_addenda');
   server = await startServer(ctx);
-  owner = new Client('owner-resilience');
-  assert.equal((await owner.post('owner_login.php', { code: OWNER_CODE, remember: false })).status, 200);
 });
 
 after(() => {
@@ -84,11 +83,9 @@ test('order_status.php reste consultable malgré les tables manquantes', async (
   assert.deepEqual(r.json.order.addenda, []);
 });
 
-test("BUG RÉEL DU 22/11/2026 reproduit puis vérifié corrigé : demander l'annulation d'une commande déjà "
-  + "acceptée reste effectif même si order_addenda/addendum_print_jobs n'existent pas (seule l'alerte "
-  + "tablette est perdue), et le commerçant peut toujours valider ensuite (owner_cancel_decide.php ne "
-  + "dépend d'aucune de ces tables)", async () => {
-  const cust = await nouveauClient('resilience-cancel-accepted@example.test');
+test("order_cancel.php répond 409 cancel_disabled même si les tables order_addenda/addendum_print_jobs n'existent pas : "
+  + "la route (décision du 24/11/2026) ne les touche plus jamais, elle est désactivée avant toute requête", async () => {
+  const cust = await nouveauClient('resilience-cancel@example.test');
   const created = await cust.post('order_create.php', {
     idempotency_key: 'resilience-cancel-' + Date.now(), mode: 'pickup',
     payment_methods: ['cash'], cash_change_for: null, hot_sauce: null,
@@ -96,25 +93,12 @@ test("BUG RÉEL DU 22/11/2026 reproduit puis vérifié corrigé : demander l'ann
     delivery_fee_cents: 0, total_cents: 1600
   });
   assert.equal(created.status, 201, created.text);
-  const id = created.json.order.id;
-  const accept = await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 20 });
-  assert.equal(accept.status, 200, accept.text);
-
-  const cancel = await cust.post('order_cancel.php', { id });
-  assert.equal(cancel.status, 200, `la demande d'annulation d'une commande déjà acceptée ne doit JAMAIS échouer juste parce que l'alerte tablette ne peut pas être créée : ${cancel.text}`);
-  assert.equal(cancel.json.order.status, 'accepted', 'la demande est déposée, la commande continue tant que le commerçant n\'a pas validé');
-  assert.equal(typeof cancel.json.order.cancel_requested_at, 'string', 'la demande elle-même doit être réellement enregistrée malgré les tables manquantes');
-
-  const decide = await owner.post('owner_cancel_decide.php', { id, action: 'accept' });
-  assert.equal(decide.status, 200, decide.text);
-  assert.equal(decide.json.order.status, 'cancelled', 'la validation du commerçant ne dépend d\'aucune des tables manquantes, elle doit toujours fonctionner');
-
-  // Preuve supplémentaire : relecture indépendante, l'annulation a bien été committée en base.
-  const relu = await cust.get('order_status.php?id=' + id);
-  assert.equal(relu.json.order.status, 'cancelled');
+  const r = await cust.post('order_cancel.php', { id: created.json.order.id });
+  expectError(r, 409, 'cancel_disabled');
 });
 
-test("order_addendum_create.php répond 503 feature_unavailable (jamais une erreur 500 générique) quand les tables manquent", async () => {
+test("order_addendum_create.php répond 409 addendum_disabled même si les tables manquent : la route "
+  + "(décision du 24/11/2026) ne les touche plus jamais, elle est désactivée avant toute requête", async () => {
   const cust = await nouveauClient('resilience-addendum@example.test');
   const created = await cust.post('order_create.php', {
     idempotency_key: 'resilience-addendum-' + Date.now(), mode: 'pickup',
@@ -128,5 +112,5 @@ test("order_addendum_create.php répond 503 feature_unavailable (jamais une erre
     items: [{ name: 'Régina', variant: 'Duo', qty: 1, unit_price_cents: 1600, removed: [], extras: [], half: null, note: '' }],
     total_cents: 3200 - 1600
   });
-  expectError(r, 503, 'feature_unavailable');
+  expectError(r, 409, 'addendum_disabled');
 });

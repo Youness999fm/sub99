@@ -654,18 +654,6 @@ body.fs-lock { overflow: hidden; }
 .qchip.is-scheduled { background: var(--gold-tint); color: #8A6B1E; border-color: var(--gold); }
 .qchip.is-refused-chip { background: #ECE9E4; color: var(--muted); border-color: var(--line); }
 .qchip.is-cancelled { background: var(--red-tint); color: var(--red-dark); border-color: var(--red); }
-/* Demande d'annulation : ambre, jamais rouge (rouge = commande neuve) ni gris (= déjà tranchée) — doit se
-   distinguer au premier coup d'œil d'une commande normale, avec ses deux actions toujours visibles. */
-.qchip.is-cancel-request {
-  display: flex; flex-direction: column; gap: 0; padding: 0; width: 230px;
-  background: var(--gold-tint); border-color: var(--gold); color: #8A6B1E;
-}
-.qchip.is-cancel-request .qchip-view {
-  text-align: left; background: none; border: none; color: inherit; font: inherit; cursor: pointer;
-  padding: 10px 14px 6px; touch-action: manipulation;
-}
-.qchip-cancel-actions { display: flex; gap: 6px; padding: 0 10px 10px; }
-.qchip-cancel-actions .btn { flex: 1 1 auto; min-height: 36px; font-size: 13px; padding: 4px 8px; }
 .pill-cancelled { background: var(--red-tint); color: var(--red-dark); }
 #refused-count { font-size: 15px; font-weight: 600; opacity: 0.85; margin-left: 6px; }
 /* Puce programmée : deux actions distinctes (Voir / Imprimer) au lieu d'une seule zone cliquable. */
@@ -868,7 +856,6 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
   margin-bottom: 10px; padding: 3mm 2mm; border: 3px solid var(--red); border-radius: 4px;
   background: var(--red-tint); color: var(--red-dark); text-align: center; font-size: 17px; font-weight: 800;
 }
-.ticket .t-cancel-notice--pending { border-color: var(--gold); background: var(--amber-tint); color: #8A6B1E; }
 .ticket .t-addendum-box {
   margin-top: 14px; padding: 10px 12px; background: var(--green-tint); border: 2px dashed var(--green-2); border-radius: 8px;
 }
@@ -993,8 +980,6 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
   margin: 8px 16px 0; padding: 8px 12px; border-radius: 10px; background: var(--red-tint);
   color: var(--red-dark); border-left: 4px solid var(--red); font-weight: 700;
 }
-/* Demande en attente (pas encore tranchée) : ambre, jamais rouge (rouge = déjà annulée pour de bon). */
-.od-cancel-notice--pending { background: var(--amber-tint); color: #8A6B1E; border-left-color: var(--gold); }
 .od-sub { display: flex; justify-content: space-between; gap: 12px; padding: 4px 16px 0; font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .notif-on { display: inline-flex; align-items: center; min-height: 40px; font-size: 14px; color: var(--green-2); font-weight: 700; }
 .qchip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -69,17 +69,7 @@
   let countdownTimer = null;
   // Clé du dernier rendu : le sondage ne reconstruit la page que si la commande change.
   let lastRenderKey = null;
-  // Annulation (4 min) et ajout/modification (10 min) : fenêtres et indicateurs renvoyés par le serveur
-  // (jamais recalculés côté client, même principe que readyAtMs/clockOffset ci-dessus).
-  let cancelUntilMs = null;
-  let addendumUntilMs = null;
-  let canCancelFlag = false;
-  let canAddFlag = false;
-  let actionCountdownTimer = null;
-  let currentOrder = null; // dernière commande complète reçue, nécessaire pour construire un ajout/modif
-  let addPanelOpen = false;
-  let addPanelBusy = false;
-  let addendumKeySeq = 0;
+  let currentOrder = null; // dernière commande complète reçue
   // Décalage entre l'horloge du serveur et celle du téléphone (serveur - téléphone, en ms) :
   // le minuteur se règle sur l'heure du serveur, pas sur celle de l'appareil.
   let clockOffset = 0;
@@ -102,12 +92,7 @@
     }).join(" · ");
   }
 
-  // allowModify : affiche un rappel d'appel sur chaque pizza déjà envoyée (jamais sur un article à prix
-  // fixe) tant que le délai de 10 minutes est encore ouvert. Modifier un article déjà commandé n'est
-  // volontairement PAS proposé en libre-service (décision du 22/11/2026) : seul un appel au restaurant
-  // permet de changer les ingrédients d'une pizza déjà envoyée (ajouter un nouvel article reste possible
-  // en libre-service, voir le panneau d'ajout plus bas).
-  function renderItems(items, allowModify) {
+  function renderItems(items) {
     return (items || []).map(function (it) {
       const label = esc(it.name) + (it.variant ? " (" + esc(it.variant) + ")" : "");
       const bits = [];
@@ -115,12 +100,10 @@
       if (it.removed && it.removed.length) bits.push("Sans : " + esc(it.removed.join(", ")));
       if (it.extras && it.extras.length) bits.push("Suppléments : " + esc(it.extras.map(function (e) { return e.name; }).join(", ")));
       if (it.note) bits.push("Note : " + esc(it.note));
-      const showCallHint = allowModify && it.variant && it.id != null;
       return (
         '<div class="order-track-item">' +
           '<div class="order-track-item__head"><span>' + esc(Number(it.qty) || 1) + ' × ' + label + '</span><span>' + formatCents(it.line_total_cents != null ? it.line_total_cents : it.unit_price_cents * it.qty) + '</span></div>' +
           (bits.length ? '<p class="order-track-item__details">' + bits.join(" · ") + '</p>' : "") +
-          (showCallHint ? '<p class="order-track-call-hint">Pour modifier cette pizza déjà commandée, appelez-nous : <a href="tel:0321200033">' + SubitoIcons.svg('phone') + ' 03 21 20 00 33</a></p>' : "") +
         '</div>'
       );
     }).join("");
@@ -130,10 +113,11 @@
     return kind === "modify" ? "Modification" : kind === "cancel" ? "Annulation demandée" : "Ajout";
   }
 
-  function renderAddendum(a, allowModify) {
-    // Le rappel d'appel n'a de sens que sur un article introduit par un AJOUT (kind='add') : un
-    // événement modify/cancel n'introduit jamais de nouvel article à pointer.
-    const itemsHtml = renderItems(a.items, allowModify && a.kind === "add");
+  // Ajouts/annulations déjà existants sur une commande plus ancienne (le libre-service a été retiré le
+  // 24/11/2026, voir cancelOrder/addPanel plus bas) : encore affichés pour rester fidèles à l'historique
+  // réel de la commande, jamais recréés depuis cette page.
+  function renderAddendum(a) {
+    const itemsHtml = renderItems(a.items);
     return (
       '<div class="order-track-addendum">' +
         '<div class="order-track-addendum__head">' +
@@ -267,13 +251,6 @@
   function render(order) {
     lastCustomerName = order.customer_name || null;
     currentOrder = order;
-    canCancelFlag = !!order.can_cancel;
-    canAddFlag = !!order.can_add_or_modify;
-    const parsedCancel = order.cancel_eligible_until ? Date.parse(order.cancel_eligible_until) : NaN;
-    cancelUntilMs = isNaN(parsedCancel) ? null : parsedCancel;
-    const parsedAddendum = order.addendum_eligible_until ? Date.parse(order.addendum_eligible_until) : NaN;
-    addendumUntilMs = isNaN(parsedAddendum) ? null : parsedAddendum;
-    if (!canAddFlag) addPanelOpen = false;
     const parsedReady = order.status === "accepted" && order.ready_at ? Date.parse(order.ready_at) : NaN;
     readyAtMs = isNaN(parsedReady) ? null : parsedReady;
 
@@ -349,50 +326,33 @@
         '</div>';
     }
 
+    // Ajouts/annulations existants sur une commande plus ancienne (voir renderAddendum ci-dessus) :
+    // plus jamais créés depuis cette page (libre-service retiré le 24/11/2026), mais encore affichés si
+    // présents dans l'historique réel de la commande.
     const addendaHtml = (order.addenda && order.addenda.length)
       ? '<div class="order-track-addenda"><p class="order-track-addenda__title">Ajouts à votre commande</p>' +
-          order.addenda.map(function (a) { return renderAddendum(a, canAddFlag); }).join("") +
+          order.addenda.map(function (a) { return renderAddendum(a); }).join("") +
         '</div>'
       : "";
 
-    // Demande d'annulation déposée, en attente de la décision du commerçant (décision du 22/11/2026) :
-    // le client ne peut plus relancer une demande (bouton remplacé par un état "en cours", qui tourne).
-    const cancelPending = !!order.cancel_requested_at && (order.status === "new" || order.status === "accepted");
-    const actionsHtml = (canCancelFlag || cancelPending || canAddFlag)
-      ? '<div class="order-track-actions">' +
-          (cancelPending
-            ? '<div class="order-track-action order-track-action--cancel">' +
-                '<span class="order-track-pending" role="status">' +
-                  '<span class="order-track-pending__spinner" aria-hidden="true"></span> Annulation demandée — en attente du restaurant' +
-                '</span>' +
-              '</div>'
-            : canCancelFlag
-            ? '<div class="order-track-action order-track-action--cancel">' +
-                '<button type="button" class="btn-outline" data-action="cancel-order">Annuler ma commande</button>' +
-                '<span class="order-track-action__timer" id="cancelCountdown" aria-live="off">--:--</span>' +
-              '</div>'
-            : "") +
-          (canAddFlag
-            ? '<div class="order-track-action order-track-action--add">' +
-                '<button type="button" class="btn-outline" data-action="toggle-add-panel">' + (addPanelOpen ? "Fermer" : "Ajouter un article") + '</button>' +
-                '<span class="order-track-action__timer" id="addendumCountdown" aria-live="off">--:--</span>' +
-              '</div>'
-            : "") +
-        '</div>'
+    // Annuler ou ajouter un article n'est plus proposé en libre-service (décision du 24/11/2026,
+    // voir serveur/routes/order_cancel.js et order_addendum_create.js) : un seul message, tant que la
+    // commande peut encore être changée (new/accepted), plutôt que les boutons et le panneau d'avant.
+    const actionsHtml = (order.status === "new" || order.status === "accepted")
+      ? '<p class="order-track-call-hint">Besoin d’annuler ou d’ajouter un article ? Appelez-nous directement : ' +
+          '<a href="tel:0321200033">' + SubitoIcons.svg('phone') + ' 03 21 20 00 33</a></p>'
       : "";
-
-    const addPanelHtml = addPanelOpen ? '<div class="order-track-add-panel" id="addPanel"><p class="account-hint">Chargement du menu…</p></div>' : "";
 
     body.innerHTML =
       '<p class="order-track-number">Commande de ' + esc(order.customer_name) + ' — ' + modeLabel + '</p>' +
       scheduledNote +
       statusHtml +
-      '<div class="order-track-items">' + renderItems(order.items, canAddFlag) + '</div>' +
+      '<div class="order-track-items">' + renderItems(order.items) + '</div>' +
       (order.promo_cents > 0 ? '<div class="order-track-fee"><span>Promotion</span><span>− ' + formatCents(order.promo_cents) + '</span></div>' : "") +
       (order.delivery_fee_cents > 0 ? '<div class="order-track-fee"><span>Frais de livraison</span><span>' + formatCents(order.delivery_fee_cents) + '</span></div>' : "") +
       '<div class="order-track-total"><span>Total</span><strong>' + formatCents(order.total_cents) + '</strong></div>' +
       (order.mode === "delivery" && order.payment_methods && order.payment_methods.length ? '<p class="order-track-payment">' + paymentLabel(order.payment_methods, order.cash_change_for) + '</p>' : "") +
-      addendaHtml + actionsHtml + addPanelHtml;
+      addendaHtml + actionsHtml;
 
     if (readyAtMs !== null && order.delay_minutes !== 0) {
       startCountdown(order.mode);
@@ -400,8 +360,6 @@
       clearInterval(countdownTimer);
       countdownTimer = null;
     }
-    startActionCountdowns();
-    if (addPanelOpen) renderAddPanel();
 
     body.setAttribute("data-order-status", order.status);
 
@@ -412,242 +370,6 @@
     // Tant qu'elle est « new » ou « accepted », le sondage continue. Le minuteur, lui, continue de
     // tourner localement jusqu'à l'expiration.
     if (order.status === "ready" || order.status === "refused") stopPolling();
-  }
-
-  /* ---------- Annulation (4 min) et ajout/modification (10 min) ---------- */
-
-  function startActionCountdowns() {
-    if (actionCountdownTimer) clearInterval(actionCountdownTimer);
-    function tick() {
-      const now = serverNow();
-      let stillRunning = false;
-      const cEl = qs("cancelCountdown");
-      if (cEl) {
-        const remaining = cancelUntilMs - now;
-        if (remaining <= 0) {
-          cEl.textContent = "Délai écoulé";
-          const b = document.querySelector('[data-action="cancel-order"]');
-          if (b) b.disabled = true;
-        } else {
-          cEl.textContent = "Encore " + formatCountdown(remaining);
-          stillRunning = true;
-        }
-      }
-      const aEl = qs("addendumCountdown");
-      if (aEl) {
-        const remaining = addendumUntilMs - now;
-        if (remaining <= 0) {
-          aEl.textContent = "Délai écoulé";
-          const b = document.querySelector('[data-action="toggle-add-panel"]');
-          if (b) b.disabled = true;
-        } else {
-          aEl.textContent = "Encore " + formatCountdown(remaining);
-          stillRunning = true;
-        }
-      }
-      if (!stillRunning && actionCountdownTimer) { clearInterval(actionCountdownTimer); actionCountdownTimer = null; }
-    }
-    tick();
-    if (qs("cancelCountdown") || qs("addendumCountdown")) actionCountdownTimer = setInterval(tick, 1000);
-  }
-
-  function cancelOrder() {
-    if (!orderId) return;
-    if (!window.confirm("Confirmer la demande d’annulation ? Le restaurant doit encore l’accepter avant que la commande soit réellement annulée.")) return;
-    const btn = document.querySelector('[data-action="cancel-order"]');
-    if (btn) btn.disabled = true;
-    fetch("/api/order_cancel.php", {
-      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: Number(orderId) })
-    })
-      .then(function (res) { return res.json().then(function (data) { return { status: res.status, data: data }; }); })
-      .then(function (r) {
-        if (r.data && r.data.order) { lastRenderKey = null; render(r.data.order); }
-        else window.alert((r.data && r.data.message) || "Impossible d’annuler pour le moment.");
-      })
-      .catch(function () { window.alert("Connexion perdue. Réessayez dans un instant."); })
-      .then(function () { if (btn) btn.disabled = false; });
-  }
-
-  function toggleAddPanel() {
-    addPanelOpen = !addPanelOpen;
-    lastRenderKey = null;
-    render(currentOrder);
-  }
-
-  // État effectif de toutes les lignes de la commande (même principe que effectiveOrderLines() côté
-  // serveur, orders.js) : nécessaire pour ESTIMER le nouveau total avant envoi (le serveur reste la
-  // seule source de vérité — voir submitAddendum, qui se resynchronise sur son total en cas d'écart).
-  function effectiveLinesClientSide(order) {
-    const out = [];
-    (order.items || []).forEach(function (it) { out.push({ source: "item", id: it.id, unit: it.unit_price_cents, qty: it.qty, variant: it.variant }); });
-    const latestModify = {};
-    (order.addenda || []).forEach(function (a) {
-      if (a.kind === "add") {
-        (a.items || []).forEach(function (it) { out.push({ source: "addendum_item", id: it.id, unit: it.unit_price_cents, qty: it.qty, variant: it.variant }); });
-      } else if (a.kind === "modify" && a.items && a.items[0]) {
-        const key = (a.target_item_id != null ? "item:" + a.target_item_id : "addendum_item:" + a.target_addendum_item_id);
-        latestModify[key] = a.items[0];
-      }
-    });
-    return out.map(function (l) {
-      const mod = latestModify[l.source + ":" + l.id];
-      return mod ? { source: l.source, id: l.id, unit: mod.unit_price_cents, qty: mod.qty, variant: mod.variant } : l;
-    });
-  }
-
-  function estimateTotal(order, lines) {
-    let gross = 0;
-    const pizzaUnits = [];
-    lines.forEach(function (l) {
-      gross += l.unit * l.qty;
-      if (l.variant) for (let i = 0; i < l.qty; i++) pizzaUnits.push(l.unit);
-    });
-    pizzaUnits.sort(function (a, b) { return b - a; });
-    let promo = 0;
-    for (let i = 0; i + 1 < pizzaUnits.length; i += 2) {
-      promo += order.mode === "delivery" ? Math.floor((pizzaUnits[i + 1] + 1) / 2) : pizzaUnits[i + 1];
-    }
-    const hasPizza = pizzaUnits.length > 0;
-    const fee = (order.mode === "delivery" && !hasPizza) ? (order.delivery_fee_cents || 0) : 0;
-    return gross - promo + fee;
-  }
-
-  // Convertit la ligne construite par le widget de personnalisation (cart.js, montants en EUROS) vers la
-  // forme attendue par order_addendum_create.php (montants en centimes, suppléments {name,price_cents,qty}).
-  function lineToAddendumItem(line) {
-    const toCentsLocal = function (x) { return Math.round(x * 100); };
-    const extras = (line.extras || []).map(function (e) { return { name: e.name, price_cents: toCentsLocal(e.price), qty: e.qty || 1 }; });
-    const unit = toCentsLocal(line.basePrice) + extras.reduce(function (s, e) { return s + e.price_cents * e.qty; }, 0);
-    return { name: line.name, variant: line.variant, qty: 1, unit_price_cents: unit, removed: line.removed || [], extras: extras, half: line.half || null, note: line.note || "" };
-  }
-
-  // Ajout d'un nouvel article à la commande (jamais une modification d'un article déjà envoyé, voir
-  // order_addendum_create.js : kind='modify' n'est plus accepté).
-  function submitAddendum(items) {
-    if (addPanelBusy || !currentOrder) return;
-    addPanelBusy = true;
-    const newLines = items.map(function (it) { return { unit: it.unit_price_cents, qty: it.qty, variant: it.variant }; });
-    const baseLines = effectiveLinesClientSide(currentOrder);
-    const totalEstimate = estimateTotal(currentOrder, baseLines.concat(newLines));
-    const key = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ("addendum-" + Date.now() + "-" + (++addendumKeySeq));
-
-    function post(total) {
-      const body = { order_id: Number(orderId), idempotency_key: key, kind: "add", items: items, total_cents: total };
-      return fetch("/api/order_addendum_create.php", {
-        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
-      }).then(function (res) { return res.json().then(function (data) { return { status: res.status, data: data }; }); });
-    }
-
-    post(totalEstimate)
-      .then(function (r) {
-        // Un seul nouvel essai, avec le total exact recalculé par le serveur (promo sur l'ensemble de
-        // la commande) : jamais une boucle, jamais une 2e tentative sur une autre sorte d'erreur.
-        if (r.status === 409 && r.data && r.data.error === "price_mismatch" && r.data.server_total_cents != null) {
-          return post(r.data.server_total_cents);
-        }
-        return r;
-      })
-      .then(function (r) {
-        if (r.data && r.data.order) {
-          addPanelOpen = false;
-          lastRenderKey = null;
-          render(r.data.order);
-        } else {
-          window.alert((r.data && r.data.message) || "Impossible d’enregistrer cet ajout pour le moment.");
-        }
-      })
-      .catch(function () { window.alert("Connexion perdue. Réessayez dans un instant."); })
-      .then(function () { addPanelBusy = false; });
-  }
-
-  const ADD_PANEL_CATEGORY_TITLES = { boissons: "Boissons", desserts: "Desserts", "tex-mex": "Tex-Mex", pates: "Pâtes", subitowichs: "Subitowichs", salades: "Salades" };
-
-  function renderAddPanel() {
-    const panel = qs("addPanel");
-    if (!panel) return;
-    const W = window.SubitoPizzaWidget;
-    if (!W) { panel.innerHTML = '<p class="account-error">Fonction indisponible pour le moment.</p>'; return; }
-
-    panel.innerHTML = '<p class="account-hint">Chargement du menu…</p>';
-    W.loadMenuCatalog().then(function (catalog) {
-      if (addPanelBusy) { /* une soumission est déjà en cours : le panneau sera reconstruit juste après */ }
-      panel.innerHTML = "";
-      const byCategory = {};
-      catalog.items.forEach(function (it) {
-        if (it.kind !== "product") return;
-        const cat = it.categoryId || "autres";
-        (byCategory[cat] = byCategory[cat] || []).push(it);
-      });
-      Object.keys(byCategory).forEach(function (cat) {
-        const title = document.createElement("p");
-        title.className = "order-track-add-category";
-        title.textContent = ADD_PANEL_CATEGORY_TITLES[cat] || cat;
-        panel.appendChild(title);
-        byCategory[cat].forEach(function (it) {
-          // Choix obligatoire (base des subitowichs, crème fraîche ou tomate, décision du 22/11/2026) :
-          // fait partie du nom envoyé, comme côté commande initiale (cart.js) — sinon le serveur refuse
-          // l'ajout (unknown_item), le choix étant requis par le catalogue.
-          const choice = it.choice && it.choice.options && it.choice.options.length ? it.choice : null;
-          let chosen = "";
-          const wrap = document.createElement("div");
-          wrap.className = "order-track-add-item" + (choice ? " has-choice" : "");
-          const row = document.createElement("div");
-          row.className = "order-track-add-item__row";
-          row.innerHTML = "<span>" + esc(it.name) + " — " + W.formatPrice(it.price) + "</span>";
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.textContent = "Ajouter";
-          function effectiveName() { return choice && chosen ? it.name + " — " + (chosen.charAt(0).toUpperCase() + chosen.slice(1)) : it.name; }
-          function sync() { btn.disabled = !!choice && !chosen; }
-          btn.addEventListener("click", function () {
-            if (choice && !chosen) return;
-            submitAddendum([{ name: effectiveName(), variant: "", qty: 1, unit_price_cents: Math.round(it.price * 100), removed: [], extras: [], half: null, note: "" }]);
-          });
-          row.appendChild(btn);
-          wrap.appendChild(row);
-          if (choice) {
-            const choiceWrap = document.createElement("div");
-            choiceWrap.className = "order-track-add-choice";
-            choice.options.forEach(function (opt) {
-              const optBtn = document.createElement("button");
-              optBtn.type = "button";
-              optBtn.setAttribute("aria-pressed", "false");
-              optBtn.textContent = opt.charAt(0).toUpperCase() + opt.slice(1);
-              optBtn.addEventListener("click", function () {
-                chosen = opt;
-                Array.prototype.forEach.call(choiceWrap.children, function (c) { c.setAttribute("aria-pressed", "false"); });
-                optBtn.setAttribute("aria-pressed", "true");
-                sync();
-              });
-              choiceWrap.appendChild(optBtn);
-            });
-            wrap.appendChild(choiceWrap);
-          }
-          sync();
-          panel.appendChild(wrap);
-        });
-      });
-      if (catalog.sizeChart.length) {
-        const pizzaTitle = document.createElement("p");
-        pizzaTitle.className = "order-track-add-category";
-        pizzaTitle.textContent = "Pizzas";
-        panel.appendChild(pizzaTitle);
-        catalog.items.filter(function (it) { return it.kind === "pizza"; }).forEach(function (it) {
-          const wrap = document.createElement("div");
-          wrap.className = "order-track-add-pizza";
-          const label = document.createElement("p");
-          label.textContent = it.name;
-          wrap.appendChild(label);
-          const widget = W.build(it.name, it.ingredients, catalog.sizeChart, catalog.pizzaCatalog, {
-            allowHalf: it.allowHalf, choice: it.choice,
-            onAdd: function (line) { submitAddendum([lineToAddendumItem(line)]); }
-          });
-          wrap.appendChild(widget);
-          panel.appendChild(wrap);
-        });
-      }
-    });
   }
 
   // Commande introuvable dans ce compte (ou à un autre client) : on n'insiste pas.
@@ -738,29 +460,12 @@
     // qu'il redevient visible plutôt que d'attendre le prochain sondage.
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState !== "visible") return;
-      // Le compte à rebours (annulation 4 min / ajout 10 min) reste basé sur l'horodatage absolu de la
-      // commande (jamais mis en pause : la cuisine continue même onglet masqué) — mais l'intervalle qui
-      // l'affiche est, lui, ralenti par le navigateur en arrière-plan. On force un recalcul immédiat dès
-      // que l'onglet redevient visible pour ne pas laisser un chiffre figé à l'écran.
-      if (currentOrder) startActionCountdowns();
       if (inFlight) return;
       if (lastStatus === "ready" || lastStatus === "refused") return;
       lastChangeAt = Date.now();
       polling = true;
       fetchStatus();
     });
-
-    // Un seul écouteur délégué (le conteneur est réécrit à chaque rendu, les boutons qu'il contient non) :
-    // annuler, ouvrir/fermer le panneau d'ajout, modifier une pizza précise.
-    if (body) {
-      body.addEventListener("click", function (e) {
-        const btn = e.target.closest("[data-action]");
-        if (!btn) return;
-        const action = btn.getAttribute("data-action");
-        if (action === "cancel-order") cancelOrder();
-        else if (action === "toggle-add-panel") toggleAddPanel();
-      });
-    }
   }
 
   if (document.readyState === "loading") {
