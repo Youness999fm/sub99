@@ -271,10 +271,17 @@ const SUBITO_CART_CONFIG = {
     const slotButtons = activeDay.slots.map(function (s) {
       return '<button type="button" class="schedule-slot' + (scheduledFor === s.iso ? " is-active" : "") + '" data-iso="' + s.iso + '">' + escapeHtml(s.time) + '</button>';
     }).join("");
+    // Pour une livraison, l'heure choisie reste une estimation (le livreur part à ce moment-là, mais le
+    // trajet n'est jamais garanti à la minute près) — jamais annoncée comme un horaire fixe, contrairement
+    // au retrait sur place où l'heure choisie est celle à laquelle la commande est prête.
+    const approxNote = orderMode === "delivery"
+      ? '<p class="schedule-approx">' + SubitoIcons.svg("clock") + ' Pour une livraison, l’heure choisie est approximative (le temps de trajet du livreur peut varier).</p>'
+      : "";
     return (
       '<div class="schedule-picker">' +
         '<div class="schedule-days" role="tablist" aria-label="Jour">' + dayTabs + '</div>' +
         '<div class="schedule-slots" role="group" aria-label="Heure">' + slotButtons + '</div>' +
+        approxNote +
       '</div>'
     );
   }

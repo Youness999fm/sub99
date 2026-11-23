@@ -770,6 +770,13 @@
 .schedule-status--warn { background: #FFF3DA; color: #7A5300; }
 .schedule-status--error { background: #FCECEC; color: var(--red-dark); }
 
+/* Livraison programmée : l'heure choisie n'est qu'une estimation, jamais annoncée comme un horaire fixe. */
+.schedule-approx {
+  margin: 10px 0 0; font-size: 0.78rem; font-weight: 600; text-align: center;
+  color: #7A5300; display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.schedule-approx svg { width: 1em; height: 1em; flex: none; }
+
 .delivery-status {
   margin: 0;
   font-size: 0.82rem;

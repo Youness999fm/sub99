@@ -41,6 +41,7 @@
   border-radius: 10px;
   padding: 8px 12px;
 }
+.order-track-scheduled__approx { font-weight: 600; opacity: 0.8; }
 
 .order-track-status {
   text-align: center;

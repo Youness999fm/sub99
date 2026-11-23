@@ -286,8 +286,11 @@
     const body = qs("orderTrackBody");
     if (!body) return;
     const modeLabel = order.mode === "delivery" ? SubitoIcons.svg('bike') + " Livraison" : SubitoIcons.svg('shopping-bag') + " À emporter";
+    // Pour une livraison, l'heure programmée n'est qu'une estimation (voir cart.js, même rappel au moment
+    // du choix) : jamais annoncée comme un horaire fixe sur ce suivi non plus.
     const scheduledNote = order.scheduled_for
-      ? '<p class="order-track-scheduled">' + SubitoIcons.svg('clock') + ' Commande programmée pour ' + esc(scheduledLabel(order.scheduled_for)) + '</p>'
+      ? '<p class="order-track-scheduled">' + SubitoIcons.svg('clock') + ' Commande programmée pour ' + esc(scheduledLabel(order.scheduled_for)) +
+          (order.mode === "delivery" ? ' <span class="order-track-scheduled__approx">(heure approximative)</span>' : '') + '</p>'
       : "";
     let statusHtml = "";
 
