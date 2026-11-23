@@ -62,11 +62,22 @@ export default async function orderCancel(c) {
   const cutoff = utcAt(nowEpoch - CANCEL_WINDOW_S);
 
   // UPDATE conditionnel atomique : dépose la demande seulement si new/accepted, encore dans la fenêtre,
-  // et aucune demande déjà en cours — jamais une lecture préalable suivie d'une décision séparée.
-  const n = await transaction((tx) => tx.exec(
-    "UPDATE orders SET cancel_requested_at = ? WHERE id = ? AND status IN ('new', 'accepted') AND created_at > ? AND cancel_requested_at IS NULL",
-    [now, id, cutoff]
-  ));
+  // et aucune demande déjà en cours — jamais une lecture préalable suivie d'une décision séparée. Efface
+  // aussi cancel_refused_at : une nouvelle demande fait disparaître le message d'excuse d'un refus passé.
+  // Tolère l'absence de cette colonne (migration pas encore appliquée en prod), comme ailleurs.
+  let n;
+  try {
+    n = await transaction((tx) => tx.exec(
+      "UPDATE orders SET cancel_requested_at = ?, cancel_refused_at = NULL WHERE id = ? AND status IN ('new', 'accepted') AND created_at > ? AND cancel_requested_at IS NULL",
+      [now, id, cutoff]
+    ));
+  } catch (e) {
+    if (!estSchemaAbsent(e)) throw e;
+    n = await transaction((tx) => tx.exec(
+      "UPDATE orders SET cancel_requested_at = ? WHERE id = ? AND status IN ('new', 'accepted') AND created_at > ? AND cancel_requested_at IS NULL",
+      [now, id, cutoff]
+    ));
+  }
 
   if (n === 1) {
     await insertCancelAlert(id, order, now);

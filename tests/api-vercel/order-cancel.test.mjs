@@ -242,7 +242,8 @@ test('owner_cancel_decide accept : la commande passe réellement à "cancelled",
   assert.equal(relu.json.order.cancel_requested_at, null);
 });
 
-test('owner_cancel_decide refuse : la commande continue normalement, la demande disparaît', async () => {
+test('owner_cancel_decide refuse : la commande continue normalement, la demande disparaît, le client voit '
+  + 'un message d\'excuse (cancel_refused_at) jusqu\'à une nouvelle demande', async () => {
   const t0 = BASE_EPOCH + 100_000;
   poserHorloge(t0);
   const cust = await nouveauClient('cancel-decide-refuse@example.test');
@@ -257,12 +258,20 @@ test('owner_cancel_decide refuse : la commande continue normalement, la demande 
   assert.equal(decide.json.replayed, false);
   assert.equal(decide.json.order.status, 'accepted', 'la commande continue, jamais annulée');
   assert.equal(decide.json.order.cancel_requested_at, null);
+  assert.ok(decide.json.order.cancel_refused_at, 'cancel_refused_at doit être posé par le refus');
 
-  // Le client peut redemander l'annulation après un refus (nouvelle demande, pas un rejeu de l'ancienne).
+  // Le client voit le refus (cancel_refused_at) tant qu'il n'a pas redemandé.
+  const vueClient = await cust.get('order_status.php?id=' + id);
+  assert.equal(vueClient.status, 200, vueClient.text);
+  assert.ok(vueClient.json.order.cancel_refused_at, 'le client doit voir pourquoi le refus a eu lieu');
+
+  // Le client peut redemander l'annulation après un refus (nouvelle demande, pas un rejeu de l'ancienne) ;
+  // cancel_refused_at disparaît alors (le message d'excuse ne doit plus s'afficher sur une demande en cours).
   poserHorloge(t0 + 20);
   const r2 = await cust.post('order_cancel.php', { id });
   assert.equal(r2.status, 200, r2.text);
   assert.equal(r2.json.replayed, false, 'une vraie nouvelle demande, pas un rejeu de la précédente (refusée)');
+  assert.equal(r2.json.order.cancel_refused_at, null, 'le refus précédent ne doit plus être affiché pendant une nouvelle demande');
 });
 
 test('owner_cancel_decide : rejeu idempotent (accept puis accept = replayed:true), already_decided si contradictoire', async () => {

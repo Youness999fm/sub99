@@ -50,6 +50,10 @@ export const TABLES = {
       // status ne passe à 'cancelled' que si le commerçant accepte (voir owner_cancel_decide.js). Un refus
       // efface simplement cancel_requested_at, la commande continue normalement.
       ['cancel_requested_at', TS, true],
+      // Refus d'une demande d'annulation (décision du 24/11/2026) : la commande continue, mais le client
+      // doit comprendre pourquoi — affiché une fois côté client tant qu'aucune nouvelle demande n'a été
+      // déposée depuis (order_cancel.js remet ce champ à NULL dès qu'une nouvelle demande est déposée).
+      ['cancel_refused_at', TS, true],
       ['cancelled_at', TS, true], ['cancel_reason', 'str:200', true],
       // Suppression côté commerçant (corbeille, voir owner_order_delete.js) : jamais un vrai DELETE SQL —
       // la commande reste en base (preuve/recette), seulement cachée de la file tant que non restaurée.

@@ -640,20 +640,16 @@
     } catch (e) { /* audio indisponible : l'alerte visuelle reste */ }
   }
 
-  // L'alerte sonne tant qu'une commande attend une décision, 30 secondes au plus sans nouvelle commande.
-  const ALARM_MAX_MS = 30000;
-  let alarmStartedAt = 0;
-  let alarmExpired = false;
+  // L'alerte sonne SANS LIMITE DE DURÉE tant qu'une décision reste en attente (décision du 24/11/2026 :
+  // avant, elle s'arrêtait au bout de 30 s sans nouvelle commande, ce qui pouvait laisser une commande
+  // attendre en silence si personne ne l'avait remarquée à temps). Elle ne s'arrête que lorsque la commande
+  // (ou la demande d'annulation / le ticket complémentaire) a réellement été traitée, ou si le commerçant
+  // coupe le son manuellement (toggleSound) — jamais toute seule après un délai.
   function stopAlarm() {
     clearInterval(alarmTimer);
     alarmTimer = null;
   }
   function alarmTick() {
-    if (Date.now() - alarmStartedAt >= ALARM_MAX_MS) {
-      alarmExpired = true;
-      stopAlarm();
-      return;
-    }
     playBeep();
   }
   function syncAlarm() {
@@ -666,10 +662,8 @@
       || state.orders.some(o => (o.addenda || []).some(a => a.print_pending))
       || pendingCancelRequests().length > 0
     );
-    if (!pending) alarmExpired = false;
-    const shouldRing = pending && state.soundOn && !alarmExpired;
+    const shouldRing = pending && state.soundOn;
     if (shouldRing && !alarmTimer) {
-      alarmStartedAt = Date.now();
       // Si l'appli Android (tablette) est disponible, force le volume au maximum au début de la
       // sonnerie : sur une tablette laissée en caisse, le volume média a pu être baissé entre deux
       // commandes, la page web seule ne peut pas le remonter (seul le natif a accès au volume).
@@ -684,14 +678,11 @@
   }
   function rearmAlarm() {
     state.soundOn = true;
-    alarmExpired = false;
-    alarmStartedAt = Date.now();
     if (alarmTimer) playBeep();
     syncAlarm();
   }
   function toggleSound() {
     state.soundOn = !state.soundOn;
-    if (state.soundOn) alarmExpired = false;
     syncAlarm();
     announce(state.soundOn ? 'Son réactivé' : 'Son coupé');
   }

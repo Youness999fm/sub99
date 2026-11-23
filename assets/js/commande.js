@@ -351,24 +351,33 @@
     // rétablie le 24/11/2026) : le client ne peut plus relancer une demande (bouton remplacé par un état
     // "en cours", qui tourne).
     const cancelPending = !!order.cancel_requested_at && (order.status === "new" || order.status === "accepted");
+    // Refus d'une demande d'annulation (décision du 24/11/2026) : le serveur efface cancel_refused_at dès
+    // qu'une nouvelle demande est déposée (order_cancel.js), donc ce message ne reste affiché que tant que
+    // le client n'a pas redemandé — jamais en même temps que cancelPending.
+    const cancelRefusedHtml = (!!order.cancel_refused_at && !cancelPending && (order.status === "new" || order.status === "accepted"))
+      ? '<p class="order-track-sorry">Désolé, votre commande est déjà en préparation — nous ne pouvons plus l’annuler.</p>'
+      : "";
     // Ajouter un article reste désactivé (décision du 24/11/2026, voir order_addendum_create.js) : un
     // simple rappel d'appel, jamais le panneau d'ajout d'avant.
     const addCallHint = (order.status === "new" || order.status === "accepted")
       ? '<p class="order-track-call-hint">Besoin d’ajouter un article ? Appelez-nous directement : ' +
           '<a href="tel:0321200033">' + SubitoIcons.svg('phone') + ' 03 21 20 00 33</a></p>'
       : "";
-    const actionsHtml = (canCancelFlag || cancelPending)
+    const actionsHtml = (canCancelFlag || cancelPending || cancelRefusedHtml)
       ? '<div class="order-track-actions">' +
+          cancelRefusedHtml +
           (cancelPending
             ? '<div class="order-track-action order-track-action--cancel">' +
                 '<span class="order-track-pending" role="status">' +
                   '<span class="order-track-pending__spinner" aria-hidden="true"></span> Annulation demandée — en attente du restaurant' +
                 '</span>' +
               '</div>'
-            : '<div class="order-track-action order-track-action--cancel">' +
-                '<button type="button" class="btn-outline" data-action="cancel-order">Annuler ma commande</button>' +
-                '<span class="order-track-action__timer" id="cancelCountdown" aria-live="off">--:--</span>' +
-              '</div>') +
+            : (canCancelFlag
+              ? '<div class="order-track-action order-track-action--cancel">' +
+                  '<button type="button" class="btn-outline" data-action="cancel-order">Annuler ma commande</button>' +
+                  '<span class="order-track-action__timer" id="cancelCountdown" aria-live="off">--:--</span>' +
+                '</div>'
+              : "")) +
         '</div>'
       : "";
 

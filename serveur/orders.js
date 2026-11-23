@@ -464,6 +464,9 @@ export function orderView(o, items, addenda, owner) {
     // Demande d'annulation en attente de validation du commerçant (décision du 22/11/2026) : le client ne
     // peut plus en déposer une seconde tant que celle-ci n'est pas tranchée (voir can_cancel ci-dessous).
     cancel_requested_at: o.cancel_requested_at === undefined ? null : o.cancel_requested_at,
+    // Refus d'une demande d'annulation (décision du 24/11/2026) : affiché une fois côté client, voir
+    // assets/js/commande.js. undefined si la colonne n'existe pas encore en base (migration non appliquée).
+    cancel_refused_at: o.cancel_refused_at === undefined ? null : o.cancel_refused_at,
     cancel_eligible_until: cancelEligibleUntil,
     can_cancel: canCancel && (o.cancel_requested_at === undefined || o.cancel_requested_at === null),
     addenda,
