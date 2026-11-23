@@ -367,13 +367,6 @@
       .filter(o => o.status === 'new' && o.scheduled_for && !surfaced(o))
       .sort((a, b) => String(a.scheduled_for).localeCompare(String(b.scheduled_for)));
   }
-  // Demandes d'annulation en attente de décision (décision du 22/11/2026) : jamais mélangées avec "À
-  // traiter" (ce ne sont pas de nouvelles commandes) ni avec "Refusées/annulées" (rien n'est encore tranché).
-  function pendingCancelRequests() {
-    return state.orders
-      .filter(o => o.cancel_requested_at && (o.status === 'new' || o.status === 'accepted'))
-      .sort((a, b) => String(a.cancel_requested_at).localeCompare(String(b.cancel_requested_at)));
-  }
   // Refusées/annulées du jour : affichées à part, en haut, pour ne jamais les mélanger avec la file active
   // ni avec la recette (qui ne compte que les commandes réellement honorées).
   function refusedOrCancelledOrders() {
@@ -650,13 +643,11 @@
   }
   function syncAlarm() {
     // Une commande programmée pas encore sortie (surfaced) ne doit jamais faire sonner : le commerçant
-    // ne peut rien en faire tant qu'elle n'est pas dans la file active. Une demande d'annulation sonne
-    // tant qu'elle n'est pas tranchée (Accepter/Refuser), pas seulement tant que le ticket n'est pas
-    // imprimé — c'est une vraie décision à prendre, pas une simple information. Un ajout pas encore
-    // imprimé (print_pending) sonne au même titre qu'une commande neuve (décision du 22/11/2026).
+    // ne peut rien en faire tant qu'elle n'est pas dans la file active. Une annulation ou un ajout pas
+    // encore imprimé (print_pending) sonne au même titre qu'une commande neuve (décision du 22/11/2026) :
+    // c'est une vraie information urgente, pas seulement un ticket à imprimer plus tard.
     const pending = state.authed && (
       state.orders.some(o => o.status === 'new' && surfaced(o))
-      || pendingCancelRequests().length > 0
       || state.orders.some(o => (o.addenda || []).some(a => a.print_pending))
     );
     if (!pending) alarmExpired = false;
@@ -720,15 +711,17 @@
     notifyNew(list);
   }
 
-  // Libellé affiché pour une demande d'annulation ou un ajout : exactement les mots demandés par le
-  // propriétaire (décision du 22/11/2026), jamais "AJOUT"/"ANNULATION" bruts comme sur le ticket imprimé.
+  // Libellé affiché pour une annulation ou un ajout : exactement les mots demandés par le propriétaire
+  // (décision du 22/11/2026), jamais "AJOUT"/"ANNULATION" bruts comme sur le ticket imprimé. Depuis le
+  // 23/11/2026, l'annulation client est directe (jamais une demande en attente) : le commerçant est alerté
+  // pour agir en cuisine (arrêter la préparation si possible), pas pour trancher une décision.
   function addendumAlertLabel(a) {
-    return a.kind === 'cancel' ? 'Demande d’annulation' : 'Rajout de commande';
+    return a.kind === 'cancel' ? 'Commande annulée par le client' : 'Rajout de commande';
   }
 
-  // Une demande d'annulation (commande déjà acceptée) ou un ajout d'article sonne exactement comme une
-  // commande neuve (décision du 22/11/2026) : le commerçant doit le voir passer tout de suite, pas
-  // seulement par le ticket qui s'imprime. Jamais pour kind='modify' (désactivé, voir order_addendum_create.js).
+  // Une annulation (commande déjà acceptée) ou un ajout d'article sonne exactement comme une commande
+  // neuve (décision du 22/11/2026) : le commerçant doit le voir passer tout de suite, pas seulement par le
+  // ticket qui s'imprime. Jamais pour kind='modify' (désactivé, voir order_addendum_create.js).
   function notifyAddendum(list) {
     if (!document.hidden || !notifSupported() || Notification.permission !== 'granted') return;
     const first = list[0];
@@ -1257,7 +1250,7 @@
         <button type="button" class="qchip is-new ${on}" data-action="select" data-id="${esc(o.id)}"
           aria-label="Commande ${i + 1} de la file, ${esc(customerLabel(o))}, ${esc(eur(o.total_cents))}">
           <span class="qchip-title">${esc(customerLabel(o))}</span>
-          <span class="qchip-sub">${d ? esc(hm(d)) + ' · ' : ''}${esc(eur(o.total_cents))}</span>
+          <span class="qchip-sub">${d ? esc(hm(d)) + ' · ' : ''}${esc(eur(o.total_cents))}${addendaBadge(o)}</span>
         </button>`;
       }).join('') || `<p class="queue-empty">Aucune commande en attente.</p>`;
     }
@@ -1277,73 +1270,9 @@
         <button type="button" class="qchip is-prep" data-action="prep-open" data-id="${esc(o.id)}"
           aria-label="Commande de ${esc(customerLabel(o))}, en préparation, ${esc(eur(o.total_cents))}. Ouvrir pour la marquer prête">
           <span class="qchip-title">${esc(customerLabel(o))}</span>
-          <span class="qchip-sub">${ready ? 'Prête vers ' + esc(hm(ready)) + ' · ' : ''}${esc(eur(o.total_cents))}</span>
+          <span class="qchip-sub">${ready ? 'Prête vers ' + esc(hm(ready)) + ' · ' : ''}${esc(eur(o.total_cents))}${addendaBadge(o)}</span>
         </button>`;
     }).join(''));
-  }
-
-  // « Demande d'annulation » : section dédiée tout en haut, bien distincte visuellement d'une commande
-  // neuve (ambre, jamais rouge) — décision du 22/11/2026. Boutons Accepter/Refuser directement sur la
-  // puce : c'est urgent (la cuisine peut être en train de préparer), pas besoin de naviguer ailleurs.
-  function renderCancelRequests() {
-    const strip = document.getElementById('cancel-request-strip');
-    const box = document.getElementById('cancel-request-queue');
-    const countEl = document.getElementById('cancel-request-count');
-    if (!strip || !box) return;
-    const list = pendingCancelRequests();
-    strip.hidden = list.length === 0;
-    if (countEl) countEl.textContent = list.length ? ` (${list.length})` : '';
-    setHTML(box, list.map(o => {
-      const busy = state.sending.has('cancelreq-' + o.id);
-      return `
-        <div class="qchip is-cancel-request">
-          <button type="button" class="qchip-view" data-action="print-order" data-id="${esc(o.id)}"
-            aria-label="Voir la commande de ${esc(customerLabel(o))}, qui demande à annuler">
-            <span class="qchip-title">${esc(customerLabel(o))}</span>
-            <span class="qchip-sub">Annulation demandée · ${esc(eur(o.total_cents))}</span>
-          </button>
-          <div class="qchip-cancel-actions">
-            <button type="button" class="btn btn-accept btn-sm" data-action="cancel-request-accept" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>Accepter l’annulation</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-action="cancel-request-refuse" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>Refuser</button>
-          </div>
-        </div>`;
-    }).join(''));
-  }
-
-  async function decideCancelRequest(id, action) {
-    const key = 'cancelreq-' + id;
-    if (state.sending.has(key)) return;
-    const o = findOrder(id);
-    if (!o) return;
-    const name = customerLabel(o);
-    state.sending.add(key);
-    state.mutationSeq += 1;
-    scheduleRender();
-    try {
-      const r = await api('owner_cancel_decide.php', { method: 'POST', body: { id: o.id, action } });
-      if (r.unauth) return;
-      if (r.ok) {
-        replaceOrder(r.data.order);
-        toast(action === 'accept' ? `Commande de ${name} annulée.` : `Demande d’annulation de ${name} refusée, la commande continue.`);
-      } else if (r.data.error === 'already_decided') {
-        const cur = findOrder(id);
-        if (cur) cur.status = r.data.status || cur.status;
-        toast(`La demande de ${name} avait déjà été tranchée.`);
-      } else if (r.data.error === 'not_found') {
-        alertMsg(`La commande de ${name} est introuvable.`);
-      } else {
-        alertMsg(r.data.message || "La décision n'a pas pu être enregistrée. Réessayez.");
-      }
-    } catch (e) {
-      if (e instanceof StaleError) return;
-      alertMsg('Connexion impossible : la décision n\'a pas été envoyée. Réessayez.');
-    } finally {
-      state.sending.delete(key);
-      state.mutationSeq += 1;
-      syncAlarm();
-      scheduleRender();
-      if (state.authed) poll();
-    }
   }
 
   // « Refusées / annulées » : section dédiée en haut, avec un compteur par motif, pour que le commerçant
@@ -1422,6 +1351,18 @@
     return mods;
   }
 
+  // Repère visible dans les listes compactes (file, en préparation) qu'une commande a reçu un ajout depuis
+  // sa création — avant ce correctif, un ajout n'était visible nulle part après la disparition du toast
+  // (15 s) et ne changeait jamais l'aperçu de la carte, seul le détail (et le ticket imprimé) en gardait
+  // trace. "⚠" (pas juste "+N") quand un ticket n'est pas encore imprimé : un coup d'œil doit suffire.
+  function addendaBadge(o) {
+    const adds = (o.addenda || []).filter(a => a.kind === 'add');
+    if (!adds.length) return '';
+    const n = adds.reduce((s, a) => s + (a.items || []).reduce((s2, it) => s2 + (Number(it.qty) || 0), 0), 0);
+    const pending = adds.some(a => a.print_pending);
+    return ` · ${pending ? '⚠ ' : ''}+${n} ajouté${n > 1 ? 's' : ''}`;
+  }
+
   function showDecision(on) {
     const col = el.decision.closest('.decide-col');
     if (col) col.hidden = !on;
@@ -1450,6 +1391,27 @@
         <span class="lp">${esc(eur(it.line_total_cents))}</span>
       </li>`).join('');
 
+    // Ajouts (order_addenda kind='add') : affichés à part dans le détail, pas seulement via le toast et le
+    // ticket imprimé (auparavant la SEULE trace visible — invisible dès que le toast disparaît ou que le
+    // ticket papier n'est pas remarqué). Jamais kind='modify' (désactivé) ; kind='cancel' n'a pas de lignes.
+    const addendaHtml = (o.addenda || []).filter(a => a.kind === 'add').map(a => {
+      const dt = toDate(a.created_at);
+      const lignes = (a.items || []).map(it => `
+        <li class="item-added">
+          <span class="qty">${esc(it.qty)}×</span>
+          <span class="item-name">${esc(itemTitle(it))}${itemMods(it).map(m => `<small class="${m.cls}">${esc(m.text)}</small>`).join('')}</span>
+          <span class="lp">${esc(eur(it.line_total_cents))}</span>
+        </li>`).join('');
+      return `<li class="addendum-sep">Ajout${dt ? ' à ' + esc(hm(dt)) : ''}${a.print_pending ? ' · ticket pas encore imprimé' : ''}</li>${lignes}`;
+    }).join('');
+
+    // Annulation (order_addenda kind='cancel') : bandeau explicite en plus du statut "Annulée" (pastille) —
+    // le statut seul se voit seulement en liste, pas forcément au premier coup d'œil sur ce détail.
+    const cancelAddendum = (o.addenda || []).find(a => a.kind === 'cancel');
+    const cancelNotice = o.status === 'cancelled'
+      ? `<div class="od-cancel-notice">⚠ Commande annulée par le client${cancelAddendum && toDate(cancelAddendum.created_at) ? ' à ' + esc(hm(toDate(cancelAddendum.created_at))) : ''}</div>`
+      : '';
+
     const delivery = o.mode === 'delivery';
     const phone = o.customer_phone ? `<span>${esc(o.customer_phone)}</span>` : '';
     const addr = delivery ? `<span>${esc(addressLine(o.delivery_address) || 'Adresse non renseignée')}</span>` : '';
@@ -1467,6 +1429,7 @@
         </div>
         ${statusPill(o.status)}
       </div>
+      ${cancelNotice}
 
       <p class="pickup"><span aria-hidden="true">${delivery ? '➜' : '⌂'}</span> ${delivery ? 'Livraison' : 'À emporter · retrait au commerce'}</p>
 
@@ -1483,7 +1446,7 @@
 
       <div class="od-block od-items">
         <h4>Articles</h4>
-        <ul class="items">${itemsHtml}</ul>
+        <ul class="items">${itemsHtml}${addendaHtml}</ul>
       </div>
 
       ${promo}${fee}
@@ -2001,8 +1964,8 @@
   }
 
   // ---------- Rendu global ----------
-  // Chaque section est isolée (décision du 22/11/2026) : une exception dans l'une (ex. renderCancelRequests)
-  // ne doit plus jamais geler silencieusement les autres (ex. renderQueue, renderPrep) jusqu'au prochain
+  // Chaque section est isolée (décision du 22/11/2026) : une exception dans l'une (ex. renderQueue)
+  // ne doit plus jamais geler silencieusement les autres (ex. renderPrep, renderDetail) jusqu'au prochain
   // rechargement — c'était invisible auparavant (un seul try/catch autour de tout renderAll()), impossible
   // à diagnostiquer à distance. Voir reportRenderError() ci-dessus pour la preuve visible qui en résulte.
   function renderStep(name, fn) {
@@ -2028,7 +1991,6 @@
       }
     });
     renderStep('renderNotifSlot', renderNotifSlot);
-    renderStep('renderCancelRequests', renderCancelRequests);
     renderStep('renderRefused', renderRefused);
     renderStep('renderQueue', renderQueue);
     renderStep('renderScheduled', renderScheduled);
@@ -2191,6 +2153,28 @@
     const texMexLine = (it) => `
       <div class="t-texmex-item">${esc(ticketQtyPrefix(it))}${esc(ticketItemTitle(it).main)}</div>
       ${ticketItemModsHtml(it)}`;
+    // Ajouts/annulation (order_addenda) : jusqu'ici ce ticket (le seul écran que le commerçant consulte en
+    // cliquant une commande « en préparation ») ne montrait QUE o.items — le total en bas reflétait déjà le
+    // bon montant (recalculé par order_addendum_create.js) mais les lignes ajoutées n'apparaissaient nulle
+    // part ici, un écart total/détail trompeur. Seule trace avant ce correctif : le toast (15 s) et le
+    // ticket complémentaire séparé imprimé par printAddendumOnPrinter (jamais revu depuis). Jamais
+    // kind='modify' (désactivé, voir order_addendum_create.js).
+    const cancelAddendum = (o.addenda || []).find(a => a.kind === 'cancel');
+    const cancelNoticeTicket = o.status === 'cancelled'
+      ? `<div class="t-cancel-notice">COMMANDE ANNULÉE PAR LE CLIENT${cancelAddendum && toDate(cancelAddendum.created_at) ? ' À ' + esc(hm(toDate(cancelAddendum.created_at))) : ''}</div>`
+      : '';
+    const addendaHtml = (o.addenda || []).filter(a => a.kind === 'add').map(a => {
+      const dt = toDate(a.created_at);
+      const sub = splitTicketItems(a.items);
+      return `
+      <div class="t-addendum-box">
+        <p class="t-addendum-label">AJOUT${dt ? ' — ' + esc(hm(dt)) : ''}${a.print_pending ? ' (ticket pas encore imprimé)' : ''}</p>
+        ${sub.plats.map(itemLine).join('')}
+        ${sub.texmex.map(texMexLine).join('')}
+        ${sub.desserts.map(itemLine).join('')}
+        ${sub.boissons.map(itemLine).join('')}
+      </div>`;
+    }).join('');
     return `
       <div class="ticket">
         <div class="t-head">
@@ -2199,6 +2183,7 @@
         <div class="t-customer-box">
           <p class="t-customer-name">${esc(customerLabel(o))}</p>
         </div>
+        ${cancelNoticeTicket}
         <div class="t-top">
           <span>${esc(o.customer_phone || '')}</span>
           <span>Reçue à ${received ? esc(hm(received)) : '—'}</span>
@@ -2238,6 +2223,7 @@
           <p class="t-drinks-label">Boissons</p>
           ${boissons.map(itemLine).join('')}
         </div>` : ''}
+        ${addendaHtml}
       </div>`;
   }
 
@@ -2354,7 +2340,7 @@
     const items = addendumTicketItems(order, addendum);
     const hasPizza = items.some(it => it.variant);
     let headline;
-    if (addendum.kind === 'cancel') headline = 'ANNULATION DEMANDEE';
+    if (addendum.kind === 'cancel') headline = 'COMMANDE ANNULEE';
     else if (addendum.kind === 'modify') headline = 'MODIFICATION DE COMMANDE';
     else headline = hasPizza ? 'PIZZA RAJOUTEE' : 'AJOUT A LA COMMANDE';
     return {
@@ -2640,7 +2626,7 @@
   }
 
   // Construit la trame ESC/POS d'un ticket COMPLÉMENTAIRE (ajout/modification/annulation) : en-tête
-  // obligatoire (PIZZA RAJOUTEE / AJOUT A LA COMMANDE / MODIFICATION DE COMMANDE / ANNULATION DEMANDEE,
+  // obligatoire (PIZZA RAJOUTEE / AJOUT A LA COMMANDE / MODIFICATION DE COMMANDE / COMMANDE ANNULEE,
   // section 8-9 de la mission), prénom client, numéro de la commande d'origine, numéro de l'ajout, puis
   // UNIQUEMENT les articles de cet événement (jamais les articles déjà transmis sur le ticket initial).
   function buildAddendumTicketBytes(p) {
@@ -3253,12 +3239,6 @@
         if (found) printAddendumOnPrinter(found.addendum, found.order);
         return;
       }
-      case 'cancel-request-accept':
-        decideCancelRequest(id, 'accept');
-        return;
-      case 'cancel-request-refuse':
-        decideCancelRequest(id, 'refuse');
-        return;
       case 'trash-open':
         openTrashDialog();
         return;

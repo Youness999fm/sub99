@@ -1,7 +1,11 @@
 // Statut « prête » : accepted -> ready par le commerçant, visible par le client (suivi et compte), sans doublon ni retour arrière.
+// Lancer depuis la racine :  SUBITO_TEST_PORT=18430 node --test tests/api-vercel/statut-pret.test.mjs
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeEnv, openTestDb, runTool, startServer, stopServer, Client, OWNER_CODE } from './lib/harness.mjs';
+
+// +15 : ce fichier n'avait, par oubli, aucun décalage de port (voir fondations.test.mjs/horaires.test.mjs).
+process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 15);
+const { makeEnv, openTestDb, runTool, startServer, stopServer, Client, OWNER_CODE } = await import('./lib/harness.mjs');
 
 let ctx;
 let proc;

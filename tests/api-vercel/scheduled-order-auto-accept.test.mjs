@@ -2,14 +2,17 @@
 // l'accepter lui-même, donc order_create.php l'accepte automatiquement ; le ticket ne sort qu'une seule
 // fois, exactement à l'ouverture du jour demandé par le client (jamais un compte à rebours H-45 avant
 // l'heure de retrait, réservé aux commandes acceptées par le commerçant lui-même pendant le service).
-// Lancer depuis la racine :  SUBITO_TEST_PORT=18438 node --test tests/api-vercel/scheduled-order-auto-accept.test.mjs
+// Lancer depuis la racine :  SUBITO_TEST_PORT=18430 node --test tests/api-vercel/scheduled-order-auto-accept.test.mjs
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 9);
+// +9 collisionnait avec owner-order-trash.test.mjs (qui possède légitimement ce décalage) : deux serveurs
+// HTTP de test sur le même port quand node --test lance les fichiers en parallèle, source d'un blocage
+// silencieux plutôt qu'une erreur claire. +12 est libre (voir owner-cancel-view.test.mjs, qui prend +11).
+process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 12);
 const { Client, openTestDb, makeEnv, runTool, startServer, stopServer } = await import('./lib/harness.mjs');
 const { parisLocalVersEpoch, jourParisDecale } = await import('../../serveur/util.js');
 

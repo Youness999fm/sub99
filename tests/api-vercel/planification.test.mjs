@@ -48,8 +48,12 @@ test('constantes exposées (type Uber Eats : créneaux 30 min, 7 jours, 1h de d�
 });
 
 // ---------------------------------------------------------------- 2. parcours réel (serveur + DB)
+// Lancer depuis la racine :  SUBITO_TEST_PORT=18430 node --test tests/api-vercel/planification.test.mjs
 
-import { makeEnv, runTool, startServer, stopServer, Client, openTestDb, OWNER_CODE, SUPER_CODE } from './lib/harness.mjs';
+// +16 : ce fichier n'avait, par oubli, aucun décalage de port (collision silencieuse avec api.test.mjs
+// et les autres fichiers sans décalage — voir fondations.test.mjs/horaires.test.mjs/statut-pret.test.mjs).
+process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 16);
+const { makeEnv, runTool, startServer, stopServer, Client, openTestDb, OWNER_CODE, SUPER_CODE } = await import('./lib/harness.mjs');
 
 let ctx;
 let proc;

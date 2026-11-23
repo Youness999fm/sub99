@@ -1,11 +1,12 @@
-// POST order_cancel — DEMANDE d'annulation d'une commande par son client, { id }. Décision du 22/11/2026 :
-// le client ne fait que DEMANDER, il n'annule plus lui-même — la commande n'est réellement annulée que si
-// le commerçant valide la demande (voir owner_cancel_decide.js). Fenêtre de 4 minutes calculée depuis
-// orders.created_at (confirmation serveur de la commande initiale), jamais réinitialisée. Toujours
-// autorisée dans la fenêtre même si déjà acceptée par le commerçant : un événement order_addenda de type
-// "cancel" + une tâche addendum_print_jobs sont créés dans la même transaction pour l'alerter immédiatement,
-// avec la même urgence qu'une commande neuve (voir assets/js/commercant.js, alertAddendum). Rejeu (déjà
-// demandée) : 200 replayed:true, jamais une erreur.
+// POST order_cancel — annulation d'une commande par son client, { id }. Décision du 23/11/2026 : le client
+// annule DIRECTEMENT, aucune validation du commerçant n'est requise (revient sur la décision du 22/11/2026,
+// qui faisait attendre le client sans que l'annulation soit garantie côté commerçant). Fenêtre de 4 minutes
+// calculée depuis orders.created_at (confirmation serveur de la commande initiale), jamais réinitialisée.
+// Toujours autorisée dans la fenêtre même si déjà acceptée par le commerçant : la commande passe
+// immédiatement à 'cancelled' ; un événement order_addenda de type "cancel" + une tâche addendum_print_jobs
+// sont créés juste après pour alerter le commerçant sans délai (il juge sur place si c'est encore faisable
+// en cuisine, voir assets/js/commercant.js, alertAddendum). Rejeu (déjà annulée) : 200 replayed:true, jamais
+// une erreur.
 import crypto from 'node:crypto';
 import { allowMethods, readJsonBody, fail, failValidation, ok } from '../core.js';
 import { estSchemaAbsent, one, transaction } from '../db.js';
@@ -61,10 +62,10 @@ export default async function orderCancel(c) {
   // le dernier instant encore VALIDE (created_at doit être strictement après pour rester dans la fenêtre).
   const cutoff = utcAt(nowEpoch - CANCEL_WINDOW_S);
 
-  // UPDATE conditionnel atomique : dépose la demande seulement si new/accepted, encore dans la fenêtre,
-  // et aucune demande déjà en cours — jamais une lecture préalable suivie d'une décision séparée.
+  // UPDATE conditionnel atomique : annule réellement la commande seulement si new/accepted et encore dans
+  // la fenêtre — jamais une lecture préalable suivie d'une décision séparée.
   const n = await transaction((tx) => tx.exec(
-    "UPDATE orders SET cancel_requested_at = ? WHERE id = ? AND status IN ('new', 'accepted') AND created_at > ? AND cancel_requested_at IS NULL",
+    "UPDATE orders SET status = 'cancelled', cancelled_at = ?, cancel_reason = 'client' WHERE id = ? AND status IN ('new', 'accepted') AND created_at > ?",
     [now, id, cutoff]
   ));
 
@@ -75,10 +76,6 @@ export default async function orderCancel(c) {
   }
 
   const fresh = await orderLoad(id);
-  if (fresh.cancel_requested_at !== null && fresh.cancel_requested_at !== undefined
-    && (fresh.status === 'new' || fresh.status === 'accepted')) {
-    return ok({ replayed: true, order: (await orderViews([fresh], false))[0] });
-  }
   if (String(fresh.status) === 'cancelled') {
     return ok({ replayed: true, order: (await orderViews([fresh], false))[0] });
   }

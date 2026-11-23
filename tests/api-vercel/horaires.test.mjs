@@ -37,8 +37,12 @@ test('heure de Paris (hiver UTC+1, été UTC+2)', () => {
 });
 
 // Parcours réel : order_create refuse hors créneau (422 closed), accepte avec « off ».
+// Lancer depuis la racine :  SUBITO_TEST_PORT=18430 node --test tests/api-vercel/horaires.test.mjs
 import { before, after } from 'node:test';
-import { makeEnv, runTool, startServer, stopServer, Client } from './lib/harness.mjs';
+// +14 : ce fichier n'avait, par oubli, aucun décalage de port (collision silencieuse avec les autres
+// fichiers de ce dossier qui n'en avaient pas non plus — voir fondations.test.mjs/statut-pret.test.mjs).
+process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 14);
+const { makeEnv, runTool, startServer, stopServer, Client } = await import('./lib/harness.mjs');
 
 let ctx;
 let proc;
