@@ -6,12 +6,26 @@
    porte ?retour=<page> : une fois connecté, on le renvoie vers
    cette page avec ?subito_resume=1 pour que sa commande parte
    automatiquement — voir resumeOrderIfNeeded() dans cart.js.
+
+   ?compte=creer (audit du 24/11/2026) : état d'URL explicite pour que les CTA
+   "Créer mon compte" (accueil, pop-up, bandeau du menu) ouvrent directement
+   l'onglet d'inscription, sans que le client doive encore cliquer "Créer un
+   compte" après avoir atterri sur "Se connecter" par défaut. Simple lecture
+   au chargement (survit à l'actualisation et au retour arrière, car c'est
+   l'URL elle-même qui porte l'état) — jamais posé sur le lien générique "Mon
+   compte" de la navigation, qui doit continuer à ouvrir "Se connecter".
+   Un visiteur déjà connecté qui arrive avec ce paramètre n'a rien à créer :
+   il est renvoyé vers le menu plutôt que de voir l'écran "Bonjour, ...".
    ============================================================ */
 
 (function () {
   "use strict";
 
   function qs(id) { return document.getElementById(id); }
+
+  function wantsSignupTab() {
+    return new URLSearchParams(window.location.search).get("compte") === "creer";
+  }
 
   function showTab(which) {
     const isLogin = which === "login";
@@ -270,6 +284,7 @@
     qs("accountLoggedIn").hidden = true;
     qs("accountIntro").hidden = false;
     qs("logoutBtn").hidden = true;
+    if (wantsSignupTab()) showTab("signup");
   }
 
   // Écran dédié juste après la création du compte (demande du 20/11) : la page change complètement,
@@ -499,6 +514,9 @@
     });
 
     window.SubitoAccount.me(true).then(function (session) {
+      // Déjà connecté : rien à créer, direction la carte plutôt que l'écran "Bonjour, ..." (voir
+      // commentaire d'en-tête, flux proposé lors de l'audit du 24/11/2026).
+      if (session && wantsSignupTab()) { window.location.href = "menu.html"; return; }
       if (session) showLoggedIn(session); else showGuest();
     }).catch(function () {
       // Panne du service : on affiche le formulaire ; la connexion dira elle-même

@@ -1053,6 +1053,15 @@ section { padding: 32px 20px; }
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* Bug réel (audit du 24/11/2026) : un bouton .btn-outline/.btn-solid masqué par l'attribut `hidden`
+   (ex. #logoutBtn sur compte.html, qui doit rester invisible tant que le visiteur n'est pas connecté)
+   restait quand même affiché : `[hidden] { display: none }` et `.btn-outline { display: inline-flex }`
+   ont la même spécificité CSS (0,1,0), et la feuille du site passant après celle du navigateur,
+   display:inline-flex l'emportait — même symptôme et même cause que le bandeau .cart-announce (cart.css).
+   Règle générale ici plutôt qu'un correctif ponctuel : évite que le même bug ne revienne sur un futur
+   bouton .btn-outline/.btn-solid cliqué par du JS (`el.hidden = true`). */
+.btn-outline[hidden], .btn-solid[hidden] { display: none; }
+
 .btn-outline::before,
 .btn-solid::before {
   content: "";
