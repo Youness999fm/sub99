@@ -394,26 +394,17 @@
       .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
   }
   // En préparation : acceptées du jour, pas encore marquées prêtes, ET pas encore passé le délai annoncé.
-  // Exception : délai « venez vite » (0 minute) n'a pas de vraie échéance à dépasser, toujours ici tant que
-  // pas prête. Une fois l'heure prévue dépassée, la commande ne disparaît plus silencieusement (ancienne
-  // décision du 22/11/2026, abandonnée le 24/11/2026 : le commerçant la perdait de vue) — elle passe dans
-  // lateOrders() ci-dessous, une file distincte bien visible, jamais mélangée avec les commandes à l'heure.
+  // Une fois l'heure prévue dépassée, la commande disparaît d'ici : le SERVEUR la marque automatiquement
+  // « prête » à ce moment-là (autoReadyOverdueOrders, serveur/orders.js, décision du 24/11/2026 — plus
+  // besoin de cliquer "Marquer prête" commande par commande), elle rejoint alors directement la Recette.
+  // Exception : délai « venez vite » (0 minute) n'a pas de vraie échéance à dépasser, jamais retiré par
+  // cette règle (et jamais auto-marquée prête non plus, voir le même fichier serveur).
   function prepOrders() {
     const now = Date.now();
     return state.orders
       .filter(o => o.status === 'accepted' && o.service_day === state.serviceDay)
       .filter(o => o.delay_minutes === 0 || !o.ready_at || new Date(o.ready_at).getTime() > now)
       .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
-  }
-  // En retard : acceptées du jour, pas encore prêtes, délai annoncé dépassé (jamais le délai 0 « venez
-  // vite », qui n'a pas d'échéance à dépasser). Triée par la plus en retard d'abord (ready_at croissant) :
-  // c'est la plus urgente à sortir.
-  function lateOrders() {
-    const now = Date.now();
-    return state.orders
-      .filter(o => o.status === 'accepted' && o.service_day === state.serviceDay)
-      .filter(o => o.delay_minutes !== 0 && o.ready_at && new Date(o.ready_at).getTime() <= now)
-      .sort((a, b) => String(a.ready_at).localeCompare(String(b.ready_at)));
   }
   function ensureOpenSelection() {
     const cur = findOrder(state.selectedId);
@@ -1305,27 +1296,6 @@
     }).join(''));
   }
 
-  // « En retard » : commandes acceptées dont le délai annoncé au client est dépassé sans être marquées
-  // prêtes — une file à part, bien visible (décision du 24/11/2026), pour ne jamais les perdre de vue
-  // mélangées avec celles encore dans les temps.
-  function renderLate() {
-    const strip = document.getElementById('late-strip');
-    const box = document.getElementById('late-queue');
-    const countEl = document.getElementById('late-count');
-    if (!strip || !box) return;
-    const list = lateOrders();
-    strip.hidden = list.length === 0;
-    if (countEl) countEl.textContent = list.length ? ` (${list.length})` : '';
-    setHTML(box, list.map(o => {
-      const ready = toDate(o.ready_at);
-      return `
-        <button type="button" class="qchip is-late" data-action="prep-open" data-id="${esc(o.id)}"
-          aria-label="Commande de ${esc(customerLabel(o))}, en retard, ${esc(eur(o.total_cents))}. Ouvrir pour la marquer prête">
-          <span class="qchip-title">${esc(customerLabel(o))}</span>
-          <span class="qchip-sub">${ready ? 'Prévue ' + esc(hm(ready)) + ' · ' : ''}${esc(eur(o.total_cents))}${addendaBadge(o)}</span>
-        </button>`;
-    }).join(''));
-  }
 
   // « Demande d'annulation » : section dédiée tout en haut, bien distincte visuellement d'une commande
   // neuve (ambre, jamais rouge) — décision du 22/11/2026, rétablie le 24/11/2026. Boutons Accepter/Refuser
@@ -2225,7 +2195,6 @@
     renderStep('renderRefused', renderRefused);
     renderStep('renderQueue', renderQueue);
     renderStep('renderScheduled', renderScheduled);
-    renderStep('renderLate', renderLate);
     renderStep('renderPrep', renderPrep);
     renderStep('renderDetail', renderDetail);
     if (state.view === 'sched') renderStep('renderSchedView', renderSchedView);

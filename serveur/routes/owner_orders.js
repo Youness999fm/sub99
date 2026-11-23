@@ -3,7 +3,7 @@ import { allowMethods, ok } from '../core.js';
 import { all, estSchemaAbsent } from '../db.js';
 import { requireOwner } from '../auth.js';
 import { nowUtc, serviceDay } from '../util.js';
-import { orderViews } from '../orders.js';
+import { autoReadyOverdueOrders, orderViews } from '../orders.js';
 import { reclasserClaimsBloques, printJobView, addendaImpressionDue, addendumPrintJobView } from '../impression.js';
 
 export default async function ownerOrders(c) {
@@ -27,6 +27,9 @@ export default async function ownerOrders(c) {
       [serviceDay()]
     );
   }
+  // Avant de construire les vues : toute commande acceptée dont le délai annoncé est dépassé passe
+  // automatiquement "prête" (voir orders.js) — mute `rows` en place, la réponse reflète déjà ce changement.
+  await autoReadyOverdueOrders(rows, now);
   const orders = await orderViews(rows, true);
   // Impression de préparation planifiée (SBT-005) : si la table print_jobs n'existe pas encore (migration pas
   // encore appliquée en prod), la liste des commandes doit rester utilisable quand même — on tolère l'échec

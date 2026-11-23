@@ -1,7 +1,7 @@
 // Commandes : validation du corps, calcul serveur, vues client et propriétaire (port de api/lib/orders.php).
 import crypto from 'node:crypto';
 import { fail, failValidation } from './core.js';
-import { all, estSchemaAbsent, one } from './db.js';
+import { all, estSchemaAbsent, exec, one } from './db.js';
 import { catalogueCanonicalItems, catalogueSwapKey, checkAvailabilityLines, verifyLinePrices } from './catalogue.js';
 import { isIntBetween, nowUtc, strChars, utcAt, utcToEpoch } from './util.js';
 
@@ -549,6 +549,26 @@ export async function orderViews(rows, owner) {
   const items = await orderItemsByOrder(rows.map((r) => Number(r.id)));
   const addenda = await orderAddendaByOrder(rows.map((r) => Number(r.id)));
   return rows.map((r) => orderView(r, items.get(Number(r.id)) ?? [], addenda.get(Number(r.id)) ?? [], owner));
+}
+
+/** Transition automatique « accepted » -> « ready » dès que le délai annoncé au client est dépassé
+ * (décision du 24/11/2026) : le commerçant ne clique plus "Marquer prête" commande par commande — le
+ * client est prévenu automatiquement, exactement comme s'il avait cliqué. Jamais pour delay_minutes = 0
+ * ("venez vite" n'a pas d'échéance à dépasser) ni pour une commande déjà prête/refusée/annulée.
+ * Appelée avec les lignes BRUTES déjà en mémoire (avant orderViews) depuis chaque route de lecture
+ * polie en direct par un appareil (owner_orders.js, order_status.js) : elle MUTE `rows` sur place pour
+ * que la réponse de CETTE requête reflète déjà le nouveau statut, sans relecture supplémentaire. */
+export async function autoReadyOverdueOrders(rows, now) {
+  const nowEpoch = utcToEpoch(now);
+  const dues = rows.filter((o) => String(o.status) === 'accepted'
+    && o.delay_minutes !== null && o.delay_minutes !== undefined && Number(o.delay_minutes) !== 0
+    && o.accepted_at !== null && o.accepted_at !== undefined
+    && utcToEpoch(String(o.accepted_at)) + Number(o.delay_minutes) * 60 <= nowEpoch);
+  if (dues.length === 0) return;
+  const ids = dues.map((o) => Number(o.id));
+  const ph = ids.map(() => '?').join(',');
+  await exec(`UPDATE orders SET status = 'ready', prepared_at = ? WHERE status = 'accepted' AND id IN (${ph})`, [now, ...ids]);
+  for (const o of dues) { o.status = 'ready'; o.prepared_at = now; }
 }
 
 export async function orderLoad(id) {

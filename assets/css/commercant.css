@@ -652,10 +652,6 @@ body.fs-lock { overflow: hidden; }
 .qchip.is-choosing { background: var(--amber-tint); color: var(--amber); border-color: var(--amber); }
 .qchip.is-prep { background: var(--amber-tint); color: var(--amber); border-color: var(--amber); }
 .qchip.is-scheduled { background: var(--gold-tint); color: #8A6B1E; border-color: var(--gold); }
-/* En retard : délai dépassé, pas encore prête — rouge (comme is-cancelled) mais sans pulser (réservé aux
-   commandes neuves, is-new) : urgent à voir, pas urgent au point d'alarmer comme une nouvelle commande. */
-.qchip.is-late { background: var(--red-tint); color: var(--red-dark); border-color: var(--red); }
-.late-strip .strip-head h2 { color: var(--red-dark); }
 .qchip.is-refused-chip { background: #ECE9E4; color: var(--muted); border-color: var(--line); }
 .qchip.is-cancelled { background: var(--red-tint); color: var(--red-dark); border-color: var(--red); }
 /* Demande d'annulation : ambre, jamais rouge (rouge = commande neuve) ni gris (= déjà tranchée) — doit se
