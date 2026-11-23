@@ -807,7 +807,13 @@
         // jour quasi immédiatement, jamais après plusieurs minutes à tourner sur un ancien JS sans le
         // savoir. Jamais bloquant (fire-and-forget) : une vérification en échec ne doit jamais retarder
         // l'affichage des commandes.
-        if (!document.hidden) verifierNouvelleVersion();
+        if (!document.hidden) {
+          verifierNouvelleVersion();
+          // Même logique pour le service worker (voir le commentaire sur register() plus bas dans ce
+          // fichier) : une icône « ajoutée à l'écran d'accueil » doit se mettre à jour aussi vite qu'un
+          // onglet classique, jamais au rythme (très lent) que Chrome choisirait tout seul.
+          if (swReg && typeof swReg.update === 'function') swReg.update().catch(() => {});
+        }
       }
     } catch (e) {
       if (gen !== pollGen || e instanceof StaleError) return;
@@ -3395,8 +3401,17 @@
 
   ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, unlockAudio, true));
 
+  // Raccourci « ajouté à l'écran d'accueil » (mode appli) : Chrome ne vérifie une nouvelle version du
+  // service worker que très rarement tout seul (de l'ordre d'une fois par jour), bien plus lent que le
+  // rechargement de page normal ci-dessus (verifierNouvelleVersion, lié à poll()). update() ci-dessous force
+  // cette vérification au même rythme (toutes les 4 s tant que l'onglet est visible), pour qu'une icône de
+  // bureau se mette à jour aussi vite qu'un onglet classique plutôt que de rester bloquée sur un ancien
+  // service worker (et donc une ancienne coquille mise en cache) pendant potentiellement des heures.
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js', { scope: './' }).then(reg => { swReg = reg; }).catch(e => {
+    navigator.serviceWorker.register('sw.js', { scope: './' }).then(reg => {
+      swReg = reg;
+      reg.update().catch(() => {});
+    }).catch(e => {
       console.warn('Service worker non enregistré : ' + (e && e.name ? e.name + ': ' : '') + (e && e.message ? e.message : String(e)));
     });
   }
