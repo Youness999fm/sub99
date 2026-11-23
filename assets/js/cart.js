@@ -377,6 +377,15 @@ const SUBITO_CART_CONFIG = {
     if (paymentMethods.indexOf("cash") === -1) cashChangeFor = null;
   }
 
+  // Un échec d'envoi laisse volontairement son message affiché après un nouveau rendu du panier (voir
+  // renderStickyFooter/orderBusy plus haut) — mais ce message devient trompeur si le client corrige
+  // justement ce qui a échoué (ex. "Choisissez au moins un moyen de paiement") sans relancer l'envoi :
+  // il peut croire que son choix n'a pas été pris en compte. Jamais touché une erreur générique sans
+  // rapport avec le paiement (ex. connexion impossible) ni un envoi "pending" en cours.
+  function clearPaymentRelatedError() {
+    if (lastOrderStatus && lastOrderStatus.kind === "error") setOrderStatus("", "");
+  }
+
   function wirePaymentMethodEvents() {
     const container = document.querySelector(".payment-method");
     if (!container) return;
@@ -384,6 +393,7 @@ const SUBITO_CART_CONFIG = {
       btn.addEventListener("click", function () {
         if (cartLocked()) { showToast("Commande en cours d’envoi : changez le paiement après la réponse."); return; }
         togglePaymentMethod(btn.getAttribute("data-method"));
+        clearPaymentRelatedError();
         renderDrawerExtra(sortedCart());
       });
     });
@@ -391,6 +401,7 @@ const SUBITO_CART_CONFIG = {
       btn.addEventListener("click", function () {
         if (cartLocked()) { showToast("Commande en cours d’envoi : changez le billet après la réponse."); return; }
         cashChangeFor = parseInt(btn.getAttribute("data-change"), 10);
+        clearPaymentRelatedError();
         renderDrawerExtra(sortedCart());
       });
     });

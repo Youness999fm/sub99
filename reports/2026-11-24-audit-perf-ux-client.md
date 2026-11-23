@@ -26,9 +26,14 @@ Mission : améliorer l'expérience client du site de commande en ligne Subito Pi
 
 Ce passage répond au point laissé en suspens lors du premier audit ("formulaire de commande non parcouru jusqu'au bout") — réalisé en local précisément pour pouvoir aller jusqu'à la création réelle d'une commande sans jamais toucher à la production, conformément à la consigne.
 
+**Troisième passage ("retravaille au maximum, pousse et teste au max") : mode livraison testé à l'écran jusqu'au bout — un vrai bug trouvé et corrigé :**
+- Parcours livraison complet : panier → "Livraison" → question sauce piquante → zone/minimum vérifiés en direct ("✓ Livraison disponible à Hénin-Beaumont (minimum 10,00 €)") → livraison gratuite correctement appliquée (une pizza dans le panier) → choix du moyen de paiement (carte, espèces avec montant du billet, ticket restaurant, carte ticket restaurant, plusieurs combinables) → création de compte avec adresse de livraison.
+- **Bug trouvé et corrigé** (voir "Problèmes trouvés" #3) : après la reprise automatique de la commande suite à la création de compte, si le moyen de paiement n'avait pas encore été choisi, le message d'erreur "Choisissez au moins un moyen de paiement pour la livraison" restait affiché même après que le client ait choisi un moyen de paiement — jusqu'à ce qu'il clique une seconde fois sur "Commander en ligne". Corrigé : le message s'efface dès que le client agit sur le paiement.
+- Après correction : commande livraison créée du premier clic, moyen de paiement (carte bancaire) correctement enregistré et affiché sur le suivi.
+
 **Partiellement testés :**
 - Personnalisation : une seule combinaison détaillée testée en profondeur (retrait + supplément viande) ; les autres combinaisons (moitié-moitié, changement de base, retrait de légume, etc.) n'ont pas été reparcourues manuellement une par une — déjà largement couvertes par la suite de tests automatisés du projet (`tests/api-vercel/*.test.mjs`, combinatoire pizza/tailles/promos), que j'ai fait tourner (225/226 verts, voir plus bas) plutôt que de les re-tester manuellement en double.
-- Mode livraison (adresse, zone, frais) : non parcouru dans ce passage (testé uniquement "à emporter") ; la logique de zones/frais est couverte côté serveur par les tests automatisés, mais pas revérifiée ici à l'écran.
+- Zones de livraison hors Hénin-Beaumont (frais, minimum différents par ville) : non reparcourues une par une à l'écran — une seule ville testée directement ; la logique est couverte côté serveur par les tests automatisés.
 
 **Bloqués / non réalisables avec les outils disponibles :**
 - Simulation d'une connexion ralentie (3G/4G throttlé) : aucun outil de cette session ne permet de limiter la bande passante du navigateur piloté. Les mesures ci-dessous sont donc des mesures de laboratoire sur une connexion normale, pas une simulation réseau dégradé.
@@ -45,19 +50,29 @@ Ce passage répond au point laissé en suspens lors du premier audit ("formulair
 ### 2. Fausse alerte écartée : total du panier "incohérent" après ajouts multiples
 En testant des clics rapides répétés sur "Ajouter telle quelle" (4 pizzas identiques à 16,00 € ajoutées), le total affiché passait à 32,00 € au lieu des 64,00 € attendus (4 × 16). **Ce n'est pas un bug** : c'est la promotion "1 pizza achetée = 1 offerte" (à emporter), déjà annoncée sur le site et codée dans `pizzaPromo()` (`assets/js/cart.js`) — avec 4 pizzas identiques, 2 sont logiquement offertes (32 € de remise), total net 32 €. Vérifié en lisant le calcul (appariement prix décroissant par paires, la moins chère de chaque paire offerte) : le calcul est exact. Je le documente ici pour éviter qu'un futur audit ne reparte sur la même fausse piste.
 
+### 3. Message d'erreur du paiement livraison qui reste affiché après correction (impact : faible-modéré, confusion possible au moment de payer)
+- **Page** : `menu.html`/`composer.html`/`vegetarien.html` (partout où le panier de livraison s'ouvre), étape paiement.
+- **Étapes de reproduction** : panier avec au moins 1 pizza → "Livraison" → créer un compte avec une adresse de livraison **sans encore choisir de moyen de paiement** → la commande en attente est reprise automatiquement après l'inscription, échoue avec "Choisissez au moins un moyen de paiement pour la livraison" → le client choisit alors un moyen de paiement (ex. carte bancaire) → **le message d'erreur reste affiché**, alors que le problème est résolu.
+- **Impact** : le bouton "Commander en ligne" fonctionne en réalité dès ce moment (il n'est jamais désactivé), mais le message laisse croire au client que son choix n'a pas été pris en compte — risque d'hésitation, de clics répétés inutiles, ou d'appel téléphonique évitable. Pas de commande bloquée ni de prix faux.
+- **Cause** : `setOrderStatus()` (`assets/js/cart.js`) mémorise le dernier message pour qu'il survive aux rafraîchissements pendant un envoi en cours (comportement voulu, pour ne jamais perdre une erreur "pending") — mais rien ne l'effaçait quand le client changeait justement le moyen de paiement ou le montant du billet qui avait causé l'erreur.
+- **Corrigé** : `assets/js/cart.js`, `wirePaymentMethodEvents()` — le message d'erreur s'efface dès que le client clique sur un moyen de paiement ou un montant de billet, sans toucher à un message "pending" (envoi en cours) ni à une erreur sans rapport avec le paiement.
+- **Preuve** : reproduit puis corrigé en local (base en mémoire) ; avant la correction, l'erreur restait affichée après avoir choisi "Carte bancaire" et il fallait recliquer sur "Commander en ligne" pour que la commande parte ; après correction, le message disparaît dès le choix du moyen de paiement et la commande part du premier clic.
+
 ## Corrections réalisées et fichiers modifiés
 
 | Fichier | Changement |
 |---|---|
-| `assets/img/photos/*.jpg` (52 fichiers) | Redimensionnés/recompressés (voir ci-dessus) |
+| `assets/img/photos/*.jpg` (52 fichiers) | Redimensionnés/recompressés (voir problème #1) |
+| `assets/js/cart.js` | Efface le message d'erreur de paiement dès que le client change de moyen de paiement/montant de billet (voir problème #3) |
 
-Aucun fichier de code modifié dans ce passage — le seul changement est sur les images statiques. Aucun test automatisé à ajuster (rien de comportemental n'a changé).
+Aucun test automatisé ajouté pour le problème #3 : c'est un comportement d'interface pure (DOM), pas une règle serveur — le projet n'a pas de suite de tests navigateur automatisée à ce jour, uniquement `tests/api-vercel/*.test.mjs` (côté serveur). Vérifié manuellement à la place, avant/après, par reproduction exacte du scénario (voir "Preuve" ci-dessus).
 
 ## Résultats des tests après correction
 
-- Suite complète du projet (`node --test tests/api-vercel/*.test.mjs`) : relancée après la modification des images, pour confirmer l'absence de régression — résultat reporté dans le commit (225/226, le seul échec étant le faux positif CRLF déjà connu et documenté dans le dépôt, sans rapport avec ce changement).
+- Suite complète du projet (`node --test tests/api-vercel/*.test.mjs`) : relancée après chaque correction de ce rapport (images, puis `cart.js`), pour confirmer l'absence de régression — 225/226 à chaque fois, le seul échec étant le faux positif CRLF déjà connu et documenté dans le dépôt, sans rapport avec ces changements.
 - Vérification visuelle manuelle : `menu.html` servi en local avec les nouvelles images — rendu identique à l'original, aucune perte de netteté perceptible.
 - Parcours ajout au panier re-testé après la correction des images (sans rapport direct, mais dans la même session de test) : fonctionne correctement, total exact compte tenu de la promotion.
+- Parcours livraison complet (personnalisation → panier → compte avec adresse → moyen de paiement → commande) rejoué intégralement après la correction du message d'erreur : commande créée du premier clic, aucune régression sur le parcours "à emporter" déjà validé au passage précédent.
 
 ## Mesures avant / après
 
@@ -76,15 +91,15 @@ Les pages testées (accueil, menu) étaient déjà, avant toute correction, larg
 
 ## Problèmes restants, classés par urgence
 
-1. **Faible — mode livraison non reparcouru à l'écran dans ce passage** (adresse, zone, frais, moyen de paiement à la livraison). Testé uniquement côté "à emporter" lors de la vérification manuelle complète ; la logique de zones/frais reste couverte par les tests automatisés serveur, mais pas revérifiée pas-à-pas à l'écran.
-2. **Faible — pas de mesure en réseau dégradé.** Aucun outil de cette session ne permet de simuler une connexion lente ; si le client cible un public avec une connexion mobile fréquemment faible, une mesure WebPageTest ou Lighthouse en mode "Slow 4G" apporterait un signal que je n'ai pas pu produire ici.
+1. **Faible — pas de mesure en réseau dégradé.** Aucun outil de cette session ne permet de simuler une connexion lente ; si le client cible un public avec une connexion mobile fréquemment faible, une mesure WebPageTest ou Lighthouse en mode "Slow 4G" apporterait un signal que je n'ai pas pu produire ici.
+2. **Faible — autres villes de livraison non reparcourues à l'écran** (Montigny-en-Gohelle, Dourges… chacune avec son propre minimum/frais). Une seule ville (Hénin-Beaumont) vérifiée manuellement ; la logique reste couverte par les tests automatisés serveur.
 3. **Très faible — 40 photos sur 92 n'ont pas pu être allégées** (déjà à une taille raisonnable ou dont la recompression Canvas n'apportait aucun gain) ; aucune action nécessaire, signalé pour mémoire.
 4. **Non évalué — formats d'image modernes (WebP/AVIF).** Les 92 photos restent au format JPEG ; un passage à WebP apporterait un gain supplémentaire mais représente un changement plus large (génération de variantes, `<picture>`/`srcset`, décision de compatibilité navigateur) que je n'ai pas engagé dans ce passage ciblé — à envisager si la performance mobile devient un sujet prioritaire.
 
 ## Ce qui a été observé vs. supposé
 
-**Observé directement** (mesuré, reproduit, vérifié) : poids des images avant/après, dimensions réelles vs. affichées, Core Web Vitals de laboratoire sur l'accueil, absence d'erreur console sur l'accueil et le menu, comportement correct du panier (ajout, clics répétés, promo), parcours complet de commande "à emporter" jusqu'à une vraie commande de test en local (personnalisation, création de compte, reprise automatique, suivi, absence de doublon, persistance au rechargement, rendu mobile).
+**Observé directement** (mesuré, reproduit, vérifié) : poids des images avant/après, dimensions réelles vs. affichées, Core Web Vitals de laboratoire sur l'accueil, absence d'erreur console sur l'accueil et le menu, comportement correct du panier (ajout, clics répétés, promo), parcours complet de commande "à emporter" **et** "livraison" jusqu'à une vraie commande de test en local (personnalisation, zone/minimum, moyen de paiement, création de compte, reprise automatique, suivi, absence de doublon, persistance au rechargement, rendu mobile), le bug du message d'erreur de paiement (reproduit puis corrigé, avant/après vérifié).
 
-**Supposé / non vérifié** : parcours livraison (adresse, zone, frais) à l'écran — couvert côté serveur par les tests automatisés, pas revérifié manuellement ici ; comportement du formulaire face à une vraie erreur réseau en plein envoi (coupure simulée non réalisée) ; performance sur connexion mobile dégradée ; rendu sur l'ensemble des navigateurs/appareils (testé uniquement sous Chromium piloté, desktop et émulation mobile 375 px).
+**Supposé / non vérifié** : villes de livraison autres que Hénin-Beaumont à l'écran — couvertes côté serveur par les tests automatisés, pas revérifiées manuellement ici ; comportement du formulaire face à une vraie erreur réseau en plein envoi (coupure simulée non réalisée) ; performance sur connexion mobile dégradée ; rendu sur l'ensemble des navigateurs/appareils (testé uniquement sous Chromium piloté, desktop et émulation mobile 375 px).
 
 Je n'affirme pas que le site est "sans bug" au-delà de ce qui a été vérifié ci-dessus.
