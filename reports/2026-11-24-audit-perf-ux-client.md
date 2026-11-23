@@ -14,9 +14,21 @@ Mission : améliorer l'expérience client du site de commande en ligne Subito Pi
 - Ajouts répétés rapidement (triple clic) : vérification qu'aucun double-ajout erroné ne se produit, et que le total affiché reste exact (voir plus bas — fausse alerte corrigée par la lecture du code).
 - Poids des pages, compression des scripts/CSS, dimensions réelles des photos vs. leur taille affichée.
 
+**Testés en conditions réelles sur un serveur local (base en mémoire, jamais Supabase/production), jusqu'à la création d'une vraie commande de test — deuxième passage d'audit, plus complet :**
+- Personnalisation complète d'une pizza (`menu.html` → "Personnaliser") : retrait d'un ingrédient (jambon), ajout d'un supplément viande (mortadelle) — l'échange gratuit viande-contre-viande est correctement détecté et étiqueté "(échange offert)", prix inchangé (16,00 €). Texte d'aide, suppléments par groupe (légumes/sauces 1,50 €, viandes-poissons-fromages 2,00 €, œuf 1,00 €), champ "Autre demande" libre : tout fonctionne et s'affiche clairement.
+- Panier modal : sélection du mode (à emporter/livraison) obligatoire avant de pouvoir commander (bouton désactivé tant que rien n'est choisi, message explicite) ; message incitatif correct sur la promo ("Ajoutez encore 1 pizza : elle sera offerte…") ; mention claire "paiement sur place, rien à régler en ligne".
+- Création de compte (prénom/nom/email/téléphone/mot de passe + confirmation, adresse facultative) : validation en direct (bordure rouge tant que la confirmation ne correspond pas), aucune perte des champs déjà saisis.
+- **Reprise automatique de la commande après création de compte** : après la création du compte, la commande en attente part automatiquement (aucun second clic sur "Commander" nécessaire), redirection directe vers le suivi de commande (`commande.html?id=…`).
+- Page de suivi : statut "En attente de confirmation du restaurant…", récapitulatif exact (article, exclusion, supplément, total), minuteur d'annulation (4 min) qui décompte correctement, bouton "Annuler ma commande".
+- **Une seule commande créée**, vérifié via `customer_orders.php` après coup (`count: 1`) — aucun doublon malgré le passage par la création de compte puis la redirection automatique.
+- Rechargement de la page de suivi : état identique, minuteur continue correctement (pas de réinitialisation, pas de régression d'affichage).
+- Même parcours réaffiché en émulation mobile (375 px) : mise en page propre, rien ne déborde, cible tactile du bouton "Annuler" confortable.
+
+Ce passage répond au point laissé en suspens lors du premier audit ("formulaire de commande non parcouru jusqu'au bout") — réalisé en local précisément pour pouvoir aller jusqu'à la création réelle d'une commande sans jamais toucher à la production, conformément à la consigne.
+
 **Partiellement testés :**
-- Personnalisation d'une pizza (retrait d'ingrédient, suppléments, moitié-moitié) : le widget s'ouvre correctement (bouton "Personnaliser" visible, pas d'erreur console), mais je n'ai pas parcouru chaque combinaison d'option en détail — cette logique est déjà largement couverte par la suite de tests automatisés du projet (`tests/api-vercel/*.test.mjs`, combinatoire pizza/tailles/promos), que j'ai fait tourner (225/226 verts, voir plus bas) plutôt que de la re-tester manuellement en double.
-- Formulaire de commande (adresse, mode de paiement, validation) : lu dans le code (`assets/js/cart.js`) — protections anti-double-soumission déjà en place (bouton désactivé pendant l'envoi, garde anti double-tap à 3 s, état "busy" persistant même si le panier se re-rend pendant l'envoi) — mais **non parcouru pas-à-pas jusqu'au bout en production**, conformément à la consigne de ne jamais arriver jusqu'à la création réelle d'une commande.
+- Personnalisation : une seule combinaison détaillée testée en profondeur (retrait + supplément viande) ; les autres combinaisons (moitié-moitié, changement de base, retrait de légume, etc.) n'ont pas été reparcourues manuellement une par une — déjà largement couvertes par la suite de tests automatisés du projet (`tests/api-vercel/*.test.mjs`, combinatoire pizza/tailles/promos), que j'ai fait tourner (225/226 verts, voir plus bas) plutôt que de les re-tester manuellement en double.
+- Mode livraison (adresse, zone, frais) : non parcouru dans ce passage (testé uniquement "à emporter") ; la logique de zones/frais est couverte côté serveur par les tests automatisés, mais pas revérifiée ici à l'écran.
 
 **Bloqués / non réalisables avec les outils disponibles :**
 - Simulation d'une connexion ralentie (3G/4G throttlé) : aucun outil de cette session ne permet de limiter la bande passante du navigateur piloté. Les mesures ci-dessous sont donc des mesures de laboratoire sur une connexion normale, pas une simulation réseau dégradé.
@@ -64,15 +76,15 @@ Les pages testées (accueil, menu) étaient déjà, avant toute correction, larg
 
 ## Problèmes restants, classés par urgence
 
-1. **Faible — formulaire de commande non parcouru en production jusqu'au bout** (adresse/paiement/validation). Le code lu montre des protections déjà solides (anti double-soumission, persistance du panier, gestion des erreurs réseau distincte des erreurs de validation), mais un passage manuel complet en environnement de test (hors production, par ex. le serveur local) apporterait une preuve directe plutôt qu'une lecture de code.
+1. **Faible — mode livraison non reparcouru à l'écran dans ce passage** (adresse, zone, frais, moyen de paiement à la livraison). Testé uniquement côté "à emporter" lors de la vérification manuelle complète ; la logique de zones/frais reste couverte par les tests automatisés serveur, mais pas revérifiée pas-à-pas à l'écran.
 2. **Faible — pas de mesure en réseau dégradé.** Aucun outil de cette session ne permet de simuler une connexion lente ; si le client cible un public avec une connexion mobile fréquemment faible, une mesure WebPageTest ou Lighthouse en mode "Slow 4G" apporterait un signal que je n'ai pas pu produire ici.
 3. **Très faible — 40 photos sur 92 n'ont pas pu être allégées** (déjà à une taille raisonnable ou dont la recompression Canvas n'apportait aucun gain) ; aucune action nécessaire, signalé pour mémoire.
 4. **Non évalué — formats d'image modernes (WebP/AVIF).** Les 92 photos restent au format JPEG ; un passage à WebP apporterait un gain supplémentaire mais représente un changement plus large (génération de variantes, `<picture>`/`srcset`, décision de compatibilité navigateur) que je n'ai pas engagé dans ce passage ciblé — à envisager si la performance mobile devient un sujet prioritaire.
 
 ## Ce qui a été observé vs. supposé
 
-**Observé directement** (mesuré, reproduit, vérifié) : poids des images avant/après, dimensions réelles vs. affichées, Core Web Vitals de laboratoire sur l'accueil, absence d'erreur console sur l'accueil et le menu, comportement correct du panier (ajout, clics répétés, promo).
+**Observé directement** (mesuré, reproduit, vérifié) : poids des images avant/après, dimensions réelles vs. affichées, Core Web Vitals de laboratoire sur l'accueil, absence d'erreur console sur l'accueil et le menu, comportement correct du panier (ajout, clics répétés, promo), parcours complet de commande "à emporter" jusqu'à une vraie commande de test en local (personnalisation, création de compte, reprise automatique, suivi, absence de doublon, persistance au rechargement, rendu mobile).
 
-**Supposé / non vérifié** : comportement exact du formulaire de commande en situation réelle (adresse invalide, perte de connexion en plein envoi, etc.) au-delà de la lecture du code ; performance sur connexion mobile dégradée ; rendu sur l'ensemble des navigateurs/appareils (testé uniquement sous Chromium piloté, desktop et émulation mobile 375 px).
+**Supposé / non vérifié** : parcours livraison (adresse, zone, frais) à l'écran — couvert côté serveur par les tests automatisés, pas revérifié manuellement ici ; comportement du formulaire face à une vraie erreur réseau en plein envoi (coupure simulée non réalisée) ; performance sur connexion mobile dégradée ; rendu sur l'ensemble des navigateurs/appareils (testé uniquement sous Chromium piloté, desktop et émulation mobile 375 px).
 
 Je n'affirme pas que le site est "sans bug" au-delà de ce qui a été vérifié ci-dessus.
