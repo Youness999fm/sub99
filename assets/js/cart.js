@@ -2696,6 +2696,13 @@ const SUBITO_CART_CONFIG = {
     // orderProblem() redemandera un jour/heure, exactement comme pour un client déjà connecté).
     scheduleChoice = sessionStorage.getItem(PENDING_SCHEDULE_CHOICE_KEY) === "later" ? "later" : "now";
     scheduledFor = scheduleChoice === "later" ? (sessionStorage.getItem(PENDING_SCHEDULED_FOR_KEY) || null) : null;
+    // BUG RÉEL (audit du 24/11/2026, 5e passage) : scheduleChoice pouvait être restauré à "later" sans que
+    // le cache des créneaux (scheduleCache, par service) soit jamais chargé sur cette page fraîchement
+    // rechargée — si l'envoi automatique échouait ensuite (ex. adresse manquante), le panier restait ouvert
+    // sur "Aucun horaire disponible pour une commande programmée pour le moment.", alors qu'un créneau valide
+    // avait déjà été choisi : aucun jour/heure proposé pour que le client corrige et réessaie. Préchargé ici
+    // pour que le sélecteur affiche tout de suite les vrais créneaux si le panier doit rester ouvert.
+    if (scheduleChoice === "later") loadScheduleSlots(orderMode);
     const savedPayment = sessionStorage.getItem(PENDING_PAYMENT_KEY);
     if (savedPayment !== null) {
       // Liste JSON (voir startOnlineOrder) ; une valeur illisible est simplement ignorée.
