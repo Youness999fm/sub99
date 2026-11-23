@@ -2171,6 +2171,12 @@ const SUBITO_CART_CONFIG = {
   const PENDING_PAYMENT_KEY = "subito_pending_payment_methods";
   const PENDING_CASH_KEY = "subito_pending_cash_change";
   const PENDING_HOT_SAUCE_KEY = "subito_pending_hot_sauce";
+  // BUG RÉEL (audit du 24/11/2026) : une commande programmée ("Plus tard", jour + heure choisis) perdait
+  // silencieusement son créneau si le client n'était pas encore connecté — redirectToLogin() ne sauvegardait
+  // que le mode (à emporter/livraison), jamais scheduleChoice/scheduledFor. La commande repartait alors
+  // "dès que possible" sans que le client s'en rende compte, au lieu du jour/heure qu'il avait choisi.
+  const PENDING_SCHEDULE_CHOICE_KEY = "subito_pending_schedule_choice";
+  const PENDING_SCHEDULED_FOR_KEY = "subito_pending_scheduled_for";
   const RESUME_PARAM = "subito_resume";
   // Posé par compte.js uniquement au retour légitime d'une connexion : sans lui, un lien ?subito_resume=1 n'envoie rien.
   const RESUME_OK_KEY = "subito_resume_ok";
@@ -2191,11 +2197,13 @@ const SUBITO_CART_CONFIG = {
     return /^Calzone \(soufflée\)/.test(line.name) && (line.name.indexOf(" — ") === -1 || !!line.half);
   }
 
-  // Efface les moyens de paiement et le billet d'une tentative précédente.
+  // Efface le moyen de paiement, le billet, la sauce piquante et le créneau programmé d'une tentative précédente.
   function clearPendingPaymentState() {
     sessionStorage.removeItem(PENDING_PAYMENT_KEY);
     sessionStorage.removeItem(PENDING_CASH_KEY);
     sessionStorage.removeItem(PENDING_HOT_SAUCE_KEY);
+    sessionStorage.removeItem(PENDING_SCHEDULE_CHOICE_KEY);
+    sessionStorage.removeItem(PENDING_SCHEDULED_FOR_KEY);
   }
 
   // Vérifications avant envoi : renvoie le message à afficher, ou null si la commande peut partir.
@@ -2245,6 +2253,12 @@ const SUBITO_CART_CONFIG = {
     if (orderMode === "delivery" && paymentMethods.length) sessionStorage.setItem(PENDING_PAYMENT_KEY, JSON.stringify(paymentMethods));
     if (orderMode === "delivery" && paymentMethods.indexOf("cash") !== -1 && cashChangeFor !== null) sessionStorage.setItem(PENDING_CASH_KEY, String(cashChangeFor));
     if (orderMode === "delivery" && hotSauceChoice !== null) sessionStorage.setItem(PENDING_HOT_SAUCE_KEY, hotSauceChoice ? "1" : "0");
+    // Commande programmée ("Plus tard") : le choix (et le créneau s'il est déjà posé) doit survivre à la
+    // connexion, sinon la commande repart "dès que possible" sans que le client l'ait demandé.
+    if (scheduleChoice === "later") {
+      sessionStorage.setItem(PENDING_SCHEDULE_CHOICE_KEY, "later");
+      if (scheduledFor) sessionStorage.setItem(PENDING_SCHEDULED_FOR_KEY, scheduledFor);
+    }
     const here = window.location.pathname + window.location.hash;
     window.location.href = "compte.html?retour=" + encodeURIComponent(here);
   }
@@ -2665,6 +2679,10 @@ const SUBITO_CART_CONFIG = {
     }
     const savedMode = sessionStorage.getItem(PENDING_ORDER_MODE_KEY);
     if (savedMode) { orderMode = savedMode; modeChosen = true; sessionStorage.removeItem(PENDING_ORDER_MODE_KEY); }
+    // Commande programmée : restaure le choix "Plus tard" et le créneau s'il était déjà posé (sinon
+    // orderProblem() redemandera un jour/heure, exactement comme pour un client déjà connecté).
+    scheduleChoice = sessionStorage.getItem(PENDING_SCHEDULE_CHOICE_KEY) === "later" ? "later" : "now";
+    scheduledFor = scheduleChoice === "later" ? (sessionStorage.getItem(PENDING_SCHEDULED_FOR_KEY) || null) : null;
     const savedPayment = sessionStorage.getItem(PENDING_PAYMENT_KEY);
     if (savedPayment !== null) {
       // Liste JSON (voir startOnlineOrder) ; une valeur illisible est simplement ignorée.
