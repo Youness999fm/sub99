@@ -802,6 +802,12 @@
         pollFails = 0;
         setNetLost(false);
         next = document.hidden ? POLL_HIDDEN_MS : POLL_VISIBLE_MS;
+        // Vérifie la version à CHAQUE sondage visible (toutes les 4 s), pas seulement toutes les 180 s
+        // (setInterval plus bas) : un onglet resté ouvert depuis avant un déploiement doit se mettre à
+        // jour quasi immédiatement, jamais après plusieurs minutes à tourner sur un ancien JS sans le
+        // savoir. Jamais bloquant (fire-and-forget) : une vérification en échec ne doit jamais retarder
+        // l'affichage des commandes.
+        if (!document.hidden) verifierNouvelleVersion();
       }
     } catch (e) {
       if (gen !== pollGen || e instanceof StaleError) return;
@@ -3399,7 +3405,9 @@
     } catch (e) { /* hors ligne ou requête bloquée : on retentera au prochain sondage */ }
   }
   verifierNouvelleVersion();
-  setInterval(verifierNouvelleVersion, 180000);
+  // Filet de sécurité (onglet caché, où poll() ne tourne pas au même rythme) : le sondage lié à poll()
+  // ci-dessus couvre déjà le cas normal (onglet visible) à chaque cycle, soit 4 s.
+  setInterval(verifierNouvelleVersion, 30000);
 
   boot();
 })();
