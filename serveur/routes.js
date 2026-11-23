@@ -30,6 +30,7 @@ import owner_orders from './routes/owner_orders.js';
 import owner_print_ack from './routes/owner_print_ack.js';
 import owner_print_claim from './routes/owner_print_claim.js';
 import owner_recette_clear from './routes/owner_recette_clear.js';
+import owner_scheduled from './routes/owner_scheduled.js';
 import owner_sessions from './routes/owner_sessions.js';
 import owner_sessions_revoke from './routes/owner_sessions_revoke.js';
 import owner_settings from './routes/owner_settings.js';
@@ -65,6 +66,7 @@ export const ROUTES = {
   owner_print_ack,
   owner_print_claim,
   owner_recette_clear,
+  owner_scheduled,
   owner_sessions,
   owner_sessions_revoke,
   owner_settings,

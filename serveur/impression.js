@@ -40,23 +40,24 @@ function fabriqueFileImpression({ table, keyColumn, hasDueAt }) {
     }
   }
 
-  // BUG RÉEL DU 22/11/2026 : un appareil qui ne confirme jamais la réception (bridge natif qui ne rappelle
-  // jamais onPrinterSendResult) faisait reclasser la tâche en pending indéfiniment, sans jamais consulter
-  // PRINT_MAX_ATTEMPTS (ce plafond n'était vérifié que dans accuserReception, jamais appelée dans ce cas) —
-  // le même ticket se réimprimait toutes les PRINT_CLAIM_TIMEOUT_S secondes, sans limite. Désormais, une
-  // tâche bloquée qui a déjà atteint le plafond part directement en « failed » (reprise manuelle par le
-  // commerçant) au lieu de redevenir pending.
+  // BUG RÉEL DU 22/11/2026, PUIS RÉCIDIVE EN PRODUCTION LE 23/11/2026 (commande #94, 64 tentatives malgré
+  // le plafond PRINT_MAX_ATTEMPTS — cause exacte jamais reproduite localement) : un appareil qui ne confirme
+  // jamais la réception (bridge natif qui ne rappelle jamais onPrinterSendResult) faisait reclasser la tâche
+  // en pending, qui était aussitôt réclamée au sondage suivant et RÉELLEMENT renvoyée à l'imprimante —
+  // réimpression physique du même ticket toutes les PRINT_CLAIM_TIMEOUT_S secondes (2 min). Compter les
+  // tentatives pour plafonner ce comportement s'est avéré insuffisant deux fois de suite. Décision du
+  // 23/11/2026 : un silence de l'appareil (aucun accusé, ni succès ni échec) NE PROUVE PAS que l'impression a
+  // échoué — l'imprimante a pu recevoir et imprimer sans que le pont natif ne rappelle. Reclasser en pending
+  // redéclencherait donc un envoi RÉEL, au risque d'un ticket dupliqué. Un timeout silencieux part désormais
+  // TOUJOURS directement en « failed », en une seule fois, quel que soit le nombre de tentatives déjà faites —
+  // plus jamais de réimpression automatique après un timeout ; la reprise, si nécessaire, est manuelle
+  // (bouton « Réimprimer le ticket » / file de reprise côté commerçant).
   async function reclasserClaimsBloques(maintenant = nowUtc()) {
     const limite = utcAt(utcToEpoch(maintenant) - PRINT_CLAIM_TIMEOUT_S);
     await exec(
-      `UPDATE ${table} SET status = 'failed', last_error = 'appareil sans réponse', updated_at = ?
-       WHERE status = 'claimed' AND claimed_at < ? AND attempts >= ?`,
-      [maintenant, limite, PRINT_MAX_ATTEMPTS]
-    );
-    await exec(
-      `UPDATE ${table} SET status = 'pending', last_error = 'appareil sans réponse', updated_at = ?
-       WHERE status = 'claimed' AND claimed_at < ? AND attempts < ?`,
-      [maintenant, limite, PRINT_MAX_ATTEMPTS]
+      `UPDATE ${table} SET status = 'failed', last_error = 'appareil sans réponse (délai écoulé)', updated_at = ?
+       WHERE status = 'claimed' AND claimed_at < ?`,
+      [maintenant, limite]
     );
   }
 

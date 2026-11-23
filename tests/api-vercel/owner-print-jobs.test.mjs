@@ -204,7 +204,10 @@ test('échec signalé : nouvel essai automatique jusqu\'au plafond, puis failed 
   assert.equal(vue.print_job.last_error, 'imprimante hors ligne');
 });
 
-test('tablette disparue en plein envoi (résultat jamais revenu) : la tâche « claimed » bloquée redevient pending d\'elle-même', async () => {
+test('tablette disparue en plein envoi (résultat jamais revenu) : la tâche « claimed » bloquée part en '
+  + '"failed" en UNE SEULE fois, jamais réclamable à nouveau automatiquement (décision du 23/11/2026 : un '
+  + 'silence ne prouve pas un échec, le ticket a pu être réellement imprimé — rejouer la réclamation enverrait '
+  + 'un second envoi RÉEL à l\'imprimante)', async () => {
   poserHorloge(AVANT_EPOCH);
   const client = await nouveauClient('printjob-bloque@example.test');
   const id = await commanderPlanifiee(client);
@@ -213,51 +216,50 @@ test('tablette disparue en plein envoi (résultat jamais revenu) : la tâche « 
 
   const claim = await owner.post('owner_print_claim.php', { id, device: 'tablette-perdue' });
   assert.equal(claim.json.claimed, true);
+  assert.equal(claim.json.job.attempts, 1);
   // Jamais d'accusé de réception (tablette éteinte). On avance l'horloge au-delà du délai de blocage.
   poserHorloge(DUE_EPOCH + PRINT_CLAIM_TIMEOUT_S + 5);
 
   const relance = await owner.post('owner_print_claim.php', { id, device: 'autre-tablette' });
-  assert.equal(relance.json.claimed, true, 'redevenue réclamable après le délai de blocage');
-  assert.equal(relance.json.job.attempts, 2);
+  assert.equal(relance.json.claimed, false, 'jamais réclamable à nouveau après un timeout silencieux, même une seule fois');
+  const vue = commandeDansOwnerOrders(await owner.get('owner_orders.php'), id);
+  assert.equal(vue.print_job.status, 'failed');
+  assert.equal(vue.print_job.attempts, 1, 'une seule tentative réelle : le ticket n\'est jamais réimprimé automatiquement');
+  assert.equal(vue.print_job.last_error, 'appareil sans réponse (délai écoulé)');
 });
 
-test('BUG RÉEL DU 22/11/2026 reproduit puis vérifié corrigé : un appareil qui ne confirme jamais la '
-  + 'réception (ni succès ni échec, ex. bridge natif qui ne rappelle jamais) ne doit pas réimprimer le '
-  + 'même ticket indéfiniment — la tâche part en "failed" dès que le plafond d\'essais est atteint, elle '
-  + 'ne redevient jamais pending au-delà', async () => {
+test('BUG RÉEL DU 22/11/2026, PUIS RÉCIDIVE EN PRODUCTION LE 23/11/2026 (commande #94, 64 tentatives malgré '
+  + 'le plafond) : un appareil qui ne confirme jamais la réception (ni succès ni échec, ex. bridge natif qui '
+  + 'ne rappelle jamais) ne doit plus JAMAIS réimprimer le même ticket — même une seule fois de plus — après '
+  + 'le premier timeout silencieux ; compter les tentatives s\'étant avéré insuffisant à deux reprises, la '
+  + 'tâche part directement en "failed" dès le premier timeout, sans dépendre du plafond', async () => {
   poserHorloge(AVANT_EPOCH);
   const client = await nouveauClient('printjob-boucle@example.test');
   const id = await commanderPlanifiee(client);
   await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 30 });
-  let horloge = DUE_EPOCH;
-  poserHorloge(horloge);
+  poserHorloge(DUE_EPOCH);
 
-  for (let essai = 1; essai <= PRINT_MAX_ATTEMPTS; essai++) {
-    const claim = await owner.post('owner_print_claim.php', { id, device: 'tablette-muette' });
-    assert.equal(claim.json.claimed, true, `essai ${essai} : devrait être réclamable`);
-    assert.equal(claim.json.job.attempts, essai);
-    // Jamais d'accusé de réception (ni dispatched, ni failed) : seul le délai de blocage fait avancer les choses.
-    horloge += PRINT_CLAIM_TIMEOUT_S + 5;
-    poserHorloge(horloge);
-  }
+  const claim = await owner.post('owner_print_claim.php', { id, device: 'tablette-muette' });
+  assert.equal(claim.json.claimed, true);
+  assert.equal(claim.json.job.attempts, 1);
+  // Jamais d'accusé de réception (ni dispatched, ni failed) : seul le délai de blocage fait avancer les choses.
+  poserHorloge(DUE_EPOCH + PRINT_CLAIM_TIMEOUT_S + 5);
 
-  // Plafond atteint sans jamais avoir reçu un seul accusé de réception : doit être "failed", jamais
-  // redevenir "pending" indéfiniment (c'était le bug : aucune vérification du plafond dans ce chemin).
-  const apresPlafond = await owner.post('owner_print_claim.php', { id, device: 'tablette-muette' });
-  assert.equal(apresPlafond.json.claimed, false, 'ne doit plus jamais être réclamable au-delà du plafond');
+  const apresTimeout = await owner.post('owner_print_claim.php', { id, device: 'tablette-muette' });
+  assert.equal(apresTimeout.json.claimed, false, 'jamais réclamable après le premier timeout silencieux, pas besoin d\'atteindre le plafond');
   const vue = commandeDansOwnerOrders(await owner.get('owner_orders.php'), id);
   assert.equal(vue.print_job.status, 'failed');
-  assert.equal(vue.print_job.attempts, PRINT_MAX_ATTEMPTS, 'jamais au-delà du plafond, même après un délai supplémentaire');
-  assert.equal(vue.print_job.last_error, 'appareil sans réponse');
+  assert.equal(vue.print_job.attempts, 1, 'jamais réimprimé plusieurs fois — même l\'ancien plafond de 5 n\'est plus pertinent ici');
+  assert.equal(vue.print_job.last_error, 'appareil sans réponse (délai écoulé)');
 
-  // Preuve supplémentaire : même bien après le plafond, un sondage tardif ne relance rien.
-  horloge += PRINT_CLAIM_TIMEOUT_S * 3;
-  poserHorloge(horloge);
+  // Preuve supplémentaire : même bien plus tard, un sondage tardif ne relance rien (y compris simulant
+  // l'intervalle de ~64 tentatives observé en production le 23/11/2026).
+  poserHorloge(DUE_EPOCH + PRINT_CLAIM_TIMEOUT_S * 64);
   const bienPlusTard = await owner.post('owner_print_claim.php', { id, device: 'tablette-muette' });
   assert.equal(bienPlusTard.json.claimed, false);
   const vueFinale = commandeDansOwnerOrders(await owner.get('owner_orders.php'), id);
   assert.equal(vueFinale.print_job.status, 'failed');
-  assert.equal(vueFinale.print_job.attempts, PRINT_MAX_ATTEMPTS);
+  assert.equal(vueFinale.print_job.attempts, 1);
 });
 
 // DEUXIÈME boucle constatée en production le 22/11/2026 malgré le correctif ci-dessus (commande #94,

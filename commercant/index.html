@@ -21,8 +21,8 @@
      l'icône NE vide PAS forcément les données du site déjà enregistrées par le navigateur — seule une
      URL réellement nouvelle garantit un contenu neuf, sans dépendre d'une action manuelle de l'utilisateur
      (vider le cache, etc.) ni du cycle de mise à jour du service worker. -->
-<link rel="stylesheet" href="../assets/css/commercant.css?v=20261122d">
-<script src="../assets/js/commercant.js?v=20261122d" defer></script>
+<link rel="stylesheet" href="../assets/css/commercant.css?v=20261123a">
+<script src="../assets/js/commercant.js?v=20261123a" defer></script>
 </head>
 <body>
 
@@ -59,6 +59,7 @@
 
   <nav class="cm-tabs" aria-label="Espaces">
     <button type="button" class="tab" data-action="view" data-view="orders" aria-pressed="true">Commandes</button>
+    <button type="button" class="tab" data-action="view" data-view="sched" aria-pressed="false">Programmées</button>
     <button type="button" class="tab" data-action="view" data-view="avail" aria-pressed="false">Disponibilité</button>
     <button type="button" class="tab" data-action="view" data-view="patron" aria-pressed="false">Espace patron</button>
   </nav>
@@ -128,6 +129,18 @@
         <p class="strip-hint">Touchez une commande quand elle est prête : le client est prévenu.</p>
       </div>
       <div class="queue" id="prep-queue" aria-label="Commandes acceptées, en préparation"></div>
+    </div>
+  </section>
+
+  <section class="view view-sched" id="view-sched" aria-label="Commandes programmées" hidden>
+    <div class="sched-wrap">
+      <div class="sched-head">
+        <h2>Programmées cette semaine</h2>
+        <p class="sched-hint">Toutes les commandes programmées à venir (jusqu'à 7 jours), déjà acceptées ou non, groupées par jour.</p>
+        <button type="button" class="btn btn-soft btn-sm" data-action="sched-refresh">Actualiser</button>
+      </div>
+      <p class="sched-msg" id="sched-msg" role="status" hidden></p>
+      <div id="sched-body"></div>
     </div>
   </section>
 

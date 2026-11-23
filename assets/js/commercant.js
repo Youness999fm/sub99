@@ -144,6 +144,10 @@
     out: [],
     availLoaded: false,
     availError: false,
+    scheduledWeek: [],
+    scheduledWeekLoaded: false,
+    scheduledWeekError: false,
+    scheduledWeekLoading: false,
     availBusy: new Set(),
     catKey: MENU[0].key,
     patronTab: 'recap',
@@ -1235,7 +1239,7 @@
   }
 
   function renderViews() {
-    ['orders', 'avail', 'patron'].forEach(v => {
+    ['orders', 'sched', 'avail', 'patron'].forEach(v => {
       document.getElementById('view-' + v).hidden = state.view !== v;
     });
     document.querySelectorAll('[data-action="view"]').forEach(b => {
@@ -1652,6 +1656,97 @@
   }
   function busyKey(kind, name) {
     return kind + '|' + name;
+  }
+
+  // ---------- Programmées cette semaine (page dédiée, demande du 24/11/2026) ----------
+  // Chargée seulement à l'ouverture de l'onglet (comme Disponibilité/Espace patron), pas sondée en continu
+  // avec les commandes : rien d'ici n'est urgent à la seconde près, contrairement à la file active.
+  async function loadScheduledWeek() {
+    if (state.scheduledWeekLoading) return;
+    state.scheduledWeekLoading = true;
+    scheduleRender();
+    try {
+      const r = await api('owner_scheduled.php');
+      if (r.unauth) return;
+      if (!r.ok) throw new Error('http');
+      state.scheduledWeek = Array.isArray(r.data.orders) ? r.data.orders : [];
+      state.scheduledWeekLoaded = true;
+      state.scheduledWeekError = false;
+    } catch (e) {
+      if (e instanceof StaleError) return;
+      state.scheduledWeekError = true;
+    } finally {
+      state.scheduledWeekLoading = false;
+      scheduleRender();
+    }
+  }
+
+  function renderSchedView() {
+    const msg = document.getElementById('sched-msg');
+    const body = document.getElementById('sched-body');
+    if (!msg || !body) return;
+    if (!state.scheduledWeekLoaded && state.scheduledWeekLoading) {
+      msg.hidden = false;
+      msg.textContent = 'Chargement…';
+      setHTML(body, '');
+      return;
+    }
+    if (state.scheduledWeekError) {
+      msg.hidden = false;
+      msg.textContent = 'Impossible de charger les commandes programmées pour le moment.';
+      setHTML(body, '');
+      return;
+    }
+    if (!state.scheduledWeek.length) {
+      msg.hidden = false;
+      msg.textContent = 'Aucune commande programmée pour les prochains jours.';
+      setHTML(body, '');
+      return;
+    }
+    msg.hidden = true;
+    // Groupées par jour (ordre déjà chronologique, renvoyé par le serveur) : un groupe par date rencontrée,
+    // dans l'ordre d'arrivée — jamais trié une 2e fois ici, pour ne jamais diverger de l'ordre serveur.
+    const groupes = [];
+    const parGroupe = new Map();
+    for (const o of state.scheduledWeek) {
+      const d = toDate(o.scheduled_for);
+      const cle = d ? dayKeyOf(d) : '—';
+      let groupe = parGroupe.get(cle);
+      if (!groupe) {
+        groupe = { cle, label: d ? scheduledDayLabel(d) + ' · ' + dateFR(cle) : 'Date inconnue', items: [] };
+        parGroupe.set(cle, groupe);
+        groupes.push(groupe);
+      }
+      groupe.items.push(o);
+    }
+    setHTML(body, groupes.map(g => `
+      <div class="sched-day">
+        <h3 class="sched-day__title">${esc(g.label)}</h3>
+        <div class="sched-day__list">
+          ${g.items.map(o => {
+            const d = toDate(o.scheduled_for);
+            const delivery = o.mode === 'delivery';
+            // Déjà acceptée automatiquement (hors service, voir order_create.js) : le commerçant n'a rien
+            // à décider, juste à s'y préparer. Sinon, elle attend encore sa décision (visible aussi dans
+            // "Commandes" dès qu'elle "surface", 1 h avant).
+            const etat = o.status === 'accepted'
+              ? '<span class="sched-badge sched-badge--accepted">Déjà acceptée</span>'
+              : '<span class="sched-badge sched-badge--pending">En attente de votre acceptation</span>';
+            return `
+            <div class="sched-card">
+              <div class="sched-card__head">
+                <span class="sched-card__time">${d ? esc(hm(d)) : '—'}</span>
+                <span class="sched-card__name">${esc(customerLabel(o))}</span>
+                ${etat}
+              </div>
+              <div class="sched-card__sub">
+                <span>${delivery ? '➜ Livraison' : '⌂ À emporter'}</span>
+                <span>${esc(eur(o.total_cents))}</span>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`).join(''));
   }
 
   async function loadAvailability() {
@@ -2106,6 +2201,7 @@
     renderStep('renderScheduled', renderScheduled);
     renderStep('renderPrep', renderPrep);
     renderStep('renderDetail', renderDetail);
+    if (state.view === 'sched') renderStep('renderSchedView', renderSchedView);
     if (state.view === 'avail') renderStep('renderAvail', renderAvail);
     if (state.view === 'patron') renderStep('renderPatron', renderPatron);
     renderStep('syncAlarm', syncAlarm);
@@ -3166,6 +3262,7 @@
   // ---------- Changement d'onglet ----------
   function openView(v) {
     state.view = v;
+    if (v === 'sched') loadScheduledWeek();
     if (v === 'avail') loadAvailability();
     if (v === 'patron') openPatronTab(state.patronTab);
   }
@@ -3196,6 +3293,9 @@
         return;
       case 'view':
         openView(t.dataset.view);
+        break;
+      case 'sched-refresh':
+        loadScheduledWeek();
         break;
       case 'select': {
         const o = findOrder(id);
