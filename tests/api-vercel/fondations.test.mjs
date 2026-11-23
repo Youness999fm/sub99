@@ -1,10 +1,16 @@
 // Fondations de l'API JavaScript : routeur, base Postgres (PGlite), schéma, origine, 404, 405, limitation, horloge.
+// Lancer depuis la racine :  SUBITO_TEST_PORT=18430 node --test tests/api-vercel/fondations.test.mjs
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeEnv, openTestDb, runTool, startServer, stopServer, Client, ORIGIN } from './lib/harness.mjs';
 import { one, insert, transaction, estViolationUnique } from '../../serveur/db.js';
 import { throttleHit, throttleLocked, throttleIpKey } from '../../serveur/throttle.js';
 import { serviceDay, utcAt, utcToEpoch, nameKeys } from '../../serveur/util.js';
+
+// +13 : les autres fichiers de ce dossier tournent en parallèle, chacun son port (ce fichier n'avait,
+// par oubli, aucun décalage — collision silencieuse avec api.test.mjs/horaires.test.mjs/statut-pret.test.mjs
+// sur le port de base, source d'un blocage en before() plutôt qu'une erreur claire).
+process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 13);
+const { makeEnv, openTestDb, runTool, startServer, stopServer, Client, ORIGIN } = await import('./lib/harness.mjs');
 
 let ctx;
 let proc;

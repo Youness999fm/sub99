@@ -22,7 +22,6 @@ import owner_login from './routes/owner_login.js';
 import owner_logout from './routes/owner_logout.js';
 import owner_me from './routes/owner_me.js';
 import owner_open_mode from './routes/owner_open_mode.js';
-import owner_cancel_decide from './routes/owner_cancel_decide.js';
 import owner_order_decide from './routes/owner_order_decide.js';
 import owner_order_delete from './routes/owner_order_delete.js';
 import owner_order_restore from './routes/owner_order_restore.js';
@@ -57,7 +56,6 @@ export const ROUTES = {
   owner_logout,
   owner_me,
   owner_open_mode,
-  owner_cancel_decide,
   owner_order_decide,
   owner_order_delete,
   owner_order_restore,

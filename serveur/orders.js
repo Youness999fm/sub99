@@ -461,11 +461,8 @@ export function orderView(o, items, addenda, owner) {
     // Commande planifiée par le client (type Uber Eats) ; null = commande « dès que possible ».
     scheduled_for: o.scheduled_for === undefined ? null : o.scheduled_for,
     cancelled_at: o.cancelled_at === undefined ? null : o.cancelled_at,
-    // Demande d'annulation en attente de validation du commerçant (décision du 22/11/2026) : le client ne
-    // peut plus en déposer une seconde tant que celle-ci n'est pas tranchée (voir can_cancel ci-dessous).
-    cancel_requested_at: o.cancel_requested_at === undefined ? null : o.cancel_requested_at,
     cancel_eligible_until: cancelEligibleUntil,
-    can_cancel: canCancel && (o.cancel_requested_at === undefined || o.cancel_requested_at === null),
+    can_cancel: canCancel,
     addenda,
     addendum_eligible_until: addendumEligibleUntil,
     can_add_or_modify: canAddOrModify
