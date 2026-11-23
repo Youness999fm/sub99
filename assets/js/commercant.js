@@ -2906,6 +2906,38 @@
     return bytes;
   }
 
+  // Trame ESC/POS du résumé de recette (bouton « Imprimer la recette », espace patron) : juste le jour et
+  // le total, rien de plus — jamais le détail des commandes (même règle que recapPrintHtml()/copyRecap()).
+  function buildRecapTicketBytes(sumCents, dayKey) {
+    const bytes = [];
+    const push = (...vals) => vals.forEach(v => bytes.push(v & 0xFF));
+    const raw = arr => arr.forEach(v => bytes.push(v & 0xFF));
+    const text = s => { for (const ch of escAscii(s)) bytes.push(ch.charCodeAt(0)); };
+    const align = n => push(0x1B, 0x61, n);
+    const bold = on => push(0x1B, 0x45, on ? 1 : 0);
+    const charSize = (w, h) => push(0x1D, 0x21, (((w - 1) & 7) << 4) | ((h - 1) & 7));
+    const feed = n => push(0x1B, 0x64, n);
+    const cut = () => { feed(4); push(0x1D, 0x56, 0x00); };
+    const sep = () => text('-'.repeat(PRINT_WIDTH) + '\n');
+    const blank = (n = 1) => text('\n'.repeat(n));
+
+    push(0x1B, 0x40);
+    if (logoRasterBytes) { align(1); raw(logoRasterBytes); blank(1); }
+
+    align(1); bold(true); charSize(2, 2);
+    text('RECETTE DU JOUR\n');
+    charSize(1, 1); bold(false);
+    text(escAscii(dayLabel(dayKey)) + '\n');
+    blank(1); sep(); blank(1);
+
+    align(0); bold(true); charSize(2, 3);
+    text(escTwoColAt('TOTAL', eur(sumCents), PRINT_WIDTH_X2));
+    charSize(1, 1); bold(false);
+    blank(2);
+    cut();
+    return bytes;
+  }
+
   function bytesToBase64(bytes) {
     let bin = '';
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
@@ -2952,6 +2984,23 @@
     } catch (e) { /* l'impression ne doit jamais bloquer le flux de commande */ }
   }
 
+  // Lance l'impression du résumé de recette (bouton « Imprimer la recette », espace patron). BUG RÉEL DU
+  // 24/11/2026 : le bouton ne faisait rien sur la tablette — il appelait window.print() (impression
+  // navigateur classique), qui suppose un service d'impression Android configuré, jamais le cas dans
+  // l'appli kiosque (seul le pont Bluetooth brut AndroidPrinter.sendBytes y fonctionne, celui déjà utilisé
+  // pour les tickets de commande). Même circuit bas-niveau que printOrderOnPrinter() désormais ; conserve
+  // window.print() comme repli seulement quand l'appli Android n'est pas détectée (test en navigateur normal).
+  function printRecapOnPrinter() {
+    if (!hasAndroidPrinter()) { printInto(recapPrintHtml()); return; }
+    try {
+      const sum = recapOrders().reduce((s, o) => s + (Number(o.total_cents) || 0), 0);
+      const base64 = bytesToBase64(buildRecapTicketBytes(sum, state.serviceDay));
+      const requestId = 'r' + (++printRequestSeq);
+      pendingPrints.set(requestId, { orderId: null, label: 'Recette du jour', base64, attempt: 0, scheduledJob: false, addendumId: null, recap: true });
+      sendAttempt(requestId);
+    } catch (e) { /* l'impression ne doit jamais bloquer le flux */ }
+  }
+
   function sendAttempt(requestId) {
     const job = pendingPrints.get(requestId);
     if (!job) return;
@@ -2978,6 +3027,13 @@
     const job = pendingPrints.get(requestId);
     if (!job) return;
     pendingPrints.delete(requestId);
+
+    // Résumé de recette : jamais suivi côté serveur (rien à accuser réception, rien à rejouer
+    // automatiquement) — un simple résultat immédiat suffit, le bouton reste disponible pour réessayer.
+    if (job.recap) {
+      toast(ok ? 'Recette imprimée' : `Impression de la recette impossible : ${error || 'erreur inconnue'}`);
+      return;
+    }
 
     if (job.addendumId !== null) {
       accuserReceptionImpressionAjout(job.addendumId, ok ? 'dispatched' : 'failed', ok ? null : error);
@@ -3414,7 +3470,7 @@
         copyText(recapPlainText(), 'Recette copiée dans le presse-papiers');
         return;
       case 'print-recap':
-        printInto(recapPrintHtml());
+        printRecapOnPrinter();
         return;
       case 'super-open':
         openSuperDialog();
