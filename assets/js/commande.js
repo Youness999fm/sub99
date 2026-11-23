@@ -70,6 +70,12 @@
   // Clé du dernier rendu : le sondage ne reconstruit la page que si la commande change.
   let lastRenderKey = null;
   let currentOrder = null; // dernière commande complète reçue
+  // Annulation (4 min, décision du 22/11/2026, rétablie le 24/11/2026) : fenêtre et indicateur renvoyés
+  // par le serveur (jamais recalculés côté client, même principe que readyAtMs/clockOffset ci-dessous).
+  // L'ajout d'article, lui, reste désactivé (décision du 24/11/2026) : pas d'équivalent ici.
+  let cancelUntilMs = null;
+  let canCancelFlag = false;
+  let actionCountdownTimer = null;
   // Décalage entre l'horloge du serveur et celle du téléphone (serveur - téléphone, en ms) :
   // le minuteur se règle sur l'heure du serveur, pas sur celle de l'appareil.
   let clockOffset = 0;
@@ -251,6 +257,9 @@
   function render(order) {
     lastCustomerName = order.customer_name || null;
     currentOrder = order;
+    canCancelFlag = !!order.can_cancel;
+    const parsedCancel = order.cancel_eligible_until ? Date.parse(order.cancel_eligible_until) : NaN;
+    cancelUntilMs = isNaN(parsedCancel) ? null : parsedCancel;
     const parsedReady = order.status === "accepted" && order.ready_at ? Date.parse(order.ready_at) : NaN;
     readyAtMs = isNaN(parsedReady) ? null : parsedReady;
 
@@ -335,12 +344,29 @@
         '</div>'
       : "";
 
-    // Annuler ou ajouter un article n'est plus proposé en libre-service (décision du 24/11/2026,
-    // voir serveur/routes/order_cancel.js et order_addendum_create.js) : un seul message, tant que la
-    // commande peut encore être changée (new/accepted), plutôt que les boutons et le panneau d'avant.
-    const actionsHtml = (order.status === "new" || order.status === "accepted")
-      ? '<p class="order-track-call-hint">Besoin d’annuler ou d’ajouter un article ? Appelez-nous directement : ' +
+    // Demande d'annulation déposée, en attente de la décision du commerçant (décision du 22/11/2026,
+    // rétablie le 24/11/2026) : le client ne peut plus relancer une demande (bouton remplacé par un état
+    // "en cours", qui tourne).
+    const cancelPending = !!order.cancel_requested_at && (order.status === "new" || order.status === "accepted");
+    // Ajouter un article reste désactivé (décision du 24/11/2026, voir order_addendum_create.js) : un
+    // simple rappel d'appel, jamais le panneau d'ajout d'avant.
+    const addCallHint = (order.status === "new" || order.status === "accepted")
+      ? '<p class="order-track-call-hint">Besoin d’ajouter un article ? Appelez-nous directement : ' +
           '<a href="tel:0321200033">' + SubitoIcons.svg('phone') + ' 03 21 20 00 33</a></p>'
+      : "";
+    const actionsHtml = (canCancelFlag || cancelPending)
+      ? '<div class="order-track-actions">' +
+          (cancelPending
+            ? '<div class="order-track-action order-track-action--cancel">' +
+                '<span class="order-track-pending" role="status">' +
+                  '<span class="order-track-pending__spinner" aria-hidden="true"></span> Annulation demandée — en attente du restaurant' +
+                '</span>' +
+              '</div>'
+            : '<div class="order-track-action order-track-action--cancel">' +
+                '<button type="button" class="btn-outline" data-action="cancel-order">Annuler ma commande</button>' +
+                '<span class="order-track-action__timer" id="cancelCountdown" aria-live="off">--:--</span>' +
+              '</div>') +
+        '</div>'
       : "";
 
     body.innerHTML =
@@ -352,7 +378,7 @@
       (order.delivery_fee_cents > 0 ? '<div class="order-track-fee"><span>Frais de livraison</span><span>' + formatCents(order.delivery_fee_cents) + '</span></div>' : "") +
       '<div class="order-track-total"><span>Total</span><strong>' + formatCents(order.total_cents) + '</strong></div>' +
       (order.mode === "delivery" && order.payment_methods && order.payment_methods.length ? '<p class="order-track-payment">' + paymentLabel(order.payment_methods, order.cash_change_for) + '</p>' : "") +
-      addendaHtml + actionsHtml;
+      addendaHtml + actionsHtml + addCallHint;
 
     if (readyAtMs !== null && order.delay_minutes !== 0) {
       startCountdown(order.mode);
@@ -360,6 +386,7 @@
       clearInterval(countdownTimer);
       countdownTimer = null;
     }
+    startActionCountdowns();
 
     body.setAttribute("data-order-status", order.status);
 
@@ -370,6 +397,47 @@
     // Tant qu'elle est « new » ou « accepted », le sondage continue. Le minuteur, lui, continue de
     // tourner localement jusqu'à l'expiration.
     if (order.status === "ready" || order.status === "refused") stopPolling();
+  }
+
+  function startActionCountdowns() {
+    if (actionCountdownTimer) clearInterval(actionCountdownTimer);
+    function tick() {
+      const now = serverNow();
+      let stillRunning = false;
+      const cEl = qs("cancelCountdown");
+      if (cEl) {
+        const remaining = cancelUntilMs - now;
+        if (remaining <= 0) {
+          cEl.textContent = "Délai écoulé";
+          const b = document.querySelector('[data-action="cancel-order"]');
+          if (b) b.disabled = true;
+        } else {
+          cEl.textContent = "Encore " + formatCountdown(remaining);
+          stillRunning = true;
+        }
+      }
+      if (!stillRunning && actionCountdownTimer) { clearInterval(actionCountdownTimer); actionCountdownTimer = null; }
+    }
+    tick();
+    if (qs("cancelCountdown")) actionCountdownTimer = setInterval(tick, 1000);
+  }
+
+  function cancelOrder() {
+    if (!orderId) return;
+    if (!window.confirm("Confirmer la demande d’annulation ? Le restaurant doit encore l’accepter avant que la commande soit réellement annulée.")) return;
+    const btn = document.querySelector('[data-action="cancel-order"]');
+    if (btn) btn.disabled = true;
+    fetch("/api/order_cancel.php", {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: Number(orderId) })
+    })
+      .then(function (res) { return res.json().then(function (data) { return { status: res.status, data: data }; }); })
+      .then(function (r) {
+        if (r.data && r.data.order) { lastRenderKey = null; render(r.data.order); }
+        else window.alert((r.data && r.data.message) || "Impossible d’annuler pour le moment.");
+      })
+      .catch(function () { window.alert("Connexion perdue. Réessayez dans un instant."); })
+      .then(function () { if (btn) btn.disabled = false; });
   }
 
   // Commande introuvable dans ce compte (ou à un autre client) : on n'insiste pas.
@@ -460,12 +528,28 @@
     // qu'il redevient visible plutôt que d'attendre le prochain sondage.
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState !== "visible") return;
+      // Le compte à rebours (annulation, 4 min) reste basé sur l'horodatage absolu de la commande (jamais
+      // mis en pause : la cuisine continue même onglet masqué) — mais l'intervalle qui l'affiche est, lui,
+      // ralenti par le navigateur en arrière-plan. On force un recalcul immédiat dès que l'onglet redevient
+      // visible pour ne pas laisser un chiffre figé à l'écran.
+      if (currentOrder) startActionCountdowns();
       if (inFlight) return;
       if (lastStatus === "ready" || lastStatus === "refused") return;
       lastChangeAt = Date.now();
       polling = true;
       fetchStatus();
     });
+
+    // Un seul écouteur délégué (le conteneur est réécrit à chaque rendu, le bouton qu'il contient non) :
+    // annuler.
+    if (body) {
+      body.addEventListener("click", function (e) {
+        const btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        const action = btn.getAttribute("data-action");
+        if (action === "cancel-order") cancelOrder();
+      });
+    }
   }
 
   if (document.readyState === "loading") {
