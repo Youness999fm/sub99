@@ -12,6 +12,7 @@ import path from 'node:path';
 process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 5);
 const { OWNER_CODE, Client, openTestDb, makeEnv, runTool, startServer, stopServer } = await import('./lib/harness.mjs');
 const { CANCEL_WINDOW_S } = await import('../../serveur/orders.js');
+const { parisLocalVersEpoch, jourParisDecale } = await import('../../serveur/util.js');
 
 const randomPassword = () => Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(18))).toString('base64url') + 'Aa1!';
 
@@ -66,6 +67,21 @@ async function commander(client) {
     payment_methods: ['cash'], cash_change_for: null, hot_sauce: null,
     items: [{ name: 'Régina', variant: 'Duo', qty: 1, unit_price_cents: 1600, removed: [], extras: [], half: null, note: '' }],
     delivery_fee_cents: 0, total_cents: 1600
+  };
+  const r = await client.post('order_create.php', body);
+  assert.equal(r.status, 201, r.text);
+  return r.json.order.id;
+}
+
+const isoDe = (e) => new Date(e * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+/** Commande planifiée à un créneau donné (epoch UTC) ; retourne son id. L'horloge doit déjà être posée. */
+async function commanderPlanifiee(client, scheduledEpoch) {
+  const body = {
+    idempotency_key: 'cancel-sched-' + Date.now() + '-' + (++keySeq), mode: 'pickup',
+    payment_methods: ['cash'], cash_change_for: null, hot_sauce: null,
+    items: [{ name: 'Régina', variant: 'Duo', qty: 1, unit_price_cents: 1600, removed: [], extras: [], half: null, note: '' }],
+    delivery_fee_cents: 0, total_cents: 1600, scheduled_for: isoDe(scheduledEpoch)
   };
   const r = await client.post('order_create.php', body);
   assert.equal(r.status, 201, r.text);
@@ -272,6 +288,51 @@ test('owner_cancel_decide refuse : la commande continue normalement, la demande 
   assert.equal(r2.status, 200, r2.text);
   assert.equal(r2.json.replayed, false, 'une vraie nouvelle demande, pas un rejeu de la précédente (refusée)');
   assert.equal(r2.json.order.cancel_refused_at, null, 'le refus précédent ne doit plus être affiché pendant une nouvelle demande');
+});
+
+test('refuser une demande d\'annulation ne déclenche JAMAIS une réimpression du ticket, même si celui-ci est '
+  + 'déjà sorti (dispatched) au moment du refus (demande du 24/11/2026)', async () => {
+  // Note : avec les règles réelles (délai mini. de programmation 60 min, ticket H-45 dû 45 min avant le
+  // créneau), le ticket d'une commande planifiée ne peut JAMAIS être déjà sorti pendant que la fenêtre
+  // d'annulation de 240 s est encore ouverte (due_at - created_at >= 15 min) — ce cas est donc simulé
+  // directement en base (comme le fait déjà owner-print-jobs.test.mjs pour un autre état anormal), pour
+  // vérifier l'invariant du CODE : owner_cancel_decide.js ne touche jamais print_jobs, quel que soit son état.
+  const t0 = BASE_EPOCH + 105_000;
+  poserHorloge(t0);
+  const cust = await nouveauClient('cancel-refuse-reprint@example.test');
+  const demain = jourParisDecale(t0, 1);
+  const scheduledEpoch = parisLocalVersEpoch(demain.annee, demain.mois, demain.jour, 20, 0);
+  const id = await commanderPlanifiee(cust, scheduledEpoch);
+  poserHorloge(t0 + 1);
+  assert.equal((await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 20 })).status, 200);
+
+  // Simule un ticket déjà sorti (dispatched), directement en base : impossible à atteindre aussi tôt par
+  // le chemin normal de réclamation (le ticket n'est dû que bien après la fenêtre d'annulation, voir note).
+  db.prepare("UPDATE print_jobs SET status = 'dispatched', attempts = 1 WHERE order_id = ?").run(id);
+
+  // Toujours dans la fenêtre de 240 s depuis created_at : le client peut encore demander l'annulation.
+  poserHorloge(t0 + 2);
+  assert.equal((await cust.post('order_cancel.php', { id })).status, 200);
+
+  const avant = db.prepare('SELECT status, attempts FROM print_jobs WHERE order_id = ?').get(id);
+  assert.equal(avant.status, 'dispatched');
+  const nAvant = db.prepare('SELECT COUNT(*) AS n FROM print_jobs WHERE order_id = ?').get(id).n;
+  assert.equal(nAvant, 1);
+
+  const decide = await owner.post('owner_cancel_decide.php', { id, action: 'refuse' });
+  assert.equal(decide.status, 200, decide.text);
+
+  // Le refus ne doit RIEN changer à la tâche d'impression : ni son statut, ni ses tentatives, ni une
+  // nouvelle ligne — owner_cancel_decide.js ne touche jamais print_jobs/addendum_print_jobs.
+  const apres = db.prepare('SELECT status, attempts FROM print_jobs WHERE order_id = ?').get(id);
+  assert.equal(apres.status, 'dispatched', 'le ticket déjà sorti ne doit jamais redevenir "à imprimer"');
+  assert.equal(apres.attempts, avant.attempts, 'aucune nouvelle tentative d\'impression déclenchée par le refus');
+  const nApres = db.prepare('SELECT COUNT(*) AS n FROM print_jobs WHERE order_id = ?').get(id).n;
+  assert.equal(nApres, 1, 'aucune nouvelle tâche d\'impression créée par le refus');
+
+  // Et le ticket n'est plus "dû" (rien à réclamer) : confirmation par le même chemin que la tablette.
+  const reclaim = await owner.post('owner_print_claim.php', { id, device: 'autre-tablette' });
+  assert.equal(reclaim.json.claimed, false, 'rien à réimprimer après le refus');
 });
 
 test('owner_cancel_decide : rejeu idempotent (accept puis accept = replayed:true), already_decided si contradictoire', async () => {
