@@ -1492,6 +1492,11 @@
     const cancelAddendum = (o.addenda || []).find(a => a.kind === 'cancel');
     const cancelNotice = o.status === 'cancelled'
       ? `<div class="od-cancel-notice">⚠ Commande annulée par le client${cancelAddendum && toDate(cancelAddendum.created_at) ? ' à ' + esc(hm(toDate(cancelAddendum.created_at))) : ''}</div>`
+      // Demande en attente (pas encore tranchée) : redondant avec la section dédiée "Demande d'annulation"
+      // tout en haut de l'écran, mais visible même si cette commande n'est plus "new" (déjà acceptée) et
+      // donc sans zone de décision propre — jamais un seul endroit unique pour une information aussi urgente.
+      : o.cancel_requested_at
+      ? `<div class="od-cancel-notice od-cancel-notice--pending">⚠ Le client demande à annuler — en attente de votre décision</div>`
       : '';
 
     const delivery = o.mode === 'delivery';
@@ -1540,15 +1545,31 @@
     showDecision(!!decisionHtml);
   }
 
+  // Boutons Accepter/Refuser l'annulation, redondants avec la section dédiée "Demande d'annulation" tout
+  // en haut de l'écran : une commande déjà "accepted" (le cas le plus courant pour une demande, le client
+  // annule rarement dans les toutes premières secondes) n'a normalement AUCUNE zone de décision dans ce
+  // panneau (renderDecision ne s'occupe que du statut "new") — sans ce rappel ici, la seule façon de
+  // trancher serait cette section dédiée, jamais un second endroit si jamais elle posait problème.
+  function cancelRequestDecisionHtml(o) {
+    if (!o.cancel_requested_at) return '';
+    const busy = state.sending.has('cancelreq-' + o.id);
+    const dis = busy ? 'disabled' : '';
+    return `
+      <p class="ask">⚠ Le client demande à annuler</p>
+      <button type="button" class="btn btn-accept btn-xl dec-main" data-action="cancel-request-accept" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : "Accepter l'annulation"}</button>
+      <button type="button" class="btn btn-ghost btn-xl" data-action="cancel-request-refuse" data-id="${esc(o.id)}" ${dis}>Refuser, la commande continue</button>`;
+  }
+
   // « Accepter » ouvre le choix du délai (présélection : délai par défaut), « Confirmer » envoie.
   function renderDecision(o) {
-    if (o.status !== 'new') return '';
+    const cancelReq = cancelRequestDecisionHtml(o);
+    if (o.status !== 'new') return cancelReq;
     const busy = state.sending.has(String(o.id));
     const dis = busy ? 'disabled' : '';
     const choosing = state.editingId === o.id;
     if (!choosing) {
       if (o.scheduled_for) {
-        return `
+        return cancelReq + `
           <p class="ask">Commande programmée</p>
           <div class="dec-delay">
             <span class="dd-num">${esc(scheduledLabel(o))}</span>
@@ -1557,7 +1578,7 @@
           <button type="button" class="btn btn-accept btn-xl dec-main" data-action="accept" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : 'Accepter'}</button>
           <button type="button" class="btn btn-refuse btn-xl" data-action="refuse" data-id="${esc(o.id)}" ${dis}>Refuser</button>`;
       }
-      return `
+      return cancelReq + `
         <p class="ask">Délai par défaut</p>
         <div class="dec-delay">
           <span class="dd-num">${state.defaultDelay === 60 ? '1 h' : state.defaultDelay + ' min'}</span>
@@ -2245,6 +2266,11 @@
     const cancelAddendum = (o.addenda || []).find(a => a.kind === 'cancel');
     const cancelNoticeTicket = o.status === 'cancelled'
       ? `<div class="t-cancel-notice">COMMANDE ANNULÉE PAR LE CLIENT${cancelAddendum && toDate(cancelAddendum.created_at) ? ' À ' + esc(hm(toDate(cancelAddendum.created_at))) : ''}</div>`
+      // Demande pas encore tranchée : ce ticket est justement ce que le commerçant ouvre en cliquant une
+      // commande « en préparation » — la section dédiée "Demande d'annulation" tout en haut n'est pas le
+      // seul endroit où cette information doit apparaître.
+      : o.cancel_requested_at
+      ? `<div class="t-cancel-notice t-cancel-notice--pending">LE CLIENT DEMANDE À ANNULER — EN ATTENTE DE VOTRE DÉCISION</div>`
       : '';
     const addendaHtml = (o.addenda || []).filter(a => a.kind === 'add').map(a => {
       const dt = toDate(a.created_at);
