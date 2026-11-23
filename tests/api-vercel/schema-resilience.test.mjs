@@ -84,9 +84,10 @@ test('order_status.php reste consultable malgré les tables manquantes', async (
   assert.deepEqual(r.json.order.addenda, []);
 });
 
-test("annuler une commande déjà acceptée reste effectif même si order_addenda/addendum_print_jobs "
-  + "n'existent pas (seule l'alerte tablette est perdue, l'annulation elle-même ne dépend d'aucune de ces "
-  + "tables)", async () => {
+test("BUG RÉEL DU 22/11/2026 reproduit puis vérifié corrigé : demander l'annulation d'une commande déjà "
+  + "acceptée reste effectif même si order_addenda/addendum_print_jobs n'existent pas (seule l'alerte "
+  + "tablette est perdue), et le commerçant peut toujours valider ensuite (owner_cancel_decide.php ne "
+  + "dépend d'aucune de ces tables)", async () => {
   const cust = await nouveauClient('resilience-cancel-accepted@example.test');
   const created = await cust.post('order_create.php', {
     idempotency_key: 'resilience-cancel-' + Date.now(), mode: 'pickup',
@@ -100,8 +101,13 @@ test("annuler une commande déjà acceptée reste effectif même si order_addend
   assert.equal(accept.status, 200, accept.text);
 
   const cancel = await cust.post('order_cancel.php', { id });
-  assert.equal(cancel.status, 200, `l'annulation d'une commande déjà acceptée ne doit JAMAIS échouer juste parce que l'alerte tablette ne peut pas être créée : ${cancel.text}`);
-  assert.equal(cancel.json.order.status, 'cancelled', 'annulée directement, sans dépendre des tables manquantes');
+  assert.equal(cancel.status, 200, `la demande d'annulation d'une commande déjà acceptée ne doit JAMAIS échouer juste parce que l'alerte tablette ne peut pas être créée : ${cancel.text}`);
+  assert.equal(cancel.json.order.status, 'accepted', 'la demande est déposée, la commande continue tant que le commerçant n\'a pas validé');
+  assert.equal(typeof cancel.json.order.cancel_requested_at, 'string', 'la demande elle-même doit être réellement enregistrée malgré les tables manquantes');
+
+  const decide = await owner.post('owner_cancel_decide.php', { id, action: 'accept' });
+  assert.equal(decide.status, 200, decide.text);
+  assert.equal(decide.json.order.status, 'cancelled', 'la validation du commerçant ne dépend d\'aucune des tables manquantes, elle doit toujours fonctionner');
 
   // Preuve supplémentaire : relecture indépendante, l'annulation a bien été committée en base.
   const relu = await cust.get('order_status.php?id=' + id);

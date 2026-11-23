@@ -1,11 +1,8 @@
-// Annulation client (order_cancel.php) : décision du 23/11/2026, le client annule DIRECTEMENT — aucune
-// validation du commerçant n'est requise (revient sur la décision du 22/11/2026, qui faisait attendre le
-// client sans garantie que le commerçant réponde). Fenêtre stricte de 4 minutes depuis orders.created_at,
-// jamais accepted_at, jamais réinitialisée. Un événement order_addenda + une tâche addendum_print_jobs
-// alertent le commerçant immédiatement, même si la commande était déjà acceptée (il juge sur place si
-// c'est encore faisable en cuisine). Horloge pilotée (SUBITO_TEST_CLOCK_FILE) : bornes testées à la
-// seconde exacte, jamais une attente réelle. Lancer depuis la racine :
-//   SUBITO_TEST_PORT=18430 node --test tests/api-vercel/order-cancel.test.mjs
+// Annulation client (order_cancel.php) : décision du 22/11/2026, le client ne fait que DÉPOSER une demande
+// (cancel_requested_at) — la commande n'est réellement annulée que si le commerçant la valide
+// (owner_cancel_decide.php, kind='accept'). Fenêtre stricte de 4 minutes depuis orders.created_at, jamais
+// accepted_at, jamais réinitialisée. Horloge pilotée (SUBITO_TEST_CLOCK_FILE) : bornes testées à la seconde
+// exacte, jamais une attente réelle. Lancer depuis la racine :  SUBITO_TEST_PORT=18430 node --test tests/api-vercel/order-cancel.test.mjs
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync, mkdtempSync } from 'node:fs';
@@ -75,7 +72,7 @@ async function commander(client) {
   return r.json.order.id;
 }
 
-test('fenêtre à la seconde exacte : 239 s annule, 240 s et 241 s refusées (too_late)', async () => {
+test('fenêtre à la seconde exacte : 239 s dépose la demande, 240 s et 241 s refusées (too_late)', async () => {
   const t0 = BASE_EPOCH + 10_000;
   poserHorloge(t0);
   const cust = await nouveauClient('cancel-fenetre@example.test');
@@ -84,8 +81,8 @@ test('fenêtre à la seconde exacte : 239 s annule, 240 s et 241 s refusées (to
   const r1 = await cust.post('order_cancel.php', { id: id1 });
   assert.equal(r1.status, 200, r1.text);
   assert.equal(r1.json.replayed, false);
-  assert.equal(r1.json.order.status, 'cancelled', 'annulée directement, sans attendre le commerçant');
-  assert.ok(r1.json.order.cancelled_at);
+  assert.equal(r1.json.order.status, 'new', 'la commande n\'est PAS annulée toute seule, seulement une demande déposée');
+  assert.equal(typeof r1.json.order.cancel_requested_at, 'string');
 
   poserHorloge(t0);
   const id2 = await commander(cust);
@@ -98,7 +95,7 @@ test('fenêtre à la seconde exacte : 239 s annule, 240 s et 241 s refusées (to
   expectError(await cust.post('order_cancel.php', { id: id3 }), 409, 'too_late');
 });
 
-test('rejeu : annuler deux fois répond replayed:true la 2e fois, jamais une erreur, jamais une 2e annulation', async () => {
+test('rejeu : demander deux fois répond replayed:true la 2e fois, jamais une erreur, jamais une 2e demande', async () => {
   const t0 = BASE_EPOCH + 20_000;
   poserHorloge(t0);
   const cust = await nouveauClient('cancel-rejeu@example.test');
@@ -107,20 +104,19 @@ test('rejeu : annuler deux fois répond replayed:true la 2e fois, jamais une err
   const r1 = await cust.post('order_cancel.php', { id });
   assert.equal(r1.status, 200, r1.text);
   assert.equal(r1.json.replayed, false);
-  assert.equal(r1.json.order.status, 'cancelled');
-  // Rejeu dans la fenêtre : toujours annulée, jamais une 2e annulation (même cancelled_at).
+  // Rejeu dans la fenêtre : toujours en attente, pas une nouvelle demande.
   const r2 = await cust.post('order_cancel.php', { id });
   assert.equal(r2.status, 200, r2.text);
   assert.equal(r2.json.replayed, true);
-  assert.equal(r2.json.order.cancelled_at, r1.json.order.cancelled_at);
-  // Rejeu hors fenêtre (déjà annulée : jamais too_late pour une opération déjà effectuée).
+  assert.equal(r2.json.order.cancel_requested_at, r1.json.order.cancel_requested_at);
+  // Rejeu hors fenêtre (demande déjà déposée : jamais too_late pour une opération déjà effectuée).
   poserHorloge(t0 + 300);
   const r3 = await cust.post('order_cancel.php', { id });
   assert.equal(r3.status, 200, r3.text);
   assert.equal(r3.json.replayed, true);
 });
 
-test('double-clic concurrent : une seule annulation réelle, le second appel est un rejeu', async () => {
+test('double-clic concurrent : une seule demande déposée, le second appel est un rejeu', async () => {
   const t0 = BASE_EPOCH + 30_000;
   poserHorloge(t0);
   const cust = await nouveauClient('cancel-double-clic@example.test');
@@ -130,13 +126,13 @@ test('double-clic concurrent : une seule annulation réelle, le second appel est
   assert.equal(r1.status, 200, r1.text);
   assert.equal(r2.status, 200, r2.text);
   const replayedFlags = [r1.json.replayed, r2.json.replayed].sort();
-  assert.deepEqual(replayedFlags, [false, true], 'exactement un replayed:false (l\'annulation) et un replayed:true');
-  assert.equal(Number(db.prepare("SELECT COUNT(*) AS n FROM orders WHERE id = ? AND status = 'cancelled'").get(id).n), 1);
+  assert.deepEqual(replayedFlags, [false, true], 'exactement un replayed:false (la demande) et un replayed:true');
+  assert.equal(Number(db.prepare("SELECT COUNT(*) AS n FROM orders WHERE id = ? AND cancel_requested_at IS NOT NULL").get(id).n), 1);
   // Un seul événement d'alerte malgré les deux appels.
   assert.equal(Number(db.prepare("SELECT COUNT(*) AS n FROM order_addenda WHERE order_id = ? AND kind = 'cancel'").get(id).n), 1);
 });
 
-test('déjà accepté : annulée directement même dans ce cas, alerte commerçant créée (il juge sur place en cuisine)', async () => {
+test('déjà accepté : demande déposée dans la fenêtre, commande PAS encore annulée, alerte commerçant créée', async () => {
   const t0 = BASE_EPOCH + 40_000;
   poserHorloge(t0);
   const cust = await nouveauClient('cancel-accepte@example.test');
@@ -147,8 +143,8 @@ test('déjà accepté : annulée directement même dans ce cas, alerte commerça
   poserHorloge(t0 + 100);
   const r = await cust.post('order_cancel.php', { id });
   assert.equal(r.status, 200, r.text);
-  assert.equal(r.json.order.status, 'cancelled', 'annulée directement, même déjà acceptée par le commerçant');
-  assert.ok(r.json.order.cancelled_at);
+  assert.equal(r.json.order.status, 'accepted', 'reste "accepted" tant que le commerçant n\'a pas validé');
+  assert.equal(typeof r.json.order.cancel_requested_at, 'string');
 
   const addendum = db.prepare("SELECT * FROM order_addenda WHERE order_id = ? AND kind = 'cancel'").get(id);
   assert.ok(addendum, 'un événement order_addenda de type cancel doit exister');
@@ -158,7 +154,7 @@ test('déjà accepté : annulée directement même dans ce cas, alerte commerça
   assert.equal(job.status, 'pending');
 });
 
-test("pas encore accepté (status new) : annulée directement, alerte commerçant créée quand même", async () => {
+test("pas encore accepté (status new) : alerte commerçant créée quand même (la validation est désormais toujours requise)", async () => {
   const t0 = BASE_EPOCH + 50_000;
   poserHorloge(t0);
   const cust = await nouveauClient('cancel-new@example.test');
@@ -166,9 +162,9 @@ test("pas encore accepté (status new) : annulée directement, alerte commerçan
   poserHorloge(t0 + 2);
   const r = await cust.post('order_cancel.php', { id });
   assert.equal(r.status, 200, r.text);
-  assert.equal(r.json.order.status, 'cancelled');
+  assert.equal(r.json.order.status, 'new');
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM order_addenda WHERE order_id = ?").get(id).n, 1,
-    "une alerte est créée même sur une commande encore 'new' : le commerçant doit être informé");
+    "une alerte est créée même sur une commande encore 'new' : le commerçant doit toujours valider");
 });
 
 test('statuts non annulables : ready et refused -> 409 not_cancellable, même dans la fenêtre', async () => {
@@ -188,7 +184,7 @@ test('statuts non annulables : ready et refused -> 409 not_cancellable, même da
   expectError(await cust.post('order_cancel.php', { id: idRefused }), 409, 'not_cancellable');
 });
 
-test("isolation : un autre client ne peut pas annuler la commande d'un client différent", async () => {
+test("isolation : un autre client ne peut pas demander l'annulation de la commande d'un client différent", async () => {
   const t0 = BASE_EPOCH + 70_000;
   poserHorloge(t0);
   const custA = await nouveauClient('cancel-a@example.test');
@@ -222,4 +218,83 @@ test('champs exposés par order_status/order_create : cancel_eligible_until et c
   poserHorloge(t0 + CANCEL_WINDOW_S);
   const r2 = await cust.get('order_status.php?id=' + id);
   assert.equal(r2.json.order.can_cancel, false, 'exactement à CANCEL_WINDOW_S : plus annulable');
+});
+
+// ---------------------------------------------------------------- owner_cancel_decide.php (validation)
+
+test('owner_cancel_decide accept : la commande passe réellement à "cancelled", can_cancel redevient faux', async () => {
+  const t0 = BASE_EPOCH + 90_000;
+  poserHorloge(t0);
+  const cust = await nouveauClient('cancel-decide-accept@example.test');
+  const id = await commander(cust);
+  poserHorloge(t0 + 2);
+  assert.equal((await cust.post('order_cancel.php', { id })).status, 200);
+
+  const decide = await owner.post('owner_cancel_decide.php', { id, action: 'accept' });
+  assert.equal(decide.status, 200, decide.text);
+  assert.equal(decide.json.replayed, false);
+  assert.equal(decide.json.order.status, 'cancelled');
+  assert.equal(decide.json.order.cancelled_at !== null, true);
+
+  // Relecture indépendante côté client : bien annulée pour de vrai.
+  const relu = await cust.get('order_status.php?id=' + id);
+  assert.equal(relu.json.order.status, 'cancelled');
+  assert.equal(relu.json.order.cancel_requested_at, null);
+});
+
+test('owner_cancel_decide refuse : la commande continue normalement, la demande disparaît', async () => {
+  const t0 = BASE_EPOCH + 100_000;
+  poserHorloge(t0);
+  const cust = await nouveauClient('cancel-decide-refuse@example.test');
+  const id = await commander(cust);
+  poserHorloge(t0 + 2);
+  assert.equal((await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 20 })).status, 200);
+  poserHorloge(t0 + 10);
+  assert.equal((await cust.post('order_cancel.php', { id })).status, 200);
+
+  const decide = await owner.post('owner_cancel_decide.php', { id, action: 'refuse' });
+  assert.equal(decide.status, 200, decide.text);
+  assert.equal(decide.json.replayed, false);
+  assert.equal(decide.json.order.status, 'accepted', 'la commande continue, jamais annulée');
+  assert.equal(decide.json.order.cancel_requested_at, null);
+
+  // Le client peut redemander l'annulation après un refus (nouvelle demande, pas un rejeu de l'ancienne).
+  poserHorloge(t0 + 20);
+  const r2 = await cust.post('order_cancel.php', { id });
+  assert.equal(r2.status, 200, r2.text);
+  assert.equal(r2.json.replayed, false, 'une vraie nouvelle demande, pas un rejeu de la précédente (refusée)');
+});
+
+test('owner_cancel_decide : rejeu idempotent (accept puis accept = replayed:true), already_decided si contradictoire', async () => {
+  const t0 = BASE_EPOCH + 110_000;
+  poserHorloge(t0);
+  const cust = await nouveauClient('cancel-decide-rejeu@example.test');
+  const id = await commander(cust);
+  poserHorloge(t0 + 2);
+  assert.equal((await cust.post('order_cancel.php', { id })).status, 200);
+
+  const a1 = await owner.post('owner_cancel_decide.php', { id, action: 'accept' });
+  assert.equal(a1.status, 200, a1.text);
+  assert.equal(a1.json.replayed, false);
+  const a2 = await owner.post('owner_cancel_decide.php', { id, action: 'accept' });
+  assert.equal(a2.status, 200, a2.text);
+  assert.equal(a2.json.replayed, true);
+
+  // Refuser une commande déjà réellement annulée : la demande n'existe plus, 409 already_decided.
+  expectError(await owner.post('owner_cancel_decide.php', { id, action: 'refuse' }), 409, 'already_decided');
+});
+
+test("owner_cancel_decide : sans demande en attente -> 409 already_decided ; sans session owner -> 401 ; session client -> 403 ; commande introuvable -> 404", async () => {
+  const t0 = BASE_EPOCH + 120_000;
+  poserHorloge(t0);
+  const cust = await nouveauClient('cancel-decide-aucune@example.test');
+  const id = await commander(cust);
+  poserHorloge(t0 + 2);
+  // Aucune demande n'a été déposée : rien à trancher.
+  expectError(await owner.post('owner_cancel_decide.php', { id, action: 'accept' }), 409, 'already_decided');
+
+  expectError(await new Client('cancel-decide-anon').post('owner_cancel_decide.php', { id, action: 'accept' }), 401, 'unauthorized');
+  expectError(await cust.post('owner_cancel_decide.php', { id, action: 'accept' }), 403, 'forbidden');
+  expectError(await owner.post('owner_cancel_decide.php', { id: 999999, action: 'accept' }), 404, 'not_found');
+  expectError(await owner.post('owner_cancel_decide.php', { id, action: 'autre' }), 422, 'validation');
 });

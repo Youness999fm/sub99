@@ -1,11 +1,17 @@
-// Vue commerçant (tablette) sur l'annulation ET la tentative de modification côté client — complète
-// order-cancel.test.mjs (coté client uniquement) et addendum-print-jobs.test.mjs (ticket complémentaire
-// générique, testé seulement avec kind='add'). Ici on vérifie ce que le commerçant voit réellement via
-// owner_orders.php : statut 'cancelled', addenda kind='cancel', cycle complet claim/ack du ticket d'alerte,
-// et le fait qu'un owner_order_decide.php (accepter/refuser/prête) sur une commande annulée échoue toujours
-// (409 already_decided) au lieu de la faire glisser silencieusement dans un autre statut. On vérifie aussi
-// que kind='modify' (désactivé en libre-service depuis le 22/11/2026) ne laisse AUCUNE trace côté commerçant
-// (ni addenda, ni ticket) puisqu'il est rejeté avant toute écriture.
+// Vue commerçant (tablette) sur la DEMANDE d'annulation et la tentative de modification côté client —
+// complète order-cancel.test.mjs (côté client uniquement) et addendum-print-jobs.test.mjs (ticket
+// complémentaire générique, testé seulement avec kind='add'). Modèle en vigueur depuis le 22/11/2026,
+// rétabli le 24/11/2026 après un aller-retour vers l'annulation directe (le commerçant veut VALIDER
+// chaque annulation, pas seulement en être informé après coup) : order_cancel.php dépose une DEMANDE
+// (cancel_requested_at posé, statut inchangé), owner_cancel_decide.php tranche (accept -> 'cancelled',
+// refuse -> redevient une commande normale). L'alerte (order_addenda kind='cancel' + addendum_print_jobs)
+// est créée dès la DEMANDE, pas seulement à la décision — c'est elle qui doit remonter côté commerçant.
+// On vérifie ici ce que le commerçant voit réellement via owner_orders.php : cancel_requested_at exposé,
+// addenda kind='cancel' avec ticket pending dès la demande, cycle complet claim/ack du ticket d'alerte,
+// effet réel d'owner_cancel_decide.php (accept/refuse/rejeu/déjà tranché), et le fait qu'un
+// owner_order_decide.php (accepter/refuser/prête) sur une commande déjà annulée (demande acceptée) échoue
+// toujours (409 already_decided). On vérifie aussi qu'une tentative de modification (kind='modify',
+// désactivée en libre-service) ne laisse AUCUNE trace côté commerçant.
 // Horloge pilotée (SUBITO_TEST_CLOCK_FILE) : bornes testées à la seconde exacte, jamais une attente réelle.
 // Lancer depuis la racine :  SUBITO_TEST_PORT=18430 node --test tests/api-vercel/owner-cancel-view.test.mjs
 import { test, before, after } from 'node:test';
@@ -82,32 +88,33 @@ function trouverCommande(ownerOrdersJson, orderId) {
   return ownerOrdersJson.orders.find((o) => o.id === orderId);
 }
 
-test("annulation d'une commande encore 'new' : owner_orders.php montre status='cancelled', cancelled_at, et un addenda kind='cancel' avec ticket pending", async () => {
+test("demande d'annulation sur une commande encore 'new' : owner_orders.php montre cancel_requested_at, statut INCHANGÉ, et un addenda kind='cancel' avec ticket pending", async () => {
   const t0 = BASE_EPOCH + 10_000;
   poserHorloge(t0);
   const client = await nouveauClient('ownerview-new@example.test');
   const id = await commander(client);
   poserHorloge(t0 + 5);
-  const cancel = await client.post('order_cancel.php', { id });
-  assert.equal(cancel.status, 200, cancel.text);
-  assert.equal(cancel.json.order.status, 'cancelled');
+  const demande = await client.post('order_cancel.php', { id });
+  assert.equal(demande.status, 200, demande.text);
+  assert.equal(demande.json.order.status, 'new', "la commande n'est PAS annulée tant que le commerçant n'a pas tranché");
+  assert.ok(demande.json.order.cancel_requested_at);
 
   const vue = await owner.get('owner_orders.php');
   assert.equal(vue.status, 200, vue.text);
   const o = trouverCommande(vue.json, id);
-  assert.ok(o, "la commande annulée doit rester visible côté commerçant (service_day = aujourd'hui)");
-  assert.equal(o.status, 'cancelled');
-  assert.ok(o.cancelled_at, 'cancelled_at doit être exposé au commerçant');
+  assert.ok(o, 'la commande doit rester visible côté commerçant');
+  assert.equal(o.status, 'new', 'statut toujours "new" : rien ne doit basculer avant la décision du commerçant');
+  assert.ok(o.cancel_requested_at, 'cancel_requested_at doit être exposé au commerçant, pour qu\'il sache qu\'une demande est en attente');
 
-  assert.equal(o.addenda.length, 1, 'un seul événement : le cancel');
+  assert.equal(o.addenda.length, 1, 'un seul événement : la demande d\'annulation');
   const a = o.addenda[0];
   assert.equal(a.kind, 'cancel');
-  assert.equal(a.items.length, 0, "un cancel n'a pas de lignes d'articles");
-  assert.equal(a.print_pending, true, 'le ticket d\'alerte doit être dû immédiatement, sans délai H-45');
+  assert.equal(a.items.length, 0, "une demande d'annulation n'a pas de lignes d'articles");
+  assert.equal(a.print_pending, true, 'le ticket d\'alerte doit être dû immédiatement, sans délai H-45, dès la DEMANDE');
   assert.equal(a.print_job.status, 'pending');
 });
 
-test("annulation d'une commande déjà 'accepted' : toujours annulée, alerte commerçant créée quand même, et le ticket est réclamable/acquittable (même cycle que pour un ajout)", async () => {
+test("demande d'annulation sur une commande déjà 'accepted' : alerte commerçant créée quand même, ticket réclamable/acquittable (même cycle que pour un ajout), et owner_cancel_decide.php accept() annule réellement", async () => {
   const t0 = BASE_EPOCH + 20_000;
   poserHorloge(t0);
   const client = await nouveauClient('ownerview-accepted@example.test');
@@ -116,13 +123,13 @@ test("annulation d'une commande déjà 'accepted' : toujours annulée, alerte co
   assert.equal((await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 20 })).status, 200);
 
   poserHorloge(t0 + 100);
-  const cancel = await client.post('order_cancel.php', { id });
-  assert.equal(cancel.status, 200, cancel.text);
-  assert.equal(cancel.json.order.status, 'cancelled', 'annulée directement même déjà acceptée');
+  const demande = await client.post('order_cancel.php', { id });
+  assert.equal(demande.status, 200, demande.text);
+  assert.equal(demande.json.order.status, 'accepted', 'toujours "accepted" : la demande seule ne change rien');
 
   const avant = await owner.get('owner_orders.php');
   const addendum = trouverCommande(avant.json, id).addenda.find((a) => a.kind === 'cancel');
-  assert.ok(addendum, "l'alerte d'annulation doit apparaître même pour une commande déjà acceptée");
+  assert.ok(addendum, "l'alerte de demande d'annulation doit apparaître même pour une commande déjà acceptée");
   assert.equal(addendum.print_pending, true);
 
   const claim = await owner.post('owner_addendum_print_claim.php', { id: addendum.id, device: 'tablette-test' });
@@ -138,53 +145,86 @@ test("annulation d'une commande déjà 'accepted' : toujours annulée, alerte co
   assert.equal(ack.status, 200, ack.text);
   assert.equal(ack.json.status, 'dispatched');
 
+  // Le commerçant tranche enfin : il accepte l'annulation.
+  const decide = await owner.post('owner_cancel_decide.php', { id, action: 'accept' });
+  assert.equal(decide.status, 200, decide.text);
+  assert.equal(decide.json.order.status, 'cancelled', 'annulée réellement après acceptation du commerçant');
+  assert.ok(decide.json.order.cancelled_at);
+
   const apres = await owner.get('owner_orders.php');
-  const addendumApres = trouverCommande(apres.json, id).addenda.find((a) => a.kind === 'cancel');
+  const commandeApres = trouverCommande(apres.json, id);
+  assert.equal(commandeApres.status, 'cancelled');
+  const addendumApres = commandeApres.addenda.find((a) => a.kind === 'cancel');
   assert.equal(addendumApres.print_pending, false, 'remis avec succès : plus en attente côté tablette');
-  assert.equal(addendumApres.print_job.status, 'dispatched');
 });
 
-test("owner_order_decide.php sur une commande déjà annulée : accepter/refuser/marquer prête échouent toujours (409 already_decided), jamais un changement silencieux de statut", async () => {
-  // Cas 1 : commande encore 'new' au moment de l'annulation -> accepter/refuser échouent.
-  let t0 = BASE_EPOCH + 30_000;
+test("owner_cancel_decide.php refuse() : la demande s'efface, la commande continue normalement, et le client peut redéposer une demande ensuite", async () => {
+  const t0 = BASE_EPOCH + 30_000;
   poserHorloge(t0);
-  let client = await nouveauClient('ownerview-decide-new@example.test');
-  let id = await commander(client);
-  poserHorloge(t0 + 1);
-  assert.equal((await client.post('order_cancel.php', { id })).status, 200);
-
-  let r = await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 0 });
-  assert.equal(r.status, 409, r.text);
-  assert.equal(r.json.error, 'already_decided');
-  assert.equal(r.json.status, 'cancelled');
-  assert.equal((await db.prepare('SELECT status FROM orders WHERE id = ?').get(id)).status, 'cancelled',
-    'le statut en base ne doit JAMAIS basculer sur accepted après ce refus');
-
-  r = await owner.post('owner_order_decide.php', { id, action: 'refuse' });
-  assert.equal(r.status, 409, r.text);
-  assert.equal(r.json.error, 'already_decided');
-  assert.equal(r.json.status, 'cancelled');
-
-  // Cas 2 : commande déjà 'accepted' puis annulée -> même l'action 'ready' (qui attend 'accepted') échoue.
-  t0 = BASE_EPOCH + 40_000;
-  poserHorloge(t0);
-  client = await nouveauClient('ownerview-decide-accepted@example.test');
-  id = await commander(client);
-  poserHorloge(t0 + 1);
-  assert.equal((await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 10 })).status, 200);
+  const client = await nouveauClient('ownerview-refuse@example.test');
+  const id = await commander(client);
   poserHorloge(t0 + 2);
   assert.equal((await client.post('order_cancel.php', { id })).status, 200);
 
-  r = await owner.post('owner_order_decide.php', { id, action: 'ready' });
-  assert.equal(r.status, 409, r.text);
-  assert.equal(r.json.error, 'already_decided');
-  assert.equal(r.json.status, 'cancelled');
+  const refuse = await owner.post('owner_cancel_decide.php', { id, action: 'refuse' });
+  assert.equal(refuse.status, 200, refuse.text);
+  assert.equal(refuse.json.order.status, 'new', 'la commande continue normalement');
+  assert.equal(refuse.json.order.cancel_requested_at, null, 'la demande est effacée, pas juste masquée');
+
+  const vue = await owner.get('owner_orders.php');
+  const o = trouverCommande(vue.json, id);
+  assert.equal(o.cancel_requested_at, null);
+  assert.equal(o.status, 'new');
+
+  // Rejeu du refuse : déjà tranchée dans le même sens -> replayed:true, jamais une erreur.
+  const refuseRejeu = await owner.post('owner_cancel_decide.php', { id, action: 'refuse' });
+  assert.equal(refuseRejeu.status, 200, refuseRejeu.text);
+  assert.equal(refuseRejeu.json.replayed, true);
+
+  // Le client peut redéposer une demande (cancel_requested_at est bien NULL, pas bloqué pour toujours).
+  poserHorloge(t0 + 3);
+  const redemande = await client.post('order_cancel.php', { id });
+  assert.equal(redemande.status, 200, redemande.text);
+  assert.ok(redemande.json.order.cancel_requested_at, 'une nouvelle demande doit être possible après un refus');
+});
+
+test("owner_cancel_decide.php sans demande en attente : accept() refuse (409 already_decided, rien à accepter), refuse() répond 200 replayed:true (déjà dans l'état visé, jamais une erreur)", async () => {
+  const t0 = BASE_EPOCH + 40_000;
+  poserHorloge(t0);
+  const client = await nouveauClient('ownerview-nopending@example.test');
+  const id = await commander(client);
+  poserHorloge(t0 + 1);
+
+  expectError(await owner.post('owner_cancel_decide.php', { id, action: 'accept' }), 409, 'already_decided');
+
+  const refuse = await owner.post('owner_cancel_decide.php', { id, action: 'refuse' });
+  assert.equal(refuse.status, 200, refuse.text);
+  assert.equal(refuse.json.replayed, true);
+  assert.equal(refuse.json.order.status, 'new');
+});
+
+test("owner_order_decide.php sur une commande dont l'annulation a été acceptée : accepter/refuser/marquer prête échouent toujours (409 already_decided), jamais un changement silencieux de statut", async () => {
+  const t0 = BASE_EPOCH + 50_000;
+  poserHorloge(t0);
+  const client = await nouveauClient('ownerview-decide-cancelled@example.test');
+  const id = await commander(client);
+  poserHorloge(t0 + 1);
+  assert.equal((await client.post('order_cancel.php', { id })).status, 200);
+  assert.equal((await owner.post('owner_cancel_decide.php', { id, action: 'accept' })).status, 200);
+
+  const r1 = await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 0 });
+  assert.equal(r1.status, 409, r1.text);
+  assert.equal(r1.json.error, 'already_decided');
   assert.equal((await db.prepare('SELECT status FROM orders WHERE id = ?').get(id)).status, 'cancelled',
-    "le statut en base ne doit JAMAIS basculer sur 'ready' après ce refus");
+    'le statut en base ne doit JAMAIS basculer sur accepted après ce refus');
+
+  const r2 = await owner.post('owner_order_decide.php', { id, action: 'refuse' });
+  assert.equal(r2.status, 409, r2.text);
+  assert.equal(r2.json.error, 'already_decided');
 });
 
 test("une tentative de modification (kind='modify', désactivée en libre-service) ne laisse AUCUNE trace côté commerçant : ni addenda, ni ticket complémentaire, ni changement de statut", async () => {
-  const t0 = BASE_EPOCH + 50_000;
+  const t0 = BASE_EPOCH + 60_000;
   poserHorloge(t0);
   const client = await nouveauClient('ownerview-modify@example.test');
   const id = await commander(client);

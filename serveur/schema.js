@@ -45,10 +45,10 @@ export const TABLES = {
       ['service_day', 'char:10', false],
       // Commande planifiée (type Uber Eats) : heure voulue par le client, NULL = dès que possible.
       ['scheduled_for', TS, true],
-      // Annulation client (fenêtre 4 min depuis created_at, voir order_cancel.js) : directe depuis le
-      // 23/11/2026 (revient sur la décision du 22/11/2026, qui faisait attendre une validation du
-      // commerçant sans garantie qu'elle arrive). cancel_requested_at n'est plus écrit ; colonne gardée
-      // (inoffensive, nullable) plutôt qu'une migration de suppression.
+      // Annulation client (fenêtre 4 min depuis created_at, voir order_cancel.js) : décision du 22/11/2026,
+      // demande une VALIDATION du commerçant — le client ne fait que demander (cancel_requested_at posé),
+      // status ne passe à 'cancelled' que si le commerçant accepte (voir owner_cancel_decide.js). Un refus
+      // efface simplement cancel_requested_at, la commande continue normalement.
       ['cancel_requested_at', TS, true],
       ['cancelled_at', TS, true], ['cancel_reason', 'str:200', true],
       // Suppression côté commerçant (corbeille, voir owner_order_delete.js) : jamais un vrai DELETE SQL —

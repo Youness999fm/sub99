@@ -367,6 +367,14 @@
       .filter(o => o.status === 'new' && o.scheduled_for && !surfaced(o))
       .sort((a, b) => String(a.scheduled_for).localeCompare(String(b.scheduled_for)));
   }
+  // Demandes d'annulation en attente de décision (décision du 24/11/2026, revient sur le modèle direct du
+  // 23/11/2026 à la demande explicite du commerçant) : jamais mélangées avec "À traiter" (ce ne sont pas de
+  // nouvelles commandes) ni avec "Refusées/annulées" (rien n'est encore tranché).
+  function pendingCancelRequests() {
+    return state.orders
+      .filter(o => o.cancel_requested_at && (o.status === 'new' || o.status === 'accepted'))
+      .sort((a, b) => String(a.cancel_requested_at).localeCompare(String(b.cancel_requested_at)));
+  }
   // Refusées/annulées du jour : affichées à part, en haut, pour ne jamais les mélanger avec la file active
   // ni avec la recette (qui ne compte que les commandes réellement honorées).
   function refusedOrCancelledOrders() {
@@ -649,6 +657,7 @@
     const pending = state.authed && (
       state.orders.some(o => o.status === 'new' && surfaced(o))
       || state.orders.some(o => (o.addenda || []).some(a => a.print_pending))
+      || pendingCancelRequests().length > 0
     );
     if (!pending) alarmExpired = false;
     const shouldRing = pending && state.soundOn && !alarmExpired;
@@ -716,7 +725,7 @@
   // 23/11/2026, l'annulation client est directe (jamais une demande en attente) : le commerçant est alerté
   // pour agir en cuisine (arrêter la préparation si possible), pas pour trancher une décision.
   function addendumAlertLabel(a) {
-    return a.kind === 'cancel' ? 'Commande annulée par le client' : 'Rajout de commande';
+    return a.kind === 'cancel' ? 'Demande d’annulation du client' : 'Rajout de commande';
   }
 
   // Une annulation (commande déjà acceptée) ou un ajout d'article sonne exactement comme une commande
@@ -1273,6 +1282,73 @@
           <span class="qchip-sub">${ready ? 'Prête vers ' + esc(hm(ready)) + ' · ' : ''}${esc(eur(o.total_cents))}${addendaBadge(o)}</span>
         </button>`;
     }).join(''));
+  }
+
+  // « Demande d'annulation » : section dédiée tout en haut, bien distincte visuellement d'une commande
+  // neuve (ambre, jamais rouge) — décision du 22/11/2026, rétablie le 24/11/2026 à la demande du
+  // commerçant (il veut valider chaque annulation, pas seulement être alerté une fois que c'est fait).
+  // Boutons Accepter/Refuser directement sur la puce : c'est urgent (la cuisine peut être en train de
+  // préparer), pas besoin de naviguer ailleurs. Le bandeau rouge "Commande annulée" (renderDetail/
+  // ticketHtml) ne s'affiche qu'une fois la demande ACCEPTÉE — tant qu'elle est en attente, c'est ici.
+  function renderCancelRequests() {
+    const strip = document.getElementById('cancel-request-strip');
+    const box = document.getElementById('cancel-request-queue');
+    const countEl = document.getElementById('cancel-request-count');
+    if (!strip || !box) return;
+    const list = pendingCancelRequests();
+    strip.hidden = list.length === 0;
+    if (countEl) countEl.textContent = list.length ? ` (${list.length})` : '';
+    setHTML(box, list.map(o => {
+      const busy = state.sending.has('cancelreq-' + o.id);
+      return `
+        <div class="qchip is-cancel-request">
+          <button type="button" class="qchip-view" data-action="print-order" data-id="${esc(o.id)}"
+            aria-label="Voir la commande de ${esc(customerLabel(o))}, qui demande à annuler">
+            <span class="qchip-title">${esc(customerLabel(o))}</span>
+            <span class="qchip-sub">Annulation demandée · ${esc(eur(o.total_cents))}</span>
+          </button>
+          <div class="qchip-cancel-actions">
+            <button type="button" class="btn btn-accept btn-sm" data-action="cancel-request-accept" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>Accepter l’annulation</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="cancel-request-refuse" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>Refuser</button>
+          </div>
+        </div>`;
+    }).join(''));
+  }
+
+  async function decideCancelRequest(id, action) {
+    const key = 'cancelreq-' + id;
+    if (state.sending.has(key)) return;
+    const o = findOrder(id);
+    if (!o) return;
+    const name = customerLabel(o);
+    state.sending.add(key);
+    state.mutationSeq += 1;
+    scheduleRender();
+    try {
+      const r = await api('owner_cancel_decide.php', { method: 'POST', body: { id: o.id, action } });
+      if (r.unauth) return;
+      if (r.ok) {
+        replaceOrder(r.data.order);
+        toast(action === 'accept' ? `Commande de ${name} annulée.` : `Demande d’annulation de ${name} refusée, la commande continue.`);
+      } else if (r.data.error === 'already_decided') {
+        const cur = findOrder(id);
+        if (cur) cur.status = r.data.status || cur.status;
+        toast(`La demande de ${name} avait déjà été tranchée.`);
+      } else if (r.data.error === 'not_found') {
+        alertMsg(`La commande de ${name} est introuvable.`);
+      } else {
+        alertMsg(r.data.message || "La décision n'a pas pu être enregistrée. Réessayez.");
+      }
+    } catch (e) {
+      if (e instanceof StaleError) return;
+      alertMsg('Connexion impossible : la décision n\'a pas été envoyée. Réessayez.');
+    } finally {
+      state.sending.delete(key);
+      state.mutationSeq += 1;
+      syncAlarm();
+      scheduleRender();
+      if (state.authed) poll();
+    }
   }
 
   // « Refusées / annulées » : section dédiée en haut, avec un compteur par motif, pour que le commerçant
@@ -1991,6 +2067,7 @@
       }
     });
     renderStep('renderNotifSlot', renderNotifSlot);
+    renderStep('renderCancelRequests', renderCancelRequests);
     renderStep('renderRefused', renderRefused);
     renderStep('renderQueue', renderQueue);
     renderStep('renderScheduled', renderScheduled);
@@ -2340,7 +2417,7 @@
     const items = addendumTicketItems(order, addendum);
     const hasPizza = items.some(it => it.variant);
     let headline;
-    if (addendum.kind === 'cancel') headline = 'COMMANDE ANNULEE';
+    if (addendum.kind === 'cancel') headline = 'DEMANDE D\'ANNULATION';
     else if (addendum.kind === 'modify') headline = 'MODIFICATION DE COMMANDE';
     else headline = hasPizza ? 'PIZZA RAJOUTEE' : 'AJOUT A LA COMMANDE';
     return {
@@ -2626,7 +2703,7 @@
   }
 
   // Construit la trame ESC/POS d'un ticket COMPLÉMENTAIRE (ajout/modification/annulation) : en-tête
-  // obligatoire (PIZZA RAJOUTEE / AJOUT A LA COMMANDE / MODIFICATION DE COMMANDE / COMMANDE ANNULEE,
+  // obligatoire (PIZZA RAJOUTEE / AJOUT A LA COMMANDE / MODIFICATION DE COMMANDE / DEMANDE D'ANNULATION,
   // section 8-9 de la mission), prénom client, numéro de la commande d'origine, numéro de l'ajout, puis
   // UNIQUEMENT les articles de cet événement (jamais les articles déjà transmis sur le ticket initial).
   function buildAddendumTicketBytes(p) {
@@ -3218,6 +3295,12 @@
       }
       case 'mark-ready':
         markReady(id);
+        return;
+      case 'cancel-request-accept':
+        decideCancelRequest(id, 'accept');
+        return;
+      case 'cancel-request-refuse':
+        decideCancelRequest(id, 'refuse');
         return;
       case 'print-ticket': {
         const o = findOrder(id);

@@ -254,6 +254,7 @@ test('statuts non éligibles : ready, refused, cancelled -> 409 not_addable', as
   const { id: idCancelled } = await commander(cust, 1);
   poserHorloge(t0 + 4);
   assert.equal((await cust.post('order_cancel.php', { id: idCancelled })).status, 200);
+  assert.equal((await owner.post('owner_cancel_decide.php', { id: idCancelled, action: 'accept' })).status, 200);
   expectError(await ajout(cust, idCancelled, [{ name: 'Régina', variant: 'Duo', qty: 1, unit_price_cents: REGINA_DUO, removed: [], extras: [], half: null, note: '' }], 99999), 409, 'not_addable');
 });
 
@@ -329,10 +330,14 @@ test('ajout puis annulation de la commande, les deux dans les délais autorisés
   const addR = await ajout(cust, id, [{ name: 'Régina', variant: 'Duo', qty: 1, unit_price_cents: REGINA_DUO, removed: [], extras: [], half: null, note: '' }], 2 * REGINA_DUO - REGINA_DUO);
   assert.equal(addR.status, 201, addR.text);
 
-  poserHorloge(t0 + 200); // annulation à 3 min 20 (encore dans les 4 min depuis created_at)
+  poserHorloge(t0 + 200); // demande d'annulation à 3 min 20 (encore dans les 4 min depuis created_at)
   const cancelR = await cust.post('order_cancel.php', { id });
   assert.equal(cancelR.status, 200, cancelR.text);
-  assert.equal(cancelR.json.order.status, 'cancelled', 'annulée directement, sans validation du commerçant');
+  assert.equal(cancelR.json.order.status, 'new', 'encore en attente de la validation du commerçant');
+
+  const decideR = await owner.post('owner_cancel_decide.php', { id, action: 'accept' });
+  assert.equal(decideR.status, 200, decideR.text);
+  assert.equal(decideR.json.order.status, 'cancelled');
   // L'historique des ajouts reste visible même après annulation (traçabilité), l'ajout n'est jamais effacé.
-  assert.equal(cancelR.json.order.addenda.length, 2, 'l\'ajout ET l\'événement d\'annulation restent dans l\'historique');
+  assert.equal(decideR.json.order.addenda.length, 2, 'l\'ajout ET la demande d\'annulation restent dans l\'historique');
 });
