@@ -51,6 +51,7 @@ before(async () => {
 });
 
 after(() => {
+  delete process.env.HORAIRES_COMMANDES;
   stopServer(server);
   try { db?.close(); } catch { /* déjà fermée */ }
 });
@@ -143,5 +144,63 @@ test('owner_recette_clear.php : suppression définitive de la recette du jour', 
     const r = await owner.post('owner_recette_clear.php', { code: SUPER_CODE });
     assert.equal(r.status, 200, r.text);
     assert.equal(r.json.deleted, 0, r.text);
+  });
+});
+
+test('owner_recette_clear.php : remise à neuf de fin de journée (décision du 24/11/2026) — supprime aussi '
+  + 'les refusées/annulées et tout ce qui s\'y rattache, jamais les commandes pas encore décidées', async (t) => {
+  process.env.HORAIRES_COMMANDES = '00:00-23:59'; // ouvert : une commande programmée reste 'new', en attente.
+  let idAccepteeAvecAddenda, idRefusee, idAnnulee, idNouvelleNonDecidee;
+
+  await t.test('préparation : 4 commandes du jour dans des états différents', async () => {
+    // Acceptée (immédiate, même jour de service que les autres — une programmée aurait le jour de SON
+    // créneau, voir serveur/routes/order_create.js), avec une demande d'annulation en attente (crée
+    // order_addenda + addendum_print_jobs) : pour vérifier que ça se nettoie aussi, pas seulement orders/order_items.
+    const r1 = await cust.post('order_create.php', orderBody());
+    assert.equal(r1.status, 201, r1.text);
+    idAccepteeAvecAddenda = r1.json.order.id;
+    assert.equal((await owner.post('owner_order_decide.php', { id: idAccepteeAvecAddenda, action: 'accept', delay_minutes: 20 })).status, 200);
+    assert.equal((await cust.post('order_cancel.php', { id: idAccepteeAvecAddenda })).status, 200);
+
+    // Refusée.
+    const r2 = await cust.post('order_create.php', orderBody());
+    assert.equal(r2.status, 201, r2.text);
+    idRefusee = r2.json.order.id;
+    assert.equal((await owner.post('owner_order_decide.php', { id: idRefusee, action: 'refuse' })).status, 200);
+
+    // Annulée (acceptée puis annulation validée par le commerçant).
+    const r3 = await cust.post('order_create.php', orderBody());
+    assert.equal(r3.status, 201, r3.text);
+    idAnnulee = r3.json.order.id;
+    assert.equal((await owner.post('owner_order_decide.php', { id: idAnnulee, action: 'accept', delay_minutes: 20 })).status, 200);
+    assert.equal((await cust.post('order_cancel.php', { id: idAnnulee })).status, 200);
+    assert.equal((await owner.post('owner_cancel_decide.php', { id: idAnnulee, action: 'accept' })).status, 200);
+
+    // Pas encore décidée (nouvelle) : ne doit JAMAIS être supprimée, il reste du travail dessus.
+    const r4 = await cust.post('order_create.php', orderBody());
+    assert.equal(r4.status, 201, r4.text);
+    idNouvelleNonDecidee = r4.json.order.id;
+  });
+
+  await t.test('code correct : les 3 décidées disparaissent avec tout ce qui s\'y rattache, la nouvelle reste', async () => {
+    const r = await owner.post('owner_recette_clear.php', { code: SUPER_CODE });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.deleted, 3, r.text);
+
+    for (const id of [idAccepteeAvecAddenda, idRefusee, idAnnulee]) {
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM orders WHERE id = ?').get(id).n, 0, `orders id=${id}`);
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM order_items WHERE order_id = ?').get(id).n, 0, `order_items id=${id}`);
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM order_addenda WHERE order_id = ?').get(id).n, 0, `order_addenda id=${id}`);
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM print_jobs WHERE order_id = ?').get(id).n, 0, `print_jobs id=${id}`);
+    }
+    // Orpheline nulle part : aucune ligne addendum_print_jobs/order_addendum_items ne pointe vers un
+    // order_addenda déjà supprimé (la cascade manuelle a bien respecté l'ordre enfants -> parents).
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM addendum_print_jobs').get().n, 0);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM order_addendum_items').get().n, 0);
+
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM orders WHERE id = ?').get(idNouvelleNonDecidee).n, 1,
+      'la commande pas encore décidée ne doit jamais être supprimée');
+    const liste = await owner.get('owner_orders.php');
+    assert.ok(liste.json.orders.some((o) => o.id === idNouvelleNonDecidee), 'toujours visible côté commerçant');
   });
 });

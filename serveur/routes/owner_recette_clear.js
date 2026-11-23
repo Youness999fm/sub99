@@ -1,7 +1,11 @@
-// POST owner_recette_clear {"code": "..."} — supprime DÉFINITIVEMENT les commandes de la recette du jour
-// (acceptées ou prêtes, jour de service courant) et leurs lignes. Irréversible, réservé au code supérieur :
-// une fois supprimées, le total ne réapparaît nulle part (aucun appareil, aucun rechargement).
-// Les commandes encore nouvelles (non décidées) ou refusées ne sont pas concernées : seule la recette l'est.
+// POST owner_recette_clear {"code": "..."} — remise à neuf de fin de journée (décision du 24/11/2026) :
+// supprime DÉFINITIVEMENT TOUTES les commandes déjà décidées du jour de service courant (acceptées,
+// prêtes, refusées OU annulées) et tout ce qui s'y rattache (lignes, ajouts/annulations, tickets
+// complémentaires, tâche d'impression planifiée). Irréversible, réservé au code supérieur : une fois
+// supprimées, elles ne réapparaissent nulle part (aucun appareil, aucun rechargement) — tout l'espace
+// commerçant repart à neuf pour le jour suivant, comme demandé ("chaque jour, les commandes s'effacent").
+// Les commandes encore NOUVELLES (pas encore décidées, ex. une commande programmée plus tard ce jour-là
+// ou un jour suivant) ne sont jamais concernées : il reste du travail dessus, les supprimer les perdrait.
 import { allowMethods, readJsonBody, bodyStr, ok } from '../core.js';
 import { requireOwner, requireSuperCode } from '../auth.js';
 import { transaction } from '../db.js';
@@ -15,10 +19,18 @@ export default async function ownerRecetteClear(c) {
 
   const day = serviceDay();
   const deleted = await transaction(async ({ all, exec }) => {
-    const rows = await all("SELECT id FROM orders WHERE service_day = ? AND status IN ('accepted', 'ready')", [day]);
+    const rows = await all(
+      "SELECT id FROM orders WHERE service_day = ? AND status IN ('accepted', 'ready', 'refused', 'cancelled')",
+      [day]
+    );
     const ids = rows.map((r) => Number(r.id));
     if (ids.length === 0) return 0;
     const placeholders = ids.map(() => '?').join(',');
+    // Enfants avant parents (mêmes contraintes FK ON DELETE RESTRICT que PURGE_SQL, serveur/schema.js).
+    await exec(`DELETE FROM order_addendum_items WHERE addendum_id IN (SELECT id FROM order_addenda WHERE order_id IN (${placeholders}))`, ids);
+    await exec(`DELETE FROM addendum_print_jobs WHERE addendum_id IN (SELECT id FROM order_addenda WHERE order_id IN (${placeholders}))`, ids);
+    await exec(`DELETE FROM order_addenda WHERE order_id IN (${placeholders})`, ids);
+    await exec(`DELETE FROM print_jobs WHERE order_id IN (${placeholders})`, ids);
     await exec(`DELETE FROM order_items WHERE order_id IN (${placeholders})`, ids);
     return exec(`DELETE FROM orders WHERE id IN (${placeholders})`, ids);
   });

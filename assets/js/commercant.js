@@ -394,15 +394,26 @@
       .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
   }
   // En préparation : acceptées du jour, pas encore marquées prêtes, ET pas encore passé le délai annoncé.
-  // Une fois l'heure prévue dépassée, la commande disparaît d'ici (décision du 22/11/2026) : elle reste
-  // visible dans la Recette, qui garde tout le jour, délai dépassé ou non. Exception : délai "venez vite"
-  // (0 minute) n'a pas de vraie échéance à dépasser, jamais retiré par cette règle.
+  // Exception : délai « venez vite » (0 minute) n'a pas de vraie échéance à dépasser, toujours ici tant que
+  // pas prête. Une fois l'heure prévue dépassée, la commande ne disparaît plus silencieusement (ancienne
+  // décision du 22/11/2026, abandonnée le 24/11/2026 : le commerçant la perdait de vue) — elle passe dans
+  // lateOrders() ci-dessous, une file distincte bien visible, jamais mélangée avec les commandes à l'heure.
   function prepOrders() {
     const now = Date.now();
     return state.orders
       .filter(o => o.status === 'accepted' && o.service_day === state.serviceDay)
       .filter(o => o.delay_minutes === 0 || !o.ready_at || new Date(o.ready_at).getTime() > now)
       .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
+  }
+  // En retard : acceptées du jour, pas encore prêtes, délai annoncé dépassé (jamais le délai 0 « venez
+  // vite », qui n'a pas d'échéance à dépasser). Triée par la plus en retard d'abord (ready_at croissant) :
+  // c'est la plus urgente à sortir.
+  function lateOrders() {
+    const now = Date.now();
+    return state.orders
+      .filter(o => o.status === 'accepted' && o.service_day === state.serviceDay)
+      .filter(o => o.delay_minutes !== 0 && o.ready_at && new Date(o.ready_at).getTime() <= now)
+      .sort((a, b) => String(a.ready_at).localeCompare(String(b.ready_at)));
   }
   function ensureOpenSelection() {
     const cur = findOrder(state.selectedId);
@@ -1294,6 +1305,28 @@
     }).join(''));
   }
 
+  // « En retard » : commandes acceptées dont le délai annoncé au client est dépassé sans être marquées
+  // prêtes — une file à part, bien visible (décision du 24/11/2026), pour ne jamais les perdre de vue
+  // mélangées avec celles encore dans les temps.
+  function renderLate() {
+    const strip = document.getElementById('late-strip');
+    const box = document.getElementById('late-queue');
+    const countEl = document.getElementById('late-count');
+    if (!strip || !box) return;
+    const list = lateOrders();
+    strip.hidden = list.length === 0;
+    if (countEl) countEl.textContent = list.length ? ` (${list.length})` : '';
+    setHTML(box, list.map(o => {
+      const ready = toDate(o.ready_at);
+      return `
+        <button type="button" class="qchip is-late" data-action="prep-open" data-id="${esc(o.id)}"
+          aria-label="Commande de ${esc(customerLabel(o))}, en retard, ${esc(eur(o.total_cents))}. Ouvrir pour la marquer prête">
+          <span class="qchip-title">${esc(customerLabel(o))}</span>
+          <span class="qchip-sub">${ready ? 'Prévue ' + esc(hm(ready)) + ' · ' : ''}${esc(eur(o.total_cents))}${addendaBadge(o)}</span>
+        </button>`;
+    }).join(''));
+  }
+
   // « Demande d'annulation » : section dédiée tout en haut, bien distincte visuellement d'une commande
   // neuve (ambre, jamais rouge) — décision du 22/11/2026, rétablie le 24/11/2026. Boutons Accepter/Refuser
   // directement sur la puce : c'est urgent (la cuisine peut être en train de préparer), pas besoin de
@@ -1900,7 +1933,7 @@
           <div class="recap-actions">
             <button type="button" class="btn btn-light" data-action="copy-recap">Copier la recette</button>
             <button type="button" class="btn btn-light" data-action="print-recap">Imprimer la recette</button>
-            ${state.superUnlocked ? `<button type="button" class="btn btn-refuse" data-action="recette-clear-open" ${state.recetteClearBusy ? 'disabled' : ''}>Supprimer la recette</button>` : ''}
+            ${state.superUnlocked ? `<button type="button" class="btn btn-refuse" data-action="recette-clear-open" ${state.recetteClearBusy ? 'disabled' : ''}>Nouvelle journée (tout effacer)</button>` : ''}
           </div>
         </aside>
       </div>`;
@@ -2192,6 +2225,7 @@
     renderStep('renderRefused', renderRefused);
     renderStep('renderQueue', renderQueue);
     renderStep('renderScheduled', renderScheduled);
+    renderStep('renderLate', renderLate);
     renderStep('renderPrep', renderPrep);
     renderStep('renderDetail', renderDetail);
     if (state.view === 'sched') renderStep('renderSchedView', renderSchedView);
@@ -3208,15 +3242,25 @@
     copyText(nums.join('\n'), `${nums.length} numéro${nums.length > 1 ? 's' : ''} copié${nums.length > 1 ? 's' : ''}`);
   }
 
+  // Remise à neuf de fin de journée (décision du 24/11/2026) : TOUTES les commandes déjà décidées du jour
+  // — acceptées, prêtes, refusées ou annulées — jamais les nouvelles (pas encore décidées).
+  function recetteClearTargets() {
+    return state.orders.filter(o => o.service_day === state.serviceDay
+      && (o.status === 'accepted' || o.status === 'ready' || o.status === 'refused' || o.status === 'cancelled'));
+  }
+
   function openRecetteClearConfirm() {
     const sum = recapOrders().reduce((s, o) => s + (Number(o.total_cents) || 0), 0);
+    const nTotal = recetteClearTargets().length;
     openDialog(`
-      <h3>Supprimer la recette du jour ?</h3>
-      <p>Le total actuel (${esc(eur(sum))}) et les commandes qui le composent seront supprimés définitivement,
-      sur tous les appareils. Cette action est irréversible.</p>
+      <h3>Remettre la journée à neuf ?</h3>
+      <p>Le total actuel (${esc(eur(sum))}) ET les ${nTotal} commande${nTotal > 1 ? 's' : ''} du jour déjà
+      décidées (acceptées, prêtes, refusées ou annulées) seront supprimés définitivement, sur tous les
+      appareils. Les commandes pas encore décidées (ex. programmées pour plus tard) ne sont pas touchées.
+      Cette action est irréversible.</p>
       <div class="dlg-actions">
         <button type="button" class="btn btn-refuse" data-action="dlg-confirm-recette-clear" ${state.recetteClearBusy ? 'disabled' : ''}>
-          ${state.recetteClearBusy ? 'Suppression…' : 'Oui, supprimer'}
+          ${state.recetteClearBusy ? 'Suppression…' : 'Oui, tout supprimer'}
         </button>
         <button type="button" class="btn btn-ghost" data-action="dlg-close">Annuler</button>
       </div>
@@ -3235,14 +3279,14 @@
         toast(r.data.message || 'Suppression impossible pour le moment. Réessayez.');
         return;
       }
-      const removedIds = new Set(recapOrders().map(o => o.id));
+      const removedIds = new Set(recetteClearTargets().map(o => o.id));
       state.orders = state.orders.filter(o => !removedIds.has(o.id));
       // Les commandes supprimées ne doivent plus laisser de trace ailleurs (sélection, envois en cours,
       // incidents d'impression affichés) : sinon un incident resterait affiché pour une commande qui n'existe plus.
       removedIds.forEach(id => { state.sending.delete(id); state.printIssues.delete(id); });
       if (removedIds.has(state.selectedId)) state.selectedId = null;
       closeDialog();
-      toast('Recette supprimée');
+      toast('Journée remise à neuf');
     } catch (e) {
       if (e instanceof StaleError) return;
       toast('Connexion impossible : la recette n\'a pas été supprimée.');

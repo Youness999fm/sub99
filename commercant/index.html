@@ -21,8 +21,8 @@
      l'icône NE vide PAS forcément les données du site déjà enregistrées par le navigateur — seule une
      URL réellement nouvelle garantit un contenu neuf, sans dépendre d'une action manuelle de l'utilisateur
      (vider le cache, etc.) ni du cycle de mise à jour du service worker. -->
-<link rel="stylesheet" href="../assets/css/commercant.css?v=20261123c">
-<script src="../assets/js/commercant.js?v=20261123c" defer></script>
+<link rel="stylesheet" href="../assets/css/commercant.css?v=20261124a">
+<script src="../assets/js/commercant.js?v=20261124a" defer></script>
 </head>
 <body>
 
@@ -121,6 +121,14 @@
         <p class="strip-hint">Commandées à l'avance par le client ; elles rejoignent la file le moment venu.</p>
       </div>
       <div class="queue" id="scheduled-queue" aria-label="Commandes programmées à l'avance"></div>
+    </div>
+
+    <div class="queue-strip late-strip" id="late-strip" hidden>
+      <div class="strip-head">
+        <h2>⏰ En retard<span id="late-count"></span></h2>
+        <p class="strip-hint">Le délai annoncé au client est dépassé ; touchez-la quand elle est prête.</p>
+      </div>
+      <div class="queue" id="late-queue" aria-label="Commandes dont le délai annoncé est dépassé"></div>
     </div>
 
     <div class="queue-strip prep-strip" id="prep-strip" hidden>
