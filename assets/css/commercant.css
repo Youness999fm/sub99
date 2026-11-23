@@ -850,6 +850,17 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .ticket .t-drinks .t-item { margin-top: 8px; }
 .ticket .t-drinks .t-item:first-of-type { margin-top: 0; }
 .ticket .t-drinks .t-item-name { font-size: 16px; font-weight: 700; }
+/* Ajout/annulation (order_addenda) sur le ticket : avant ce correctif, ce ticket (le seul écran consulté
+   pour une commande déjà acceptée) ne montrait jamais ces lignes — voir ticketHtml() dans commercant.js. */
+.ticket .t-cancel-notice {
+  margin-bottom: 10px; padding: 3mm 2mm; border: 3px solid var(--red); border-radius: 4px;
+  background: var(--red-tint); color: var(--red-dark); text-align: center; font-size: 17px; font-weight: 800;
+}
+.ticket .t-addendum-box {
+  margin-top: 14px; padding: 10px 12px; background: var(--green-tint); border: 2px dashed var(--green-2); border-radius: 8px;
+}
+.ticket .t-addendum-box .t-addendum-label { margin: 0 0 6px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--green-2); }
+.ticket .t-addendum-box .t-item:first-of-type { margin-top: 0; }
 .ticket-pair { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; align-items: flex-start; }
 .ticket-pair > div { flex: 0 1 300px; }
 .cm-dialog.is-wide { width: min(940px, calc(100vw - 32px)); }
@@ -957,6 +968,17 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .items small.item-note {
   margin-top: 4px; padding: 4px 8px; border-radius: 8px; background: var(--amber-tint);
   color: #5C3A0A; border-left: 3px solid var(--gold);
+}
+/* Ajout (order_addenda kind='add') dans le détail commerçant : repère permanent, plus seulement le toast
+   (15 s) ou le ticket imprimé — voir renderDetail()/addendaHtml dans commercant.js. */
+.items li.addendum-sep {
+  display: block; margin-top: 8px; padding: 4px 0 2px; border-top: 1px dashed var(--line);
+  font-size: 13px; font-weight: 700; color: var(--green-2); text-transform: uppercase; letter-spacing: .02em;
+}
+.items li.item-added { background: var(--green-tint); border-radius: 8px; padding: 6px 8px; }
+.od-cancel-notice {
+  margin: 8px 16px 0; padding: 8px 12px; border-radius: 10px; background: var(--red-tint);
+  color: var(--red-dark); border-left: 4px solid var(--red); font-weight: 700;
 }
 .od-sub { display: flex; justify-content: space-between; gap: 12px; padding: 4px 16px 0; font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .notif-on { display: inline-flex; align-items: center; min-height: 40px; font-size: 14px; color: var(--green-2); font-weight: 700; }

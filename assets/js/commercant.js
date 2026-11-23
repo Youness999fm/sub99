@@ -1250,7 +1250,7 @@
         <button type="button" class="qchip is-new ${on}" data-action="select" data-id="${esc(o.id)}"
           aria-label="Commande ${i + 1} de la file, ${esc(customerLabel(o))}, ${esc(eur(o.total_cents))}">
           <span class="qchip-title">${esc(customerLabel(o))}</span>
-          <span class="qchip-sub">${d ? esc(hm(d)) + ' · ' : ''}${esc(eur(o.total_cents))}</span>
+          <span class="qchip-sub">${d ? esc(hm(d)) + ' · ' : ''}${esc(eur(o.total_cents))}${addendaBadge(o)}</span>
         </button>`;
       }).join('') || `<p class="queue-empty">Aucune commande en attente.</p>`;
     }
@@ -1270,7 +1270,7 @@
         <button type="button" class="qchip is-prep" data-action="prep-open" data-id="${esc(o.id)}"
           aria-label="Commande de ${esc(customerLabel(o))}, en préparation, ${esc(eur(o.total_cents))}. Ouvrir pour la marquer prête">
           <span class="qchip-title">${esc(customerLabel(o))}</span>
-          <span class="qchip-sub">${ready ? 'Prête vers ' + esc(hm(ready)) + ' · ' : ''}${esc(eur(o.total_cents))}</span>
+          <span class="qchip-sub">${ready ? 'Prête vers ' + esc(hm(ready)) + ' · ' : ''}${esc(eur(o.total_cents))}${addendaBadge(o)}</span>
         </button>`;
     }).join(''));
   }
@@ -1351,6 +1351,18 @@
     return mods;
   }
 
+  // Repère visible dans les listes compactes (file, en préparation) qu'une commande a reçu un ajout depuis
+  // sa création — avant ce correctif, un ajout n'était visible nulle part après la disparition du toast
+  // (15 s) et ne changeait jamais l'aperçu de la carte, seul le détail (et le ticket imprimé) en gardait
+  // trace. "⚠" (pas juste "+N") quand un ticket n'est pas encore imprimé : un coup d'œil doit suffire.
+  function addendaBadge(o) {
+    const adds = (o.addenda || []).filter(a => a.kind === 'add');
+    if (!adds.length) return '';
+    const n = adds.reduce((s, a) => s + (a.items || []).reduce((s2, it) => s2 + (Number(it.qty) || 0), 0), 0);
+    const pending = adds.some(a => a.print_pending);
+    return ` · ${pending ? '⚠ ' : ''}+${n} ajouté${n > 1 ? 's' : ''}`;
+  }
+
   function showDecision(on) {
     const col = el.decision.closest('.decide-col');
     if (col) col.hidden = !on;
@@ -1379,6 +1391,27 @@
         <span class="lp">${esc(eur(it.line_total_cents))}</span>
       </li>`).join('');
 
+    // Ajouts (order_addenda kind='add') : affichés à part dans le détail, pas seulement via le toast et le
+    // ticket imprimé (auparavant la SEULE trace visible — invisible dès que le toast disparaît ou que le
+    // ticket papier n'est pas remarqué). Jamais kind='modify' (désactivé) ; kind='cancel' n'a pas de lignes.
+    const addendaHtml = (o.addenda || []).filter(a => a.kind === 'add').map(a => {
+      const dt = toDate(a.created_at);
+      const lignes = (a.items || []).map(it => `
+        <li class="item-added">
+          <span class="qty">${esc(it.qty)}×</span>
+          <span class="item-name">${esc(itemTitle(it))}${itemMods(it).map(m => `<small class="${m.cls}">${esc(m.text)}</small>`).join('')}</span>
+          <span class="lp">${esc(eur(it.line_total_cents))}</span>
+        </li>`).join('');
+      return `<li class="addendum-sep">Ajout${dt ? ' à ' + esc(hm(dt)) : ''}${a.print_pending ? ' · ticket pas encore imprimé' : ''}</li>${lignes}`;
+    }).join('');
+
+    // Annulation (order_addenda kind='cancel') : bandeau explicite en plus du statut "Annulée" (pastille) —
+    // le statut seul se voit seulement en liste, pas forcément au premier coup d'œil sur ce détail.
+    const cancelAddendum = (o.addenda || []).find(a => a.kind === 'cancel');
+    const cancelNotice = o.status === 'cancelled'
+      ? `<div class="od-cancel-notice">⚠ Commande annulée par le client${cancelAddendum && toDate(cancelAddendum.created_at) ? ' à ' + esc(hm(toDate(cancelAddendum.created_at))) : ''}</div>`
+      : '';
+
     const delivery = o.mode === 'delivery';
     const phone = o.customer_phone ? `<span>${esc(o.customer_phone)}</span>` : '';
     const addr = delivery ? `<span>${esc(addressLine(o.delivery_address) || 'Adresse non renseignée')}</span>` : '';
@@ -1396,6 +1429,7 @@
         </div>
         ${statusPill(o.status)}
       </div>
+      ${cancelNotice}
 
       <p class="pickup"><span aria-hidden="true">${delivery ? '➜' : '⌂'}</span> ${delivery ? 'Livraison' : 'À emporter · retrait au commerce'}</p>
 
@@ -1412,7 +1446,7 @@
 
       <div class="od-block od-items">
         <h4>Articles</h4>
-        <ul class="items">${itemsHtml}</ul>
+        <ul class="items">${itemsHtml}${addendaHtml}</ul>
       </div>
 
       ${promo}${fee}
@@ -2119,6 +2153,28 @@
     const texMexLine = (it) => `
       <div class="t-texmex-item">${esc(ticketQtyPrefix(it))}${esc(ticketItemTitle(it).main)}</div>
       ${ticketItemModsHtml(it)}`;
+    // Ajouts/annulation (order_addenda) : jusqu'ici ce ticket (le seul écran que le commerçant consulte en
+    // cliquant une commande « en préparation ») ne montrait QUE o.items — le total en bas reflétait déjà le
+    // bon montant (recalculé par order_addendum_create.js) mais les lignes ajoutées n'apparaissaient nulle
+    // part ici, un écart total/détail trompeur. Seule trace avant ce correctif : le toast (15 s) et le
+    // ticket complémentaire séparé imprimé par printAddendumOnPrinter (jamais revu depuis). Jamais
+    // kind='modify' (désactivé, voir order_addendum_create.js).
+    const cancelAddendum = (o.addenda || []).find(a => a.kind === 'cancel');
+    const cancelNoticeTicket = o.status === 'cancelled'
+      ? `<div class="t-cancel-notice">COMMANDE ANNULÉE PAR LE CLIENT${cancelAddendum && toDate(cancelAddendum.created_at) ? ' À ' + esc(hm(toDate(cancelAddendum.created_at))) : ''}</div>`
+      : '';
+    const addendaHtml = (o.addenda || []).filter(a => a.kind === 'add').map(a => {
+      const dt = toDate(a.created_at);
+      const sub = splitTicketItems(a.items);
+      return `
+      <div class="t-addendum-box">
+        <p class="t-addendum-label">AJOUT${dt ? ' — ' + esc(hm(dt)) : ''}${a.print_pending ? ' (ticket pas encore imprimé)' : ''}</p>
+        ${sub.plats.map(itemLine).join('')}
+        ${sub.texmex.map(texMexLine).join('')}
+        ${sub.desserts.map(itemLine).join('')}
+        ${sub.boissons.map(itemLine).join('')}
+      </div>`;
+    }).join('');
     return `
       <div class="ticket">
         <div class="t-head">
@@ -2127,6 +2183,7 @@
         <div class="t-customer-box">
           <p class="t-customer-name">${esc(customerLabel(o))}</p>
         </div>
+        ${cancelNoticeTicket}
         <div class="t-top">
           <span>${esc(o.customer_phone || '')}</span>
           <span>Reçue à ${received ? esc(hm(received)) : '—'}</span>
@@ -2166,6 +2223,7 @@
           <p class="t-drinks-label">Boissons</p>
           ${boissons.map(itemLine).join('')}
         </div>` : ''}
+        ${addendaHtml}
       </div>`;
   }
 
