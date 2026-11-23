@@ -19,6 +19,12 @@
   overflow: hidden;
 }
 
+/* Bug réel (signalé par l'utilisateur le 23/11/2026) : hideCartAnnounceIfLoggedIn() (cart.js) pose
+   announce.hidden = true une fois la session confirmée, mais [hidden] et .cart-announce ont la même
+   spécificité CSS (0,1,0) — la feuille du site passant après celle du navigateur, display:flex l'emportait
+   et le bandeau restait visible pour un client déjà connecté. */
+.cart-announce[hidden] { display: none; }
+
 .cart-announce::before {
   content: "";
   position: absolute;
