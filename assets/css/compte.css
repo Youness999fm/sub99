@@ -228,6 +228,10 @@ a.account-order:focus-visible {
 .account-order__status--accepted { background: #E3F3E9; color: var(--green-dark); }
 .account-order__status--ready { background: var(--green-dark); color: #fff; }
 .account-order__status--refused { background: #FCECEC; color: var(--red-dark); }
+.account-order__status--cancelled { background: #FCECEC; color: var(--red-dark); }
+.account-order__status--pending-cancel { background: #FFF3DA; color: #7A5300; }
+
+.account-orders-title--past { margin-top: 18px; }
 
 /* Écran "Compte créé !" juste après l'inscription, avant d'arriver sur l'espace client habituel. */
 .account-created {

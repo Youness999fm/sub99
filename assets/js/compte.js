@@ -168,30 +168,46 @@
     return (cents / 100).toFixed(2).replace(".", ",") + " €";
   }
 
+  const STATUS_LABEL = { new: "En attente", accepted: "Acceptée", ready: "Prête", refused: "Refusée", cancelled: "Annulée" };
+  // En cours : le client peut encore avoir besoin de suivre ou d'agir sur la commande (new/accepted), ou
+  // une demande d'annulation est en attente de décision du restaurant. Précédentes : plus rien à suivre
+  // (prête, refusée, ou annulation déjà tranchée) — l'historique, pas l'actualité.
+  function isOngoing(o) {
+    return o.status === "new" || o.status === "accepted" || !!o.cancel_requested_at;
+  }
+
+  function orderCardHtml(o) {
+    // Statut limité à une liste connue : il sert aussi de nom de classe CSS.
+    // Lien vers la page de suivi (commande.html) : en attente, acceptée ou
+    // terminée ; rien à suivre pour une commande refusée ou annulée.
+    const status = Object.prototype.hasOwnProperty.call(STATUS_LABEL, o.status) ? o.status : "new";
+    const id = Number(o.id);
+    const tag = isFinite(id) && id > 0 && status !== "refused" && status !== "cancelled" ? "a" : "div";
+    const href = tag === "a" ? ' href="commande.html?id=' + encodeURIComponent(id) + '"' : "";
+    const total = Number(o.total_cents);
+    const delay = Number(o.delay_minutes);
+    const cancelPending = !!o.cancel_requested_at && (o.status === "new" || o.status === "accepted");
+    const statusText = cancelPending ? "Annulation demandée" : STATUS_LABEL[status];
+    const statusClass = cancelPending ? "pending-cancel" : status;
+    return (
+      '<' + tag + ' class="account-order"' + href + '>' +
+        '<div class="account-order__head"><span>' + escText(formatOrderDate(o.created_at)) + '</span><span class="account-order__status account-order__status--' + statusClass + '">' + escText(statusText) + '</span></div>' +
+        '<div>' + (isFinite(total) && total > 0 ? escText(formatCents(total)) : '') + (isFinite(delay) && delay === 0 ? ' — tout de suite' : isFinite(delay) && delay > 0 ? ' — prête dans ' + escText(delay) + ' min' : '') + '</div>' +
+      '</' + tag + '>'
+    );
+  }
+
   function renderOrders(orders) {
-    const holder = qs("accountOrders");
-    if (!orders.length) {
-      holder.innerHTML = '<p class="account-hint">Aucune commande pour le moment.</p>';
-      return;
-    }
-    const statusLabel = { new: "En attente", accepted: "Acceptée", ready: "Prête", refused: "Refusée" };
-    holder.innerHTML = orders.map(function (o) {
-      // Statut limité à une liste connue : il sert aussi de nom de classe CSS.
-      // Lien vers la page de suivi (commande.html) : en attente, acceptée ou
-      // terminée ; rien à suivre pour une commande refusée.
-      const status = Object.prototype.hasOwnProperty.call(statusLabel, o.status) ? o.status : "new";
-      const id = Number(o.id);
-      const tag = isFinite(id) && id > 0 && status !== "refused" ? "a" : "div";
-      const href = tag === "a" ? ' href="commande.html?id=' + encodeURIComponent(id) + '"' : "";
-      const total = Number(o.total_cents);
-      const delay = Number(o.delay_minutes);
-      return (
-        '<' + tag + ' class="account-order"' + href + '>' +
-          '<div class="account-order__head"><span>' + escText(formatOrderDate(o.created_at)) + '</span><span class="account-order__status account-order__status--' + status + '">' + escText(statusLabel[status]) + '</span></div>' +
-          '<div>' + (isFinite(total) && total > 0 ? escText(formatCents(total)) : '') + (isFinite(delay) && delay === 0 ? ' — tout de suite' : isFinite(delay) && delay > 0 ? ' — prête dans ' + escText(delay) + ' min' : '') + '</div>' +
-        '</' + tag + '>'
-      );
-    }).join("");
+    const current = qs("accountOrdersCurrent");
+    const past = qs("accountOrdersPast");
+    const currentOrders = orders.filter(isOngoing);
+    const pastOrders = orders.filter(function (o) { return !isOngoing(o); });
+    current.innerHTML = currentOrders.length
+      ? currentOrders.map(orderCardHtml).join("")
+      : '<p class="account-hint">Aucune commande en cours.</p>';
+    past.innerHTML = pastOrders.length
+      ? pastOrders.map(orderCardHtml).join("")
+      : '<p class="account-hint">Aucune commande précédente.</p>';
   }
 
   function showLoggedIn(session) {
@@ -228,7 +244,9 @@
 
     if (window.SubitoAccount) {
       window.SubitoAccount.myOrders().then(renderOrders).catch(function () {
-        qs("accountOrders").innerHTML = '<p class="account-hint">Historique indisponible pour l’instant.</p>';
+        const message = '<p class="account-hint">Historique indisponible pour l’instant.</p>';
+        qs("accountOrdersCurrent").innerHTML = message;
+        qs("accountOrdersPast").innerHTML = message;
       });
     }
   }
