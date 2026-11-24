@@ -796,3 +796,32 @@ test('règle de gratuité par prix : balayage combinatoire reproductible (naviga
   }
   assert.equal(n, 40, 'les 40 scénarios combinatoires ont bien tous été exécutés');
 });
+
+// ------------------------------------------------- personnalisation COMPLÈTE (demande du 24/11/2026)
+// Tout combiné en une seule ligne, comme un client composant vraiment sa pizza : changement de base
+// (sauce tomate/crème fraîche/barbecue/curry), taille différente, PLUSIEURS retraits et PLUSIEURS ajouts
+// en même temps (certains couverts par un crédit, d'autres payants) — pas une variation isolée comme les
+// tests ci-dessus, mais le cumul réel. Même oracle (navigateur = serveur) que le reste du fichier.
+test('personnalisation complète : base + taille + plusieurs retraits + plusieurs ajouts, cumulés sur une même ligne', async () => {
+  const b = cartBrowser();
+  const cas = [
+    // Régina (base tomate, jambon, champignons) en Quatro : change de base vers crème fraîche (gratuit),
+    // retire aussi jambon et champignons (2 crédits), ajoute poulet (viande, couvert) et brie (payant).
+    { name: 'Régina', variant: 'Quatro', removed: ['sauce tomate', 'jambon', 'champignons'], extras: ['crème fraîche', 'poulet', 'brie'] },
+    // 3 Jambons (jambon, mortadelle, chorizo) en Solo : retire les 3 garnitures + ajoute 3 suppléments
+    // (œuf et olives couverts par les crédits les moins chers, poulet reste payant) — best-fit à l'œuvre
+    // en même temps qu'un cumul de 3 retraits/3 ajouts.
+    { name: '3 Jambons', variant: 'Solo', removed: ['jambon', 'mortadelle', 'chorizo'], extras: ['Œuf', 'olives', 'poulet'] },
+    // Kefta (sauce tomate, oignons, viande hachée, oeuf) en XXL : change de base vers barbecue (gratuit),
+    // retire aussi l'œuf fixe (crédit), ajoute kebab (viande, payant à cette taille).
+    { name: 'Kefta', variant: 'XXL', removed: ['sauce tomate', 'oeuf'], extras: ['sauce barbecue', 'kebab'] },
+  ];
+  for (const specs of cas) {
+    const cart = browserCart([specs], b);
+    const items = payloadOf(cart, b);
+    const total = b.orderTotalsCents(cart).total_cents;
+    const r = await order(items, { total_cents: total });
+    assert.equal(r.status, 201, `${JSON.stringify(specs)} : ${r.text}`);
+    assert.equal(r.json.order.items[0].line_total_cents, total, `${specs.name} (${specs.variant}) : total enregistré ≠ oracle navigateur`);
+  }
+});
