@@ -8,6 +8,12 @@
 //   node tests/massif/lancer.mjs tests/massif/13-rafale-300-simultanees.mjs --timeout=180
 //
 // Option : --n=500 pour changer le nombre de commandes simultanées (300 par défaut).
+// Option : --clients=C pour que les N commandes soient réparties sur C comptes seulement (chaque client
+// envoie plusieurs commandes, toutes dans la même rafale, avec des clés d'idempotence distinctes) --
+// par défaut C = N (un compte par commande, comportement historique inchangé). Utile à très grande échelle :
+// la création des comptes (bcrypt, coût 10, volontairement coûteux pour la sécurité des mots de passe) domine
+// le temps total bien avant que la création de commandes elle-même ne pose problème -- ce réglage isole donc
+// la vraie question (le serveur tient-il N commandes simultanées ?) du coût, non pertinent ici, de N inscriptions.
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { demarrerSite } from './lib/env.mjs';
@@ -16,6 +22,7 @@ import { rng, construireCommande, definirAdresse } from './lib/commandes.mjs';
 
 const ARGS = Object.fromEntries(process.argv.slice(2).map((a) => { const m = /^--([\w-]+)(?:=(.*))?$/.exec(a); return m ? [m[1], m[2] ?? true] : [a, true]; }));
 const N = Number(ARGS.n ?? 300);
+const NB_COMPTES = Math.min(N, Number(ARGS.clients ?? N));
 
 let nbPass = 0;
 let nbFail = 0;
@@ -25,11 +32,11 @@ function controle(ok, nom, observe = '') {
   return ok;
 }
 
-console.log(`Batterie 13 — ${N} commandes vraiment simultanées (local, base en mémoire)`);
+console.log(`Batterie 13 — ${N} commandes vraiment simultanées sur ${NB_COMPTES} compte(s) (local, base en mémoire)`);
 const site = await demarrerSite();
 try {
   const t0 = performance.now();
-  const clients = await creerClients(N, { concurrence: 50, prefixe: 'rafale300' });
+  const clients = await creerClients(NB_COMPTES, { concurrence: 50, prefixe: 'rafale300' });
   console.log(`${clients.length} comptes clients créés en ${Math.round(performance.now() - t0)} ms`);
 
   // Adresse obligatoire pour les clients qui vont commander en livraison (déterminé à l'avance, par parité).
@@ -37,11 +44,14 @@ try {
   await enParallele(clients, 50, (c, i) => (i % 2 === 0 ? definirAdresse(c, c.ville) : Promise.resolve()));
   console.log(`adresses de livraison posées en ${Math.round(performance.now() - t1) } ms`);
 
-  // Une commande différente par client (pizza, taille, suppléments retirés/ajoutés, mode retrait/livraison,
-  // moyen de paiement, sauce piquante : tout tiré au hasard, graine différente par client -> jamais deux
-  // commandes identiques par construction).
+  // N commandes différentes (pizza, taille, suppléments retirés/ajoutés, mode retrait/livraison, moyen de
+  // paiement, sauce piquante : tout tiré au hasard, graine différente par commande -> jamais deux commandes
+  // identiques par construction), réparties sur les NB_COMPTES comptes (à tour de rôle si N > NB_COMPTES ;
+  // chaque commande garde sa propre clé d'idempotence, donc plusieurs commandes d'un même client dans la
+  // même rafale ne sont jamais prises pour un rejeu de l'une par l'autre).
   const r = rng(Date.now());
-  const plans = clients.map((c, i) => {
+  const plans = Array.from({ length: N }, (_, i) => {
+    const c = clients[i % clients.length];
     const mode = i % 2 === 0 ? 'delivery' : 'pickup';
     const { body, totals } = construireCommande(r, { mode, ville: c.ville, cle: `rafale300-${i}-${Date.now().toString(36)}` });
     return { c, body, totals };
