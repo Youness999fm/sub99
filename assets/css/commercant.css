@@ -1022,6 +1022,14 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 }
 /* Demande en attente (pas encore tranchée) : ambre, jamais rouge (rouge = déjà annulée pour de bon). */
 .od-cancel-notice--pending { background: var(--amber-tint); color: #8A6B1E; border-left-color: var(--gold); }
+/* Bug réel (audit QA du 24/11/2026) : la préférence sauce piquante (livraison, SBT-009) n'était imprimée
+   que sur le ticket papier — invisible à l'écran avant impression, ou si le ticket n'est jamais remarqué.
+   Même traitement visuel que .pickup (urgence immédiate pour la cuisine), ambre pour attirer l'œil sans
+   évoquer une erreur. */
+.od-hotsauce {
+  margin-top: 6px; padding: 7px 14px; border-radius: 10px; background: var(--amber-tint);
+  color: #8A6B1E; font-weight: 800; font-size: 15px;
+}
 .od-sub { display: flex; justify-content: space-between; gap: 12px; padding: 4px 16px 0; font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .notif-on { display: inline-flex; align-items: center; min-height: 40px; font-size: 14px; color: var(--green-2); font-weight: 700; }
 .qchip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

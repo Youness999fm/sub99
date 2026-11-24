@@ -1527,6 +1527,7 @@
       ${cancelNotice}
 
       <p class="pickup"><span aria-hidden="true">${delivery ? '➜' : '⌂'}</span> ${delivery ? 'Livraison' : 'À emporter · retrait au commerce'}</p>
+      ${o.hot_sauce !== null && o.hot_sauce !== undefined ? `<p class="od-hotsauce">🌶 SAUCE PIQUANTE : ${o.hot_sauce ? 'OUI' : 'NON'}</p>` : ''}
 
       <div class="od-grid">
         <div class="od-block">
