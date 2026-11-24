@@ -10,9 +10,15 @@ html:not(.dispo-pret):not(.dispo-echec) .menu-item .add-to-cart {
 }
 
 /* Le bouton de commande reste dans le DOM (masqué, pas retiré) : son espace réservé ne
-   change donc pas de taille au moment où la carte passe en indisponible. */
+   change donc pas de taille au moment où la carte passe en indisponible.
+   .customize est masqué aussi (bug trouvé en production le 24/11/2026) : le panneau
+   « Personnaliser » des produits hors pizza n'était couvert par aucune protection — son
+   bouton « Ajouter au panier » restait actif sur un article épuisé (isBlocked() dans
+   cart.js ne teste que le choix de garniture, jamais la disponibilité), un client pouvait
+   donc commander un plat que le commerçant venait de marquer indisponible. */
 .menu-item.is-off .pizza-widget,
-.menu-item.is-off .add-to-cart {
+.menu-item.is-off .add-to-cart,
+.menu-item.is-off .customize {
   visibility: hidden;
 }
 
