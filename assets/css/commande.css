@@ -56,6 +56,14 @@
   font-size: 1.05rem;
 }
 
+/* Heure choisie d'une commande planifiée déjà acceptée (demande du 24/11/2026), juste au-dessus du
+   compte à rebours qui vise cette même heure. */
+.order-track-scheduled-time {
+  margin: 0 0 6px;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
 .order-track-status--pending {
   background: var(--green-tint);
   color: var(--green-dark);

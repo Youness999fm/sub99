@@ -152,7 +152,7 @@
       : SubitoIcons.svg('hand-heart') + " S'il y a un peu de retard, ne nous en voulez pas — on fait notre maximum pour que ce soit toujours aussi bon !";
   }
 
-  function startCountdown(mode) {
+  function startCountdown(mode, scheduled) {
     if (countdownTimer) clearInterval(countdownTimer);
     function tick() {
       const el = qs("orderCountdown");
@@ -165,15 +165,23 @@
       const remaining = readyAtMs - serverNow();
       if (remaining <= 0) {
         // Écrit une seule fois, et annoncé une fois (aria-live passe à polite) ; le minuteur continue,
-        // pour que la limite de 2 h s'applique toujours.
-        const pret = mode === "delivery" ? "Votre livreur devrait arriver" : "Votre commande est prête !";
+        // pour que la limite de 2 h s'applique toujours. Pour une commande planifiée (demande du
+        // 24/11/2026), l'heure choisie qui arrive ne veut pas dire que c'est déjà prêt — jamais la même
+        // promesse que pour une commande normale, dont le délai annoncé par le restaurant vient de s'écouler.
+        const pret = scheduled
+          ? "C’est l’heure !"
+          : mode === "delivery" ? "Votre livreur devrait arriver" : "Votre commande est prête !";
         if (el.textContent !== pret) {
           el.setAttribute("aria-live", "polite");
           el.textContent = pret;
-          const sorryEl = qs("orderSorry");
-          if (sorryEl) {
-            sorryEl.innerHTML = sorryMessage(mode);
-            sorryEl.hidden = false;
+          // Le petit mot d'excuse parle d'un retard sur un délai déjà annoncé : n'a pas sa place ici,
+          // rien n'est "en retard" au moment même où le créneau planifié arrive.
+          if (!scheduled) {
+            const sorryEl = qs("orderSorry");
+            if (sorryEl) {
+              sorryEl.innerHTML = sorryMessage(mode);
+              sorryEl.hidden = false;
+            }
           }
         }
       } else {
@@ -260,7 +268,12 @@
     canCancelFlag = !!order.can_cancel;
     const parsedCancel = order.cancel_eligible_until ? Date.parse(order.cancel_eligible_until) : NaN;
     cancelUntilMs = isNaN(parsedCancel) ? null : parsedCancel;
-    const parsedReady = order.status === "accepted" && order.ready_at ? Date.parse(order.ready_at) : NaN;
+    // Commande planifiée acceptée (demande du 24/11/2026) : la cible du compte à rebours (et de
+    // l'expiration du suivi, 2h plus tard, voir plus bas) est l'heure CHOISIE par le client, jamais
+    // ready_at — sans rapport avec le créneau réel pour une commande acceptée automatiquement restaurant
+    // fermé (voir le commentaire détaillé sur la branche d'affichage correspondante, plus bas dans render()).
+    const cibleCompte = order.status === "accepted" ? (order.scheduled_for || order.ready_at) : null;
+    const parsedReady = cibleCompte ? Date.parse(cibleCompte) : NaN;
     readyAtMs = isNaN(parsedReady) ? null : parsedReady;
 
     if (readyAtMs !== null && (serverNow() - readyAtMs) > EXPIRE_AFTER_READY_MS) {
@@ -287,8 +300,10 @@
     if (!body) return;
     const modeLabel = order.mode === "delivery" ? SubitoIcons.svg('bike') + " Livraison" : SubitoIcons.svg('shopping-bag') + " À emporter";
     // Pour une livraison, l'heure programmée n'est qu'une estimation (voir cart.js, même rappel au moment
-    // du choix) : jamais annoncée comme un horaire fixe sur ce suivi non plus.
-    const scheduledNote = order.scheduled_for
+    // du choix) : jamais annoncée comme un horaire fixe sur ce suivi non plus. Une fois ACCEPTÉE, ce rappel
+    // est repris dans statusHtml (demande du 24/11/2026 : heure choisie + compte à rebours + mention
+    // approximative regroupés au même endroit) — pas affiché deux fois.
+    const scheduledNote = order.scheduled_for && order.status !== "accepted"
       ? '<p class="order-track-scheduled">' + SubitoIcons.svg('clock') + ' Commande programmée pour ' + esc(scheduledLabel(order.scheduled_for)) +
           (order.mode === "delivery" ? ' <span class="order-track-scheduled__approx">(heure approximative)</span>' : '') + '</p>'
       : "";
@@ -308,6 +323,19 @@
         '<div class="order-track-status order-track-status--urgent" role="status">' +
           '<p class="order-track-status__title">' + SubitoIcons.svg('alarm-clock', '1em', 'subito-icon--ok') + ' Venez vite !</p>' +
           '<p class="order-track-hint">Merci de venir de suite au restaurant, car celui-ci va bientôt fermer.</p>' +
+        '</div>';
+    } else if (order.status === "accepted" && order.scheduled_for) {
+      // Commande planifiée acceptée (demande du 24/11/2026) : le compte à rebours vise l'heure CHOISIE
+      // par le client (scheduled_for), jamais ready_at — qui, pour une commande acceptée automatiquement
+      // restaurant fermé, est calculé depuis l'acceptation immédiate (parfois des heures avant le créneau
+      // réel) et n'a aucun rapport avec le moment réel de préparation (voir render() plus bas, readyAtMs).
+      statusHtml =
+        '<div class="order-track-status order-track-status--ok" role="status">' +
+          '<p class="order-track-status__title">' + SubitoIcons.svg('circle-check', '1em', 'subito-icon--ok') + ' Commande acceptée !</p>' +
+          '<p class="order-track-scheduled-time">' + esc(scheduledLabel(order.scheduled_for)) + '</p>' +
+          '<p class="order-track-countdown" id="orderCountdown" aria-live="off">--:--</p>' +
+          '<p class="order-track-hint">' + (order.mode === "delivery" ? "Votre livreur arrivera vers cette heure." : "Votre commande sera prête vers cette heure.") + ' <span class="order-track-scheduled__approx">Horaire approximatif.</span></p>' +
+          '<p class="order-track-sorry" id="orderSorry" hidden></p>' +
         '</div>';
     } else if (order.status === "accepted") {
       statusHtml =
@@ -393,7 +421,7 @@
       addendaHtml + actionsHtml + addCallHint;
 
     if (readyAtMs !== null && order.delay_minutes !== 0) {
-      startCountdown(order.mode);
+      startCountdown(order.mode, !!order.scheduled_for);
     } else if (countdownTimer) {
       clearInterval(countdownTimer);
       countdownTimer = null;
