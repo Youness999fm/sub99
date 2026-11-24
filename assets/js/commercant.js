@@ -363,10 +363,17 @@
   function openOrders() {
     return state.orders.filter(o => surfaced(o));
   }
-  // Programmées : acceptées nulle part encore, mais trop en avance pour entrer dans la file active.
+  // Programmées, toujours visibles et imprimables depuis l'écran principal (demande du 24/11/2026) : soit
+  // pas encore décidées ("new", trop en avance pour entrer dans la file active) soit déjà acceptées
+  // automatiquement faute de commerçant disponible ("accepted", restaurant fermé au moment de la commande,
+  // voir order_create.js) — dans les deux cas, tant que l'heure demandée par le client n'est pas arrivée.
+  // Une fois cette heure passée, une commande acceptée rejoint "En préparation" (voir prepOrders ci-dessous,
+  // même condition inversée, pour ne jamais l'afficher aux deux endroits à la fois).
   function scheduledOrders() {
     return state.orders
-      .filter(o => o.status === 'new' && o.scheduled_for && !surfaced(o))
+      .filter(o => o.scheduled_for && (
+        o.status === 'new' ? !surfaced(o) : (o.status === 'accepted' && toDate(o.scheduled_for).getTime() > Date.now())
+      ))
       .sort((a, b) => String(a.scheduled_for).localeCompare(String(b.scheduled_for)));
   }
   // Demandes d'annulation en attente de décision (décision du 22/11/2026, rétablie le 24/11/2026 — le
@@ -401,6 +408,9 @@
     const now = Date.now();
     return state.orders
       .filter(o => o.status === 'accepted' && o.service_day === state.serviceDay)
+      // Planifiée pas encore à son heure : reste dans "Programmées" (scheduledOrders ci-dessus), jamais ici
+      // en même temps (sinon affichée aux deux endroits à la fois).
+      .filter(o => !o.scheduled_for || toDate(o.scheduled_for).getTime() <= now)
       .filter(o => o.delay_minutes === 0 || !o.ready_at || new Date(o.ready_at).getTime() > now)
       .sort((a, b) => String(a.accepted_at).localeCompare(String(b.accepted_at)));
   }
@@ -1420,7 +1430,9 @@
     }).join(''));
   }
 
-  // « Programmées » : commandes planifiées par le client, pas encore entrées dans la file active.
+  // « Programmées » : commandes planifiées par le client — en attente de décision ou déjà acceptées
+  // automatiquement —, tant que l'heure demandée n'est pas arrivée (demande du 24/11/2026 : toujours
+  // visibles et imprimables depuis l'écran principal, jamais seulement dans l'onglet "Programmées").
   function renderScheduled() {
     const strip = document.getElementById('scheduled-strip');
     const box = document.getElementById('scheduled-queue');
@@ -1430,16 +1442,22 @@
     // Deux actions distinctes (et non plus une seule puce cliquable) : « Voir » ouvre le ticket en
     // lecture (dialogue existant, avec son propre bouton « Imprimer » à l'intérieur) sans rien envoyer
     // à l'imprimante ; « Imprimer » réimprime directement, sans détour par ce dialogue.
-    setHTML(box, list.map(o => `
+    // Une commande déjà acceptée automatiquement (restaurant fermé au moment de la commande) n'a plus de
+    // décision à prendre : « Voir » ouvre directement le ticket (comme print-order ailleurs dans ce fichier),
+    // jamais le panneau de décision Accepter/Refuser (réservé aux commandes encore "new", voir case 'select').
+    setHTML(box, list.map(o => {
+      const dejaAcceptee = o.status === 'accepted';
+      return `
         <div class="qchip is-scheduled qchip-sched">
-          <button type="button" class="qchip-view" data-action="select" data-id="${esc(o.id)}"
-            aria-label="Voir la commande de ${esc(customerLabel(o))}, programmée pour ${esc(scheduledLabel(o))}, ${esc(eur(o.total_cents))}">
+          <button type="button" class="qchip-view" data-action="${dejaAcceptee ? 'print-order' : 'select'}" data-id="${esc(o.id)}"
+            aria-label="Voir la commande de ${esc(customerLabel(o))}, commande planifiée${dejaAcceptee ? ' déjà acceptée' : ''} pour ${esc(scheduledLabel(o))}, ${esc(eur(o.total_cents))}">
             <span class="qchip-title">${esc(customerLabel(o))}</span>
-            <span class="qchip-sub">${esc(scheduledLabel(o))} · ${esc(eur(o.total_cents))}</span>
+            <span class="qchip-sub">Commande planifiée · ${esc(scheduledLabel(o))}${dejaAcceptee ? ' · déjà acceptée' : ''} · ${esc(eur(o.total_cents))}</span>
           </button>
           <button type="button" class="qchip-print-btn" data-action="print-ticket" data-id="${esc(o.id)}"
             aria-label="Imprimer le ticket de ${esc(customerLabel(o))}" title="Imprimer le ticket">🖶</button>
-        </div>`).join(''));
+        </div>`;
+    }).join(''));
   }
 
   function itemTitle(it) {
@@ -2377,7 +2395,12 @@
   function ticketHtml(o) {
     const delivery = o.mode === 'delivery';
     const received = toDate(o.created_at);
-    const ready = toDate(o.ready_at);
+    // Planifiée pas encore à son heure (acceptée automatiquement, restaurant fermé au moment de la
+    // commande) : ready_at vaut acceptée + délai par défaut, calculé depuis l'acceptation immédiate —
+    // sans rapport avec l'heure réellement demandée, déjà bien visible juste au-dessus ("PLANIFIÉE").
+    // L'afficher quand même ("Prête vers 02h56" pour une commande à 18h30) serait trompeur.
+    const schedFuture = o.scheduled_for && toDate(o.scheduled_for) && toDate(o.scheduled_for).getTime() > Date.now();
+    const ready = schedFuture ? null : toDate(o.ready_at);
     const { plats, texmex, desserts, boissons } = splitTicketItems(o.items);
     const itemLine = (it, i, arr) => {
       const { main, size } = ticketItemTitle(it);
