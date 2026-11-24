@@ -2129,8 +2129,12 @@
     setHTML(list, state.customers.map(c => {
       const name = `${c.last_name || ''} ${c.first_name || ''}`.trim() || 'Sans nom';
       const on = String(c.id) === String(state.selectedClientId);
-      return `<li><button type="button" class="cl-btn" data-action="client" data-id="${esc(c.id)}" aria-pressed="${on}">
-        <span>${esc(name)}</span><span class="cl-sub">${esc(c.phone || '')}</span></button></li>`;
+      return `<li class="cl-row">
+        <button type="button" class="cl-btn" data-action="client" data-id="${esc(c.id)}" aria-pressed="${on}">
+          <span>${esc(name)}</span><span class="cl-sub">${esc(c.phone || '')}</span>
+        </button>
+        <button type="button" class="cl-delete" data-action="client-delete-open" data-id="${esc(c.id)}" title="Supprimer ce client" aria-label="Supprimer ${esc(name)}">✕</button>
+      </li>`;
     }).join('') || (state.customersState === 'ok' ? `<li class="client-empty">Aucun client ne correspond à cette recherche.</li>` : ''));
     const c = state.customers.find(x => String(x.id) === String(state.selectedClientId));
     const row = (label, value) => `<div><dt>${label}</dt><dd>${value ? esc(value) : '<span class="muted">—</span>'}</dd></div>`;
@@ -3236,6 +3240,53 @@
     `);
   }
 
+  // Suppression d'un client (demande du 24/11/2026, accès supérieur) : nom + numéro affichés dans la
+  // confirmation pour être sûr de supprimer le bon, avec un rappel honnête de ce qui se passe réellement
+  // selon qu'il a déjà commandé ou non (le serveur décide, voir owner_customer_delete.js — jamais deviné
+  // ici : une commande peut avoir été passée entre le chargement de la liste et le clic).
+  function openClientDeleteConfirm(c) {
+    const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Sans nom';
+    openDialog(`
+      <h3>Supprimer ${esc(name)} ?</h3>
+      <p>${esc(c.phone || '')}${c.phone && c.email ? ' · ' : ''}${esc(c.email || '')}</p>
+      <p>S'il n'a jamais commandé, sa fiche est supprimée pour de bon. S'il a déjà commandé, son nom,
+      son e-mail, son téléphone et son adresse sont effacés (il ne peut plus se reconnecter) — l'historique
+      de ses commandes, lui, reste intact. Cette action est irréversible.</p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-refuse" data-action="dlg-confirm-client-delete" data-id="${esc(c.id)}" ${state.sending.has('cust-del-' + c.id) ? 'disabled' : ''}>
+          ${state.sending.has('cust-del-' + c.id) ? 'Suppression…' : 'Oui, supprimer'}
+        </button>
+        <button type="button" class="btn btn-ghost" data-action="dlg-close">Annuler</button>
+      </div>
+    `);
+  }
+
+  async function deleteClient(id) {
+    const key = 'cust-del-' + id;
+    if (state.sending.has(key)) return;
+    state.sending.add(key);
+    scheduleRender();
+    try {
+      const r = await api('owner_customer_delete.php', { method: 'POST', body: { id, code: state.superCode } });
+      if (r.unauth) return;
+      if (!r.ok) {
+        if (r.data.error === 'invalid_super_code') { closeDialog(); superLock('Accès supérieur invalide, reverrouillé.'); return; }
+        toast(r.data.message || 'Suppression impossible pour le moment. Réessayez.');
+        return;
+      }
+      state.customers = state.customers.filter(c => String(c.id) !== String(id));
+      if (String(state.selectedClientId) === String(id)) state.selectedClientId = null;
+      closeDialog();
+      toast(r.data.anonymized ? 'Client supprimé (historique des commandes conservé).' : 'Client supprimé.');
+    } catch (e) {
+      if (e instanceof StaleError) return;
+      toast('Connexion impossible : le client n\'a pas été supprimé.');
+    } finally {
+      state.sending.delete(key);
+      scheduleRender();
+    }
+  }
+
   function openRevokeConfirm(scope) {
     const all = scope === 'all';
     openDialog(`
@@ -3485,6 +3536,14 @@
       case 'dlg-confirm-refuse':
         closeDialog();
         decide(id, 'refuse');
+        return;
+      case 'client-delete-open': {
+        const c = state.customers.find(x => String(x.id) === String(id));
+        if (c) openClientDeleteConfirm(c);
+        return;
+      }
+      case 'dlg-confirm-client-delete':
+        deleteClient(id);
         return;
       case 'default-delay-open':
         openDialog(defaultDelayHtml());

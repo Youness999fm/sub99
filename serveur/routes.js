@@ -17,6 +17,7 @@ import order_status from './routes/order_status.js';
 import owner_addendum_print_ack from './routes/owner_addendum_print_ack.js';
 import owner_addendum_print_claim from './routes/owner_addendum_print_claim.js';
 import owner_availability from './routes/owner_availability.js';
+import owner_customer_delete from './routes/owner_customer_delete.js';
 import owner_customers from './routes/owner_customers.js';
 import owner_login from './routes/owner_login.js';
 import owner_logout from './routes/owner_logout.js';
@@ -53,6 +54,7 @@ export const ROUTES = {
   owner_addendum_print_ack,
   owner_addendum_print_claim,
   owner_availability,
+  owner_customer_delete,
   owner_customers,
   owner_login,
   owner_logout,
