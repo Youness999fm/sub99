@@ -1277,7 +1277,26 @@
         </button>`;
       }).join('') || `<p class="queue-empty">Aucune commande en attente.</p>`;
     }
+    // Fluidité (audit du 24/11/2026) : la file défile horizontalement, et un sondage (toutes les 4 s) peut
+    // retirer une commande décidée sur UN AUTRE appareil, même une commande à gauche de celle que le
+    // commerçant regarde. Sans ce correctif, la position de défilement reste au même nombre de pixels mais
+    // les cartes glissent dessous : le commerçant peut se retrouver, sans s'en rendre compte, sur une autre
+    // commande que celle qu'il regardait l'instant d'avant. On repère ici la commande actuellement la plus
+    // à gauche visible et on la garde au même endroit après le rendu, au lieu de garder le même nombre de
+    // pixels. Sans effet si rien n'a changé (setHTML ne touche pas le DOM) ou si cette commande a disparu.
+    const q = el.queue;
+    const aChange = q && lastHtml.get(q) !== html;
+    let ancre = null;
+    if (aChange && q.scrollLeft > 0) {
+      for (const b of q.querySelectorAll('[data-id]')) {
+        if (b.offsetLeft + b.offsetWidth > q.scrollLeft) { ancre = b.dataset.id; break; }
+      }
+    }
     setHTML(el.queue, html);
+    if (ancre !== null) {
+      const cible = [...q.querySelectorAll('[data-id]')].find(b => b.dataset.id === ancre);
+      if (cible) q.scrollLeft = cible.offsetLeft;
+    }
   }
 
   // « En préparation » : commandes acceptées, à marquer prêtes (le suivi du client se met à jour tout seul).
