@@ -763,7 +763,20 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
   border-bottom: 2px solid var(--line); padding-bottom: 6px; margin-bottom: 10px;
 }
 .sched-day__list { display: flex; flex-direction: column; gap: 8px; }
-.sched-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; background: var(--cream); }
+/* Voir / Imprimer (demande du 24/11/2026) : même schéma que .qchip-sched ci-dessus, deux actions
+   distinctes au lieu d'une simple fiche de lecture. */
+.sched-card { border: 1px solid var(--line); border-radius: 12px; padding: 0; background: var(--cream); display: flex; align-items: stretch; }
+.sched-card__view {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; text-align: left;
+  padding: 10px 8px 10px 14px; background: none; border: none; color: inherit; font: inherit;
+  cursor: pointer; touch-action: manipulation;
+}
+.sched-card__print {
+  flex: 0 0 auto; width: 40px; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.06); border: none; border-left: 2px solid var(--line); color: inherit;
+  font-size: 18px; cursor: pointer; touch-action: manipulation; border-radius: 0 12px 12px 0;
+}
+.sched-card__print:hover, .sched-card__print:focus-visible { background: rgba(0, 0, 0, 0.12); }
 .sched-card__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 800; }
 .sched-card__time { font-variant-numeric: tabular-nums; color: var(--green-2); font-size: 17px; }
 .sched-card__name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
@@ -853,10 +866,9 @@ body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
 .ticket .t-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 16px; }
 .ticket .t-item:first-child { margin-top: 0; }
 .ticket .t-item-name { flex: 1 1 auto; min-width: 0; font-size: 24px; font-weight: 800; line-height: 1.2; overflow-wrap: break-word; }
-/* Taille (SBT-007) toujours alignée à droite de la ligne, au-dessus du prix — jamais noyée dans le nom. */
-.ticket .t-item-right { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.ticket .t-item-size { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
-.ticket .t-item-price { font-size: 16px; font-weight: 700; white-space: nowrap; }
+/* Taille (SBT-007) toujours alignée à droite de la ligne — jamais noyée dans le nom. Jamais de prix par
+   article sur ce ticket (demande du 24/11/2026) : seul le TOTAL compte pour la cuisine. */
+.ticket .t-item-size { flex: 0 0 auto; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
 .ticket .t-hotsauce { margin-top: 10px; font-size: 16px; text-align: center; }
 /* Tex-Mex (SBT-008) : encadré bien visible juste après les pizzas, pour que la cuisine le lance tout de suite. */
 .ticket .t-texmex-box {

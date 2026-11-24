@@ -350,7 +350,12 @@
     return txt;
   }
   function findOrder(id) {
-    return state.orders.find(o => String(o.id) === String(id)) || null;
+    // Repli sur state.scheduledWeek (demande du 24/11/2026 : voir et imprimer depuis "Programmées cette
+    // semaine" aussi) : owner_orders.php ne renvoie une commande déjà "accepted" que le jour même (voir
+    // service_day), donc une commande planifiée acceptée automatiquement pour un autre jour n'existe que là.
+    return state.orders.find(o => String(o.id) === String(id))
+      || state.scheduledWeek.find(o => String(o.id) === String(id))
+      || null;
   }
   /** Retrouve un order_addenda et sa commande à partir du seul id de l'addenda (réessai manuel d'un ticket complémentaire). */
   function findAddendum(addendumId) {
@@ -1768,17 +1773,26 @@
             const etat = o.status === 'accepted'
               ? '<span class="sched-badge sched-badge--accepted">Déjà acceptée</span>'
               : '<span class="sched-badge sched-badge--pending">En attente de votre acceptation</span>';
+            // Voir + imprimer à la demande (demande du 24/11/2026) : "Voir" ouvre le ticket (lecture,
+            // avec son propre bouton Imprimer à l'intérieur — jamais de panneau de décision Accepter/
+            // Refuser ici, cette semaine est un aperçu, pas une file à traiter) ; "Imprimer" réimprime
+            // directement. findOrder() sait retrouver ces commandes dans state.scheduledWeek.
             return `
             <div class="sched-card">
-              <div class="sched-card__head">
-                <span class="sched-card__time">${d ? esc(hm(d)) : '—'}</span>
-                <span class="sched-card__name">${esc(customerLabel(o))}</span>
-                ${etat}
-              </div>
-              <div class="sched-card__sub">
-                <span>${delivery ? '➜ Livraison' : '⌂ À emporter'}</span>
-                <span>${esc(eur(o.total_cents))}</span>
-              </div>
+              <button type="button" class="sched-card__view" data-action="print-order" data-id="${esc(o.id)}"
+                aria-label="Voir la commande de ${esc(customerLabel(o))}, programmée pour ${esc(scheduledLabel(o))}, ${esc(eur(o.total_cents))}">
+                <div class="sched-card__head">
+                  <span class="sched-card__time">${d ? esc(hm(d)) : '—'}</span>
+                  <span class="sched-card__name">${esc(customerLabel(o))}</span>
+                  ${etat}
+                </div>
+                <div class="sched-card__sub">
+                  <span>${delivery ? '➜ Livraison' : '⌂ À emporter'}</span>
+                  <span>${esc(eur(o.total_cents))}</span>
+                </div>
+              </button>
+              <button type="button" class="sched-card__print" data-action="print-ticket" data-id="${esc(o.id)}"
+                aria-label="Imprimer le ticket de ${esc(customerLabel(o))}" title="Imprimer le ticket">🖶</button>
             </div>`;
           }).join('')}
         </div>
@@ -2402,16 +2416,15 @@
     const schedFuture = o.scheduled_for && toDate(o.scheduled_for) && toDate(o.scheduled_for).getTime() > Date.now();
     const ready = schedFuture ? null : toDate(o.ready_at);
     const { plats, texmex, desserts, boissons } = splitTicketItems(o.items);
+    // Jamais le prix de chaque article sur le ticket commerçant (demande du 24/11/2026) : seul le TOTAL
+    // compte pour la cuisine, le détail des prix n'a sa place que sur le reçu du client.
     const itemLine = (it, i, arr) => {
       const { main, size } = ticketItemTitle(it);
       return `
       ${i > 0 && ticketSizeRank(arr[i - 1]) !== ticketSizeRank(it) ? '<div class="t-size-break"></div>' : ''}
       <div class="t-item">
         <span class="t-item-name">${esc(ticketQtyPrefix(it))}${esc(main)}</span>
-        <span class="t-item-right">
-          ${size ? `<span class="t-item-size">${esc(size)}</span>` : ''}
-          <span class="t-item-price">${esc(eur(it.line_total_cents))}</span>
-        </span>
+        ${size ? `<span class="t-item-size">${esc(size)}</span>` : ''}
       </div>
       ${ticketItemModsHtml(it)}`;
     };
@@ -2872,7 +2885,9 @@
       charSize(1, 1); bold(false);
       align(0);
       o.desserts.forEach(it => {
-        text(escTwoCol(`${it.qtyPrefix}${it.title}`, it.lineTotal));
+        // Jamais le prix par article sur ce ticket (demande du 24/11/2026) : seul le TOTAL, déjà imprimé
+        // juste au-dessus, compte pour la cuisine/l'accueil.
+        text(escAscii(`${it.qtyPrefix}${it.title}`) + '\n');
         printMods(it);
       });
     }
@@ -2884,7 +2899,7 @@
       charSize(1, 1); bold(false);
       align(0);
       o.drinks.forEach(it => {
-        text(escTwoCol(`${it.qtyPrefix}${it.title}`, it.lineTotal));
+        text(escAscii(`${it.qtyPrefix}${it.title}`) + '\n');
         printMods(it);
       });
     }
@@ -3164,11 +3179,16 @@
 
   function openOrderTicket(o) {
     const busy = state.sending.has(String(o.id));
+    // Commande planifiée pas encore à son heure (demande du 24/11/2026 : "Voir" depuis "Programmées cette
+    // semaine" ouvre désormais n'importe quelle commande, y compris des jours à l'avance) : jamais de bouton
+    // "Commande prête" avant le créneau choisi par le client, pour ne pas prévenir le client par erreur des
+    // jours trop tôt.
+    const schedFuture = o.scheduled_for && toDate(o.scheduled_for) && toDate(o.scheduled_for).getTime() > Date.now();
     openDialog(`
       <h3>Ticket — ${esc(customerLabel(o))}</h3>
       ${ticketHtml(o)}
       <div class="dlg-actions">
-        ${o.status === 'accepted' ? `<button type="button" class="btn btn-accept" data-action="mark-ready" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>${busy ? 'Envoi…' : (o.mode === 'delivery' ? 'Livreur sur la route · prévenir le client' : 'Commande prête · prévenir le client')}</button>` : ''}
+        ${o.status === 'accepted' && !schedFuture ? `<button type="button" class="btn btn-accept" data-action="mark-ready" data-id="${esc(o.id)}" ${busy ? 'disabled' : ''}>${busy ? 'Envoi…' : (o.mode === 'delivery' ? 'Livreur sur la route · prévenir le client' : 'Commande prête · prévenir le client')}</button>` : ''}
         <button type="button" class="btn btn-accept" data-action="print-ticket" data-id="${esc(o.id)}">${hasAndroidPrinter() ? 'Réimprimer le ticket' : 'Imprimer le ticket'}</button>
         <button type="button" class="btn btn-ghost" data-action="dlg-close">Fermer</button>
       </div>
