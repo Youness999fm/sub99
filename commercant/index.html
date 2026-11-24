@@ -15,14 +15,14 @@
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/icons/favicon-32.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&display=optional">
 <!-- ?v= bumpé à chaque déploiement touchant commercant.css/commercant.js (décision du 22/11/2026) : sur
      un appareil mobile (PWA ajoutée à l'écran d'accueil, notamment iOS), supprimer puis réinstaller
      l'icône NE vide PAS forcément les données du site déjà enregistrées par le navigateur — seule une
      URL réellement nouvelle garantit un contenu neuf, sans dépendre d'une action manuelle de l'utilisateur
      (vider le cache, etc.) ni du cycle de mise à jour du service worker. -->
-<link rel="stylesheet" href="../assets/css/commercant.css?v=20261124f">
-<script src="../assets/js/commercant.js?v=20261124j" defer></script>
+<link rel="stylesheet" href="../assets/css/commercant.min.css?v=20261124f">
+<script src="../assets/js/commercant.min.js?v=20261124j" defer></script>
 </head>
 <body>
 
@@ -32,7 +32,7 @@
 
 <section class="login-view" id="login-view" aria-labelledby="login-title" hidden>
   <form class="login-card" id="login-form" novalidate>
-    <span class="cm-logo login-logo"><img src="../assets/img/logo.jpg" alt="" width="64" height="64"></span>
+    <span class="cm-logo login-logo"><img src="../assets/img/icons/icon-192.png" alt="" width="64" height="64"></span>
     <h1 class="login-title" id="login-title">Subito Pizza</h1>
     <p class="login-kicker">Espace commerçant</p>
     <p class="login-error" id="login-error" role="alert" aria-live="assertive"></p>
@@ -50,7 +50,7 @@
 
 <header class="cm-top" id="app-top" hidden>
   <div class="cm-brand">
-    <span class="cm-logo"><img src="../assets/img/logo.jpg" alt="" width="36" height="36"></span>
+    <span class="cm-logo"><img src="../assets/img/icons/favicon-32.png" alt="" width="36" height="36"></span>
     <div class="cm-brand-text">
       <h1 class="cm-title">Subito Pizza</h1>
       <p class="cm-kicker">Espace commerçant</p>

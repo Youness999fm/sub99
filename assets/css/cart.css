@@ -126,8 +126,10 @@
 
 .add-to-cart__dec,
 .add-to-cart__inc {
-  width: 28px;
-  height: 28px;
+  /* 40px (audit perf du 24/11/2026, cible tactile confortable pour un bouton tapé plusieurs fois
+     de suite) au lieu de 28px — même cercle, même icône, juste plus de surface cliquable. */
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: none;
   background: rgba(255, 255, 255, 0.18);
@@ -398,8 +400,9 @@
 }
 
 .cart-line__dec, .cart-line__inc {
-  width: 32px;
-  height: 32px;
+  /* 42px (audit perf du 24/11/2026, cible tactile confortable) au lieu de 32px. */
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: none;
   background: #fff;
@@ -1179,6 +1182,10 @@
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
+  /* Cible tactile >= 44px (audit perf du 24/11/2026) sans agrandir visuellement la case/le texte :
+     le padding élargit la zone cliquable, la marge négative annule son effet sur le layout voisin. */
+  padding: 12px 0;
+  margin: -12px 0;
 }
 
 .customize__half-toggle input { width: 18px; height: 18px; }

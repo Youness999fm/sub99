@@ -9,14 +9,17 @@
   },
   "scripts": {
     "dev": "node serveur/outils/dev.mjs",
-    "test:serveur":"node --test \"tests/serveur/*.test.mjs\"",
-    "hash-code": "node serveur/outils/hash-code.mjs"
+    "test:serveur": "node --test \"tests/serveur/*.test.mjs\"",
+    "hash-code": "node serveur/outils/hash-code.mjs",
+    "build:assets": "node tools/minify-assets.mjs && node tools/convert-images.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "pg": "^8.13.0"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.3.0"
+    "@electric-sql/pglite": "^0.3.0",
+    "esbuild": "^0.28.2",
+    "sharp": "^0.35.5"
   }
 }

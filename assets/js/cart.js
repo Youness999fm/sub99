@@ -1468,7 +1468,7 @@ const SUBITO_CART_CONFIG = {
       '<span class="add-to-cart__qty">0</span>' +
       '<button type="button" class="add-to-cart__inc" aria-label="Augmenter">+</button>';
 
-    function syncFromCart() {
+    function syncFromCart(e) {
       if (isBlocked()) {
         btn.disabled = true;
         btn.hidden = false;
@@ -1476,7 +1476,11 @@ const SUBITO_CART_CONFIG = {
         return;
       }
       btn.disabled = false;
-      const cart = readCart();
+      // Réutilise le panier déjà lu par renderAll() quand l'event « cart:sync » le fournit (audit
+      // perf du 24/11/2026) — évite de re-parser le même JSON pour chacun des ~34 widgets du menu
+      // à chaque ajout/retrait. Un readCart() complet reste nécessaire pour les appels directs
+      // ci-dessus (clic, initialisation) qui n'ont pas d'event sous la main.
+      const cart = (e && e.detail && e.detail.cart) || readCart();
       const line = cart.find(function (l) { return l.id === lineId(getName(), ""); });
       const qty = line ? line.qty : 0;
       stepper.querySelector(".add-to-cart__qty").textContent = String(qty);
@@ -2832,9 +2836,26 @@ const SUBITO_CART_CONFIG = {
     if (drawerLastFocused && typeof drawerLastFocused.focus === "function") drawerLastFocused.focus();
   }
 
+  // Éléments atteignables au clavier dans le panier (même principe que order-launch.js) :
+  // garde Tab à l'intérieur du panneau tant qu'il est ouvert, plutôt que de laisser le focus
+  // s'échapper vers le reste de la page masquée derrière l'overlay.
+  function drawerFocusables(overlay) {
+    return Array.prototype.slice.call(
+      overlay.querySelectorAll("a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])")
+    );
+  }
+
   function onDrawerKeydown(e) {
     const overlay = document.getElementById("cartOverlay");
-    if (e.key === "Escape" && overlay && !overlay.hidden) closeDrawer();
+    if (!overlay || overlay.hidden) return;
+    if (e.key === "Escape") { closeDrawer(); return; }
+    if (e.key !== "Tab") return;
+    const items = drawerFocusables(overlay);
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
 
   // Version simplifiée, pensée pour être partagée à quelqu'un d'autre (qui
@@ -2886,8 +2907,11 @@ const SUBITO_CART_CONFIG = {
       renderDrawer();
     }
 
+    // CustomEvent + detail.cart (audit perf du 24/11/2026) : le panier est déjà lu ci-dessus
+    // (ligne 2897) — le transmettre évite à chacun des widgets « ajouter » du menu de refaire son
+    // propre readCart() (JSON.parse complet) juste pour se resynchroniser après ce même rendu.
     simpleAddWidgets.forEach(function (widget) {
-      widget.dispatchEvent(new Event("cart:sync"));
+      widget.dispatchEvent(new CustomEvent("cart:sync", { detail: { cart: cart } }));
     });
   }
 

@@ -25,15 +25,15 @@
 <meta name="theme-color" content="#0E3B27">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
-<link rel="stylesheet" href="assets/css/style.css">
-<link rel="stylesheet" href="assets/css/cart.css">
-<link rel="stylesheet" href="assets/css/compte.css">
-<script src="assets/js/main.js" defer></script>
-<script src="assets/js/account.js" defer></script>
-<script src="assets/js/icons.js" defer></script>
-<script src="assets/js/cart.js" defer></script>
-<script src="assets/js/compte.js" defer></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=optional">
+<link rel="stylesheet" href="assets/css/style.min.css?v=20261124a">
+<link rel="stylesheet" href="assets/css/cart.min.css?v=20261124a">
+<link rel="stylesheet" href="assets/css/compte.min.css?v=20261124a">
+<script src="assets/js/main.min.js?v=20261124a" defer></script>
+<script src="assets/js/account.min.js?v=20261124a" defer></script>
+<script src="assets/js/icons.min.js?v=20261124a" defer></script>
+<script src="assets/js/cart.min.js?v=20261124a" defer></script>
+<script src="assets/js/compte.min.js?v=20261124a" defer></script>
 </head>
 <body>
 
@@ -47,7 +47,7 @@
     </a>
 
     <a href="index.html" class="site-header__logo" aria-label="Subito Pizza — accueil">
-      <img src="assets/img/logo.jpg" alt="Subito Pizza">
+      <picture><source srcset="assets/img/logo.webp" type="image/webp"><img src="assets/img/logo.jpg" alt="Subito Pizza"></picture>
     </a>
 
     <a class="site-header__badge site-header__badge--social" href="reseaux.html">
@@ -87,33 +87,34 @@
       </div>
 
       <form id="loginForm" class="account-form" novalidate>
-        <label class="review-form__field">Email
+        <label class="review-form__field"><span>Email<span class="req-mark" aria-hidden="true"> *</span></span>
           <input type="email" id="loginEmail" name="email" autocomplete="email" required>
         </label>
-        <label class="review-form__field">Mot de passe
+        <label class="review-form__field"><span>Mot de passe<span class="req-mark" aria-hidden="true"> *</span></span>
           <input type="password" id="loginPassword" name="password" autocomplete="current-password" required minlength="8">
         </label>
-        <p class="account-error" id="loginError" role="alert" hidden></p>
+        <p class="account-error" id="loginError" role="alert" tabindex="-1" hidden></p>
         <button type="submit" class="btn-solid" id="loginSubmit">Se connecter</button>
       </form>
 
       <form id="signupForm" class="account-form" hidden novalidate>
-        <label class="review-form__field">Prénom
+        <p class="account-hint"><span class="req-mark" aria-hidden="true">*</span> champ obligatoire</p>
+        <label class="review-form__field"><span>Prénom<span class="req-mark" aria-hidden="true"> *</span></span>
           <input type="text" id="signupFirstName" name="firstName" autocomplete="given-name" required>
         </label>
-        <label class="review-form__field">Nom
+        <label class="review-form__field"><span>Nom<span class="req-mark" aria-hidden="true"> *</span></span>
           <input type="text" id="signupLastName" name="lastName" autocomplete="family-name" required>
         </label>
-        <label class="review-form__field">Email
+        <label class="review-form__field"><span>Email<span class="req-mark" aria-hidden="true"> *</span></span>
           <input type="email" id="signupEmail" name="email" autocomplete="email" required>
         </label>
-        <label class="review-form__field">Téléphone
+        <label class="review-form__field"><span>Téléphone<span class="req-mark" aria-hidden="true"> *</span></span>
           <input type="tel" id="signupPhone" name="phone" autocomplete="tel" required>
         </label>
-        <label class="review-form__field">Mot de passe
+        <label class="review-form__field"><span>Mot de passe<span class="req-mark" aria-hidden="true"> *</span></span>
           <input type="password" id="signupPassword" name="password" autocomplete="new-password" required minlength="8">
         </label>
-        <label class="review-form__field">Confirmer le mot de passe
+        <label class="review-form__field"><span>Confirmer le mot de passe<span class="req-mark" aria-hidden="true"> *</span></span>
           <input type="password" id="signupPasswordConfirm" name="passwordConfirm" autocomplete="new-password" required minlength="8">
         </label>
         <p class="account-hint">8 caractères minimum.</p>
@@ -130,7 +131,7 @@
         </label>
         <p class="account-hint" id="signupAptHint" hidden>Pensez à préciser le numéro d’appartement dans le champ « Numéro et rue » ci-dessus (ex. « 12 rue de la Paix, Appt 4 »).</p>
 
-        <p class="account-error" id="signupError" role="alert" hidden></p>
+        <p class="account-error" id="signupError" role="alert" tabindex="-1" hidden></p>
         <button type="submit" class="btn-solid" id="signupSubmit">Créer mon compte</button>
       </form>
     </div>
@@ -155,16 +156,16 @@
           <p id="summaryAddressRow" hidden><span class="account-summary__label">Adresse</span><span id="summaryAddress"></span></p>
         </div>
         <form id="profileForm" class="account-form" hidden novalidate>
-          <label class="review-form__field">Prénom
+          <label class="review-form__field"><span>Prénom<span class="req-mark" aria-hidden="true"> *</span></span>
             <input type="text" id="profileFirstName" name="first_name" autocomplete="given-name" required>
           </label>
-          <label class="review-form__field">Nom
+          <label class="review-form__field"><span>Nom<span class="req-mark" aria-hidden="true"> *</span></span>
             <input type="text" id="profileLastName" name="last_name" autocomplete="family-name" required>
           </label>
-          <label class="review-form__field">Téléphone
+          <label class="review-form__field"><span>Téléphone<span class="req-mark" aria-hidden="true"> *</span></span>
             <input type="tel" id="profilePhone" name="phone" autocomplete="tel" required>
           </label>
-          <p class="account-error" id="profileError" role="alert" hidden></p>
+          <p class="account-error" id="profileError" role="alert" tabindex="-1" hidden></p>
           <p class="account-success" id="profileSuccess" role="status" hidden></p>
           <button type="submit" class="btn-solid" id="profileSubmit">Enregistrer mes informations</button>
         </form>
@@ -184,7 +185,7 @@
             <select id="addressHousingType" name="housing_type"></select>
           </label>
           <p class="account-hint" id="addressAptHint" hidden>Pensez à préciser le numéro d’appartement dans le champ « Numéro et rue » ci-dessus (ex. « 12 rue de la Paix, Appt 4 »).</p>
-          <p class="account-error" id="addressError" role="alert" hidden></p>
+          <p class="account-error" id="addressError" role="alert" tabindex="-1" hidden></p>
           <p class="account-success" id="addressSuccess" role="status" hidden></p>
           <button type="submit" class="btn-outline" id="addressSubmit">Enregistrer mon adresse</button>
         </form>

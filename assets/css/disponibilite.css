@@ -4,7 +4,15 @@
    une pizza indisponible ne doit jamais pouvoir être ajoutée. Pas de délai : une source lente reste
    masquée jusqu'à sa lecture. Si le fichier du script ne charge pas, menu.html pose la classe
    dispo-echec : les boutons redeviennent disponibles, sans retrait (choix à confirmer). */
-html:not(.dispo-pret):not(.dispo-echec) .menu-item .pizza-widget {
+html:not(.dispo-pret):not(.dispo-echec) .menu-item .pizza-widget,
+html:not(.dispo-pret):not(.dispo-echec) .menu-item .add-to-cart {
+  visibility: hidden;
+}
+
+/* Le bouton de commande reste dans le DOM (masqué, pas retiré) : son espace réservé ne
+   change donc pas de taille au moment où la carte passe en indisponible. */
+.menu-item.is-off .pizza-widget,
+.menu-item.is-off .add-to-cart {
   visibility: hidden;
 }
 
@@ -68,11 +76,20 @@ html:not(.dispo-pret):not(.dispo-echec) .menu-item .pizza-widget {
   box-shadow: 0 10px 22px -10px rgba(168, 30, 30, 0.8);
 }
 
-/* Sous-ligne manuscrite, sous les ingrédients. */
+/* Sous-ligne manuscrite — DANS le calque .dispo-visuel (position absolute, voir plus haut),
+   pas en flux normal sous les ingrédients : ajoutée après coup (une fois la disponibilité lue),
+   un élément en flux aurait décalé le reste de la carte (CLS, audit perf du 24/11/2026). */
 .dispo-rest {
-  margin: 6px 0 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  margin: 0;
+  padding: 0 14px;
+  text-align: center;
   font-family: "Caveat", "Segoe Script", cursive;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, calc((100cqi - 28px) * 0.075), 1.3rem);
   line-height: 1.2;
-  color: var(--red-dark);
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
 }

@@ -24,15 +24,15 @@
 <meta name="theme-color" content="#0E3B27">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
-<link rel="stylesheet" href="assets/css/style.css">
-<link rel="stylesheet" href="assets/css/cart.css">
-<link rel="stylesheet" href="assets/css/order-launch.css">
-<script src="assets/js/main.js" defer></script>
-<script src="assets/js/account.js" defer></script>
-<script src="assets/js/icons.js" defer></script>
-<script src="assets/js/cart.js" defer></script>
-<script src="assets/js/order-launch.js" defer></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=optional">
+<link rel="stylesheet" href="assets/css/style.min.css?v=20261124a">
+<link rel="stylesheet" href="assets/css/cart.min.css?v=20261124a">
+<link rel="stylesheet" href="assets/css/order-launch.min.css?v=20261124a">
+<script src="assets/js/main.min.js?v=20261124a" defer></script>
+<script src="assets/js/account.min.js?v=20261124a" defer></script>
+<script src="assets/js/icons.min.js?v=20261124a" defer></script>
+<script src="assets/js/cart.min.js?v=20261124a" defer></script>
+<script src="assets/js/order-launch.min.js?v=20261124a" defer></script>
 <script>
   try {
     if (sessionStorage.getItem('subitoIntroSeen') === '1') {
@@ -118,7 +118,7 @@
   <div class="intro-splash__stage">
     <svg class="intro-splash__ring" viewBox="0 0 220 220"><circle cx="110" cy="110" r="98"/></svg>
     <div class="intro-splash__logo-wrap">
-      <img class="intro-splash__logo" src="assets/img/logo.jpg" alt="">
+      <picture><source srcset="assets/img/logo.webp" type="image/webp"><img class="intro-splash__logo" src="assets/img/logo.jpg" alt=""></picture>
       <span class="intro-splash__sheen"></span>
     </div>
   </div>
@@ -133,7 +133,7 @@
     </a>
 
     <a href="index.html" class="site-header__logo" aria-label="Subito Pizza — accueil">
-      <img src="assets/img/logo.jpg" alt="Subito Pizza">
+      <picture><source srcset="assets/img/logo.webp" type="image/webp"><img src="assets/img/logo.jpg" alt="Subito Pizza"></picture>
     </a>
 
     <a class="site-header__badge site-header__badge--social" href="reseaux.html">
@@ -192,7 +192,7 @@
       </div>
       <div class="hero__showcase">
         <a class="hero__plate" href="menu.html" aria-label="Voir le menu complet">
-          <img id="hero-plate-img" src="assets/img/photos/photo-24.jpg" alt="La Pizza Subito, notre recette signature : sauce tomate, fromage, viande hachée, chorizo, oeuf, oignons" fetchpriority="high">
+          <img id="hero-plate-img" src="assets/img/photos/photo-24.webp" alt="La Pizza Subito, notre recette signature : sauce tomate, fromage, viande hachée, chorizo, oeuf, oignons" fetchpriority="high">
         </a>
         <p class="hero__showcase-caption" id="hero-plate-caption">Notre signature, celle qui porte fièrement le nom de la maison : la <strong>Pizza Subito</strong></p>
       </div>
@@ -409,14 +409,14 @@
         <li><strong id="finale-eq-saturdays">1429</strong><span>samedis soir</span></li>
       </ul>
       <div class="finale__logo-wrap" id="finale-logo-wrap">
-        <img class="finale__logo" src="assets/img/logo.jpg" alt="Subito Pizza">
+        <picture><source srcset="assets/img/logo.webp" type="image/webp"><img class="finale__logo" src="assets/img/logo.jpg" alt="Subito Pizza"></picture>
       </div>
     </div>
   </section>
 
 </main>
 
-<div class="lightbox">
+<div class="lightbox" role="dialog" aria-modal="true" aria-label="Photo agrandie">
   <button type="button" class="lightbox__close" aria-label="Fermer">×</button>
   <img src="" alt="">
 </div>

@@ -24,16 +24,16 @@
 <meta name="theme-color" content="#0E3B27">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Caveat:wght@500;700&display=swap">
-<link rel="stylesheet" href="assets/css/style.css">
-<link rel="stylesheet" href="assets/css/cart.css">
-<link rel="stylesheet" href="assets/css/disponibilite.css">
-<script src="assets/js/main.js" defer></script>
-<script src="assets/js/account.js" defer></script>
-<script src="assets/js/icons.js" defer></script>
-<script src="assets/js/cart.js" defer></script>
-<script>window.addEventListener('error', function (e) { if (e.filename && e.filename.indexOf('/assets/js/disponibilite.js') !== -1) document.documentElement.classList.add('dispo-echec'); }); /* erreur de syntaxe ou d'exécution dans disponibilite.js : pizzas commandables (décision de l'utilisateur) */</script>
-<script src="assets/js/disponibilite.js" defer onerror="document.documentElement.classList.add('dispo-echec')"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Caveat:wght@500;700&display=optional">
+<link rel="stylesheet" href="assets/css/style.min.css?v=20261124a">
+<link rel="stylesheet" href="assets/css/cart.min.css?v=20261124a">
+<link rel="stylesheet" href="assets/css/disponibilite.min.css?v=20261124a">
+<script src="assets/js/main.min.js?v=20261124a" defer></script>
+<script src="assets/js/account.min.js?v=20261124a" defer></script>
+<script src="assets/js/icons.min.js?v=20261124a" defer></script>
+<script src="assets/js/cart.min.js?v=20261124a" defer></script>
+<script>window.addEventListener('error', function (e) { if (e.filename && e.filename.indexOf('/assets/js/disponibilite.min.js') !== -1) document.documentElement.classList.add('dispo-echec'); }); /* erreur de syntaxe ou d'exécution dans disponibilite.js : pizzas commandables (décision de l'utilisateur) */</script>
+<script src="assets/js/disponibilite.min.js?v=20261124a" defer onerror="document.documentElement.classList.add('dispo-echec')"></script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -84,7 +84,7 @@
     </a>
 
     <a href="index.html" class="site-header__logo" aria-label="Subito Pizza — accueil">
-      <img src="assets/img/logo.jpg" alt="Subito Pizza">
+      <picture><source srcset="assets/img/logo.webp" type="image/webp"><img src="assets/img/logo.jpg" alt="Subito Pizza"></picture>
     </a>
 
     <a class="site-header__badge site-header__badge--social" href="reseaux.html">
@@ -142,7 +142,7 @@
     <div class="menu-grid">
 
       <article class="menu-item">
-        <img loading="lazy" decoding="async" src="assets/img/photos/photo-07.jpg" alt="Pizza Végétarienne">
+        <img loading="lazy" decoding="async" src="assets/img/photos/photo-07.webp" alt="Pizza Végétarienne">
         <div class="menu-item__body">
           <h2 class="menu-item__name">Végétarienne</h2>
           <p class="menu-item__ingredients">Sauce tomate, fromage, poivrons, champignons, oignons, olives</p>
@@ -150,7 +150,7 @@
       </article>
 
       <article class="menu-item">
-        <img loading="lazy" decoding="async" src="assets/img/photos/photo-01.jpg" alt="Pizza 4 Fromages">
+        <img loading="lazy" decoding="async" src="assets/img/photos/photo-01.webp" alt="Pizza 4 Fromages">
         <div class="menu-item__body">
           <h2 class="menu-item__name">4 Fromages</h2>
           <p class="menu-item__ingredients">Sauce tomate, fromage, brie, bleu, parmesan</p>
@@ -158,7 +158,7 @@
       </article>
 
       <article class="menu-item">
-        <img loading="lazy" decoding="async" src="assets/img/photos/chevre-miel.jpg" alt="Pizza Chèvre miel">
+        <img loading="lazy" decoding="async" src="assets/img/photos/chevre-miel.webp" alt="Pizza Chèvre miel">
         <div class="menu-item__body">
           <h2 class="menu-item__name">Chèvre miel</h2>
           <p class="menu-item__ingredients">Crème fraîche, fromage, fromage de chèvre, miel</p>
@@ -166,7 +166,7 @@
       </article>
 
       <article class="menu-item">
-        <img loading="lazy" decoding="async" src="assets/img/photos/photo-16.jpg" alt="Pizza Normande">
+        <img loading="lazy" decoding="async" src="assets/img/photos/photo-16.webp" alt="Pizza Normande">
         <div class="menu-item__body">
           <h2 class="menu-item__name">Normande</h2>
           <p class="menu-item__ingredients">Crème fraîche, fromage, bleu, fromage de chèvre, parmesan</p>
@@ -174,7 +174,7 @@
       </article>
 
       <article class="menu-item">
-        <img loading="lazy" decoding="async" src="assets/img/photos/maroilles.jpg" alt="Pizza Maroilles">
+        <img loading="lazy" decoding="async" src="assets/img/photos/maroilles.webp" alt="Pizza Maroilles">
         <div class="menu-item__body">
           <h2 class="menu-item__name">Maroilles</h2>
           <p class="menu-item__ingredients">Crème fraîche, fromage, maroilles</p>

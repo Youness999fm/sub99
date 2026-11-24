@@ -496,51 +496,51 @@ function initHeroCarousel() {
   // que catégorie par catégorie, pour montrer un maximum de variété en
   // quelques secondes. Boissons et subitowichs volontairement exclus.
   const menuItems = [
-    { name: 'Pizza Subito', src: 'assets/img/photos/photo-24.jpg', caption: 'Notre signature, celle qui porte fièrement le nom de la maison : la <strong>Pizza Subito</strong>' },
-    { name: 'Pizza Carnivora', src: 'assets/img/photos/carnivora.jpg' },
-    { name: 'Pâtes Bolognaise', src: 'assets/img/photos/photo-45.jpg' },
-    { name: 'Pizza 4 Fromages', src: 'assets/img/photos/photo-01.jpg' },
-    { name: 'Pizza Chèvre miel', src: 'assets/img/photos/chevre-miel.jpg' },
-    { name: 'Wings', src: 'assets/img/photos/photo-40.jpg' },
-    { name: 'Pizza Végétarienne', src: 'assets/img/photos/photo-07.jpg' },
-    { name: 'Salade Exotique', src: 'assets/img/photos/photo-49.jpg' },
-    { name: 'Pizza 3 Jambons', src: 'assets/img/photos/photo-30.jpg' },
-    { name: 'Tiramisubito Spéculoos', src: 'assets/img/photos/tiramisubito-speculoos.jpg' },
-    { name: 'Pizza 4 Saisons', src: 'assets/img/photos/photo-08.jpg' },
-    { name: 'Pâtes 3 fromages', src: 'assets/img/photos/photo-44.jpg' },
-    { name: 'Calzone soufflée', src: 'assets/img/photos/photo-31.jpg' },
-    { name: 'Pizza Campione', src: 'assets/img/photos/photo-06.jpg' },
-    { name: 'Tenders de poulet', src: 'assets/img/photos/photo-41.jpg' },
-    { name: 'Pizza Kebab', src: 'assets/img/photos/photo-28.jpg' },
-    { name: 'Salade Niçoise', src: 'assets/img/photos/photo-50.jpg' },
-    { name: 'Pizza Napolitaine', src: 'assets/img/photos/photo-09.jpg' },
-    { name: 'Tiramisubito Oreo', src: 'assets/img/photos/photo-54.jpg' },
-    { name: 'Pizza Régina', src: 'assets/img/photos/photo-22.jpg' },
-    { name: 'Pâtes Saumon', src: 'assets/img/photos/photo-47.jpg' },
-    { name: 'Pizza Chicken', src: 'assets/img/photos/photo-02.jpg' },
-    { name: 'Pizza Kefta', src: 'assets/img/photos/photo-27.jpg' },
-    { name: 'Nuggets', src: 'assets/img/photos/photo-42.jpg' },
-    { name: 'Pizza Neptune', src: 'assets/img/photos/photo-05.jpg' },
-    { name: 'Salade Printanière', src: 'assets/img/photos/photo-51.jpg' },
-    { name: "Pizza L'Extravagante", src: 'assets/img/photos/photo-23.jpg' },
-    { name: "Tiramisubito M&M's", src: 'assets/img/photos/photo-56.jpg' },
-    { name: 'Pizza Fruits de mer', src: 'assets/img/photos/photo-13.jpg' },
-    { name: 'Pâtes Carbonara', src: 'assets/img/photos/photo-46.jpg' },
-    { name: 'Pizza Orientale', src: 'assets/img/photos/photo-04.jpg' },
-    { name: 'Pizza Pacifico', src: 'assets/img/photos/photo-03.jpg' },
-    { name: 'Oignon ring', src: 'assets/img/photos/photo-43.jpg' },
-    { name: 'Pizza Venezia', src: 'assets/img/photos/photo-19.jpg' },
-    { name: 'Salade Di Roma', src: 'assets/img/photos/photo-52.jpg' },
-    { name: 'Pizza Chicken Chika', src: 'assets/img/photos/photo-21.jpg' },
-    { name: 'Calzone Nutella', src: 'assets/img/photos/photo-57.jpg' },
-    { name: 'Pizza Milano', src: 'assets/img/photos/photo-18.jpg' },
-    { name: 'Pizza Normande', src: 'assets/img/photos/photo-16.jpg' },
-    { name: 'Pizza Fajitas', src: 'assets/img/photos/photo-20.jpg' },
-    { name: 'Pizza Maroilles', src: 'assets/img/photos/maroilles.jpg' },
-    { name: 'Pizza Pollame', src: 'assets/img/photos/pollame.jpg' },
-    { name: 'Pizza Savoyarde', src: 'assets/img/photos/photo-15.jpg' },
-    { name: 'Pizza Indienne', src: 'assets/img/photos/photo-14.jpg' },
-    { name: 'Pizza Carolina', src: 'assets/img/photos/carolina.jpg' }
+    { name: 'Pizza Subito', src: 'assets/img/photos/photo-24.webp', caption: 'Notre signature, celle qui porte fièrement le nom de la maison : la <strong>Pizza Subito</strong>' },
+    { name: 'Pizza Carnivora', src: 'assets/img/photos/carnivora.webp' },
+    { name: 'Pâtes Bolognaise', src: 'assets/img/photos/photo-45.webp' },
+    { name: 'Pizza 4 Fromages', src: 'assets/img/photos/photo-01.webp' },
+    { name: 'Pizza Chèvre miel', src: 'assets/img/photos/chevre-miel.webp' },
+    { name: 'Wings', src: 'assets/img/photos/photo-40.webp' },
+    { name: 'Pizza Végétarienne', src: 'assets/img/photos/photo-07.webp' },
+    { name: 'Salade Exotique', src: 'assets/img/photos/photo-49.webp' },
+    { name: 'Pizza 3 Jambons', src: 'assets/img/photos/photo-30.webp' },
+    { name: 'Tiramisubito Spéculoos', src: 'assets/img/photos/tiramisubito-speculoos.webp' },
+    { name: 'Pizza 4 Saisons', src: 'assets/img/photos/photo-08.webp' },
+    { name: 'Pâtes 3 fromages', src: 'assets/img/photos/photo-44.webp' },
+    { name: 'Calzone soufflée', src: 'assets/img/photos/photo-31.webp' },
+    { name: 'Pizza Campione', src: 'assets/img/photos/photo-06.webp' },
+    { name: 'Tenders de poulet', src: 'assets/img/photos/photo-41.webp' },
+    { name: 'Pizza Kebab', src: 'assets/img/photos/photo-28.webp' },
+    { name: 'Salade Niçoise', src: 'assets/img/photos/photo-50.webp' },
+    { name: 'Pizza Napolitaine', src: 'assets/img/photos/photo-09.webp' },
+    { name: 'Tiramisubito Oreo', src: 'assets/img/photos/photo-54.webp' },
+    { name: 'Pizza Régina', src: 'assets/img/photos/photo-22.webp' },
+    { name: 'Pâtes Saumon', src: 'assets/img/photos/photo-47.webp' },
+    { name: 'Pizza Chicken', src: 'assets/img/photos/photo-02.webp' },
+    { name: 'Pizza Kefta', src: 'assets/img/photos/photo-27.webp' },
+    { name: 'Nuggets', src: 'assets/img/photos/photo-42.webp' },
+    { name: 'Pizza Neptune', src: 'assets/img/photos/photo-05.webp' },
+    { name: 'Salade Printanière', src: 'assets/img/photos/photo-51.webp' },
+    { name: "Pizza L'Extravagante", src: 'assets/img/photos/photo-23.webp' },
+    { name: "Tiramisubito M&M's", src: 'assets/img/photos/photo-56.webp' },
+    { name: 'Pizza Fruits de mer', src: 'assets/img/photos/photo-13.webp' },
+    { name: 'Pâtes Carbonara', src: 'assets/img/photos/photo-46.webp' },
+    { name: 'Pizza Orientale', src: 'assets/img/photos/photo-04.webp' },
+    { name: 'Pizza Pacifico', src: 'assets/img/photos/photo-03.webp' },
+    { name: 'Oignon ring', src: 'assets/img/photos/photo-43.webp' },
+    { name: 'Pizza Venezia', src: 'assets/img/photos/photo-19.webp' },
+    { name: 'Salade Di Roma', src: 'assets/img/photos/photo-52.webp' },
+    { name: 'Pizza Chicken Chika', src: 'assets/img/photos/photo-21.webp' },
+    { name: 'Calzone Nutella', src: 'assets/img/photos/photo-57.webp' },
+    { name: 'Pizza Milano', src: 'assets/img/photos/photo-18.webp' },
+    { name: 'Pizza Normande', src: 'assets/img/photos/photo-16.webp' },
+    { name: 'Pizza Fajitas', src: 'assets/img/photos/photo-20.webp' },
+    { name: 'Pizza Maroilles', src: 'assets/img/photos/maroilles.webp' },
+    { name: 'Pizza Pollame', src: 'assets/img/photos/pollame.webp' },
+    { name: 'Pizza Savoyarde', src: 'assets/img/photos/photo-15.webp' },
+    { name: 'Pizza Indienne', src: 'assets/img/photos/photo-14.webp' },
+    { name: 'Pizza Carolina', src: 'assets/img/photos/carolina.webp' }
   ];
 
   const preloadAt = (i) => {
@@ -550,24 +550,32 @@ function initHeroCarousel() {
   preloadAt(0);
 
   let index = 0;
-  window.setInterval(() => {
-    index = (index + 1) % menuItems.length;
-    const p = menuItems[index];
+  // Démarrage retardé (mesure du 24/11/2026) : changer la source de cette image dès le chargement
+  // produit un NOUVEAU candidat « Largest Contentful Paint » à chaque rotation (le navigateur ne fait
+  // pas de différence entre « la vraie première image » et « une rotation du carrousel ») — un visiteur
+  // sur un réseau lent pouvait ainsi voir son LCP mesuré sur la 2e ou 3e rotation plutôt que sur la
+  // photo déjà affichée dès le premier rendu. Attendre que la page ait eu le temps de se stabiliser
+  // avant la toute première rotation évite ça, sans rien changer au carrousel lui-même.
+  window.setTimeout(() => {
+    window.setInterval(() => {
+      index = (index + 1) % menuItems.length;
+      const p = menuItems[index];
 
-    img.classList.add('is-swapping');
-    caption.classList.add('is-swapping');
+      img.classList.add('is-swapping');
+      caption.classList.add('is-swapping');
 
-    window.setTimeout(() => {
-      img.src = p.src;
-      img.alt = `${p.name}, à retrouver sur notre carte`;
-      caption.innerHTML = p.caption || `${SubitoIcons.svg('pizza')} À retrouver sur notre carte : <strong>${p.name}</strong>`;
-      if (plate) { plate.href = p.href || 'menu.html'; }
-      img.classList.remove('is-swapping');
-      caption.classList.remove('is-swapping');
-    }, 380);
+      window.setTimeout(() => {
+        img.src = p.src;
+        img.alt = `${p.name}, à retrouver sur notre carte`;
+        caption.innerHTML = p.caption || `${SubitoIcons.svg('pizza')} À retrouver sur notre carte : <strong>${p.name}</strong>`;
+        if (plate) { plate.href = p.href || 'menu.html'; }
+        img.classList.remove('is-swapping');
+        caption.classList.remove('is-swapping');
+      }, 380);
 
-    preloadAt(index);
-  }, 1600);
+      preloadAt(index);
+    }, 1600);
+  }, 4000);
 }
 
 // Léger effet de profondeur sur les halos décoratifs du héros et sur le
@@ -1070,8 +1078,14 @@ function initIntroSplash() {
   let introFxTimer = null;
   let chime = null;
   try {
-    chime = new Audio('assets/audio/intro-chime.wav');
-    chime.preload = 'auto';
+    // .mp3 plutôt que .wav (audit perf du 24/11/2026) : le .wav était un PCM non compressé de
+    // 60 Ko pour 0,68s de son ; le .mp3 pèse 6 Ko pour un résultat identique à l'oreille.
+    // preload='none' plutôt que 'auto' : beaucoup de navigateurs mobiles refusent de toute façon
+    // la lecture sans geste utilisateur préalable (voir plus haut) — inutile de forcer le
+    // téléchargement complet dans la fenêtre critique du tout premier affichage pour un son qui,
+    // dans ce cas, ne sera jamais entendu.
+    chime = new Audio('assets/audio/intro-chime.mp3');
+    chime.preload = 'none';
     chime.volume = 0.55;
     chime.addEventListener('error', () => {
       const code = chime.error ? chime.error.code : null;

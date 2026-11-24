@@ -130,17 +130,16 @@ a { color: inherit; }
   box-shadow: 0 10px 30px -24px rgba(28, 27, 25, 0.35);
   position: relative;
   z-index: 5;
-  transition: padding 0.3s ease, box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease;
 }
 
+/* Au scroll (.site-header--compact posée par initHeaderCompact, assets/js/main.js), seules
+   des propriétés qui ne touchent pas la mise en page changent (ombre, transform du logo) — un
+   padding qui change réduirait la hauteur réelle de l'en-tête et pousserait tout le contenu en
+   dessous, un vrai décalage visuel (CLS) mesuré par l'audit perf du 24/11/2026 : la hauteur de
+   .site-header reste donc constante dans les deux états. */
 .site-header--compact {
-  padding-top: 12px;
-  padding-bottom: 8px;
   box-shadow: 0 14px 30px -20px rgba(28, 27, 25, 0.45);
-}
-
-.site-header--compact .site-header__logo {
-  max-width: 88px;
 }
 
 .site-header__top {
@@ -159,12 +158,20 @@ a { color: inherit; }
   display: inline-block;
   max-width: 130px;
   flex: 0 0 auto;
-  transition: max-width 0.3s ease;
+  transition: transform 0.3s ease;
+}
+
+/* 88/130 : même ratio de réduction qu'avant (audit du 24/11/2026), mais via transform plutôt
+   que max-width — la largeur réservée dans la grille de .site-header__top reste 130px dans les
+   deux états, donc rien ne se redimensionne en layout, juste l'apparence du logo. */
+.site-header--compact .site-header__logo {
+  transform: scale(0.677);
 }
 
 .site-header__logo img {
   width: 100%;
   height: auto;
+  aspect-ratio: 520 / 215;
   margin: 0 auto;
   border-radius: 6px;
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -1828,6 +1835,7 @@ section { padding: 32px 20px; }
 .finale__logo {
   width: 100%;
   height: auto;
+  aspect-ratio: 520 / 215;
   display: block;
   border-radius: 10px;
 }
@@ -1974,6 +1982,11 @@ section { padding: 32px 20px; }
   gap: 6px;
   font-weight: 600;
   color: var(--dark);
+}
+
+.review-form__field .req-mark {
+  color: var(--red);
+  font-weight: 700;
 }
 
 .review-form__field input,
@@ -2849,9 +2862,14 @@ section { padding: 32px 20px; }
   animation: badge-shine 4.5s ease-in-out infinite;
 }
 
+/* transform plutôt que left (audit perf du 24/11/2026) : même trajet visuel
+   (-60% à 130% du badge parent), géré par le compositeur sans recalcul de
+   mise en page à chaque frame. translateX est relatif à la propre largeur de
+   l'élément (40% du parent) : 475% de cette largeur = 190% du parent, soit
+   l'écart entre -60% et 130% d'origine. */
 @keyframes badge-shine {
-  0%, 40% { left: -60%; }
-  60%, 100% { left: 130%; }
+  0%, 40% { transform: translateX(0%); }
+  60%, 100% { transform: translateX(475%); }
 }
 
 .menu-item:hover {

@@ -24,13 +24,13 @@
 <meta name="theme-color" content="#0E3B27">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Caveat:wght@500;700&display=swap">
-<link rel="stylesheet" href="assets/css/style.css">
-<link rel="stylesheet" href="assets/css/cart.css">
-<script src="assets/js/main.js" defer></script>
-<script src="assets/js/account.js" defer></script>
-<script src="assets/js/icons.js" defer></script>
-<script src="assets/js/cart.js" defer></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Caveat:wght@500;700&display=optional">
+<link rel="stylesheet" href="assets/css/style.min.css?v=20261124a">
+<link rel="stylesheet" href="assets/css/cart.min.css?v=20261124a">
+<script src="assets/js/main.min.js?v=20261124a" defer></script>
+<script src="assets/js/account.min.js?v=20261124a" defer></script>
+<script src="assets/js/icons.min.js?v=20261124a" defer></script>
+<script src="assets/js/cart.min.js?v=20261124a" defer></script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -115,6 +115,13 @@
 </head>
 <body>
 
+<!-- Icônes répétées de cette page, définies une seule fois (audit perf du 24/11/2026 : « réponse »
+     x8 et « lien externe » x7 répétaient ces SVG mot pour mot, ~17% du poids brut de la page). -->
+<svg hidden aria-hidden="true" style="position:absolute;width:0;height:0">
+  <symbol id="icon-reply" viewBox="0 0 24 24"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></symbol>
+  <symbol id="icon-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+</svg>
+
 <a class="skip-link" href="#main-content">Aller au contenu principal</a>
 
 <header class="site-header">
@@ -125,7 +132,7 @@
     </a>
 
     <a href="index.html" class="site-header__logo" aria-label="Subito Pizza — accueil">
-      <img src="assets/img/logo.jpg" alt="Subito Pizza">
+      <picture><source srcset="assets/img/logo.webp" type="image/webp"><img src="assets/img/logo.jpg" alt="Subito Pizza"></picture>
     </a>
 
     <a class="site-header__badge site-header__badge--social" href="reseaux.html">
@@ -189,7 +196,7 @@
         <p class="review-step__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 14h2a2 2 0 0 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16" /><path d="m14.45 13.39 5.05-4.694C20.196 8 21 6.85 21 5.75a2.75 2.75 0 0 0-4.797-1.837.276.276 0 0 1-.406 0A2.75 2.75 0 0 0 11 5.75c0 1.2.802 2.248 1.5 2.946L16 11.95" /><path d="m2 15 6 6" /><path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a1 1 0 0 0-2.75-2.91" /></svg></p>
         <p class="review-step__title">Merci pour votre note !</p>
         <p>Nous venons d'ouvrir Google dans un nouvel onglet pour vous. Si rien ne s'est ouvert, cliquez ci-dessous.</p>
-        <a class="btn-solid" id="google-review-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Partager mon expérience sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg></a>
+        <a class="btn-solid" id="google-review-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Partager mon expérience sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-external-link"></use></svg></a>
       </div>
 
     </div>
@@ -198,7 +205,7 @@
   <section class="complaint-section" id="reclamation">
     <h2 class="section-title section-title--small">Un souci avec votre commande ?</h2>
     <p class="complaint-section__intro">Quelque chose ne s'est pas passé comme prévu ? Dites-nous ce qui s'est passé, nous voulons comprendre et vous aider.</p>
-    <p class="complaint-section__google">Vous préférez plutôt partager votre expérience publiquement ? <a href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Laissez un avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg></a></p>
+    <p class="complaint-section__google">Vous préférez plutôt partager votre expérience publiquement ? <a href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Laissez un avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-external-link"></use></svg></a></p>
 
     <div class="review-choice" id="complaint-choice">
       <div class="review-choice__option">
@@ -214,16 +221,17 @@
         <p class="review-choice__hint">Expliquez-nous simplement ce qui s'est passé.</p>
 
         <form class="complaint-form" id="complaint-form">
+          <p class="review-form__note"><span class="req-mark" aria-hidden="true">*</span> champ obligatoire</p>
           <label class="review-form__field">
-            Votre prénom
+            <span>Votre prénom<span class="req-mark" aria-hidden="true"> *</span></span>
             <input type="text" name="nom" required>
           </label>
           <label class="review-form__field">
-            Votre téléphone <span class="complaint-form__optional">(facultatif, pour vous recontacter)</span>
+            <span>Votre téléphone <span class="complaint-form__optional">(facultatif, pour vous recontacter)</span></span>
             <input type="tel" name="telephone" autocomplete="tel">
           </label>
           <label class="review-form__field">
-            Nature du problème
+            <span>Nature du problème<span class="req-mark" aria-hidden="true"> *</span></span>
             <select name="categorie" required>
               <option value="">Choisissez…</option>
               <option value="Commande incorrecte">Commande incorrecte</option>
@@ -234,7 +242,7 @@
             </select>
           </label>
           <label class="review-form__field">
-            Votre message
+            <span>Votre message<span class="req-mark" aria-hidden="true"> *</span></span>
             <textarea name="message" rows="4" maxlength="600" required placeholder="Décrivez ce qui s'est passé…" aria-describedby="complaint-note"></textarea>
           </label>
           <p class="review-form__note" id="complaint-note">600 caractères maximum.</p>
@@ -277,7 +285,7 @@
       POUR AJOUTER (OU MODIFIER) VOTRE RÉPONSE SOUS UN AVIS :
       1. Juste après la ligne "review-card__text" de l'avis concerné,
          ajoutez (ou modifiez) cette ligne :
-         <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Réponse de Subito Pizza —</strong> Votre réponse ici.</p>
+         <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reply"></use></svg> Réponse de Subito Pizza —</strong> Votre réponse ici.</p>
       2. Pour ne pas répondre à un avis, supprimez simplement cette ligne.
 
       POUR SUPPRIMER UN AVIS QUE VOUS NE VOULEZ PLUS AFFICHER :
@@ -294,8 +302,8 @@
       <p class="review-card__stars">★★★★★</p>
       <p class="review-card__author">Dorothée H.<span class="review-card__date">Avis Google — juin 2026</span></p>
       <p class="review-card__text">« Nous y allons depuis l'heure ouverture il y a quelques années. Toujours aussi excellent. »</p>
-      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Réponse de Subito Pizza —</strong> Merci pour votre fidélité depuis toutes ces années, ça nous touche beaucoup !</p>
-      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg></a>
+      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reply"></use></svg> Réponse de Subito Pizza —</strong> Merci pour votre fidélité depuis toutes ces années, ça nous touche beaucoup !</p>
+      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-external-link"></use></svg></a>
     </article>
     <!-- FIN AVIS -->
 
@@ -304,8 +312,8 @@
       <p class="review-card__stars">★★★★★</p>
       <p class="review-card__author">Luce D.<span class="review-card__date">Avis Google — mars 2026</span></p>
       <p class="review-card__text">« Pizzas très bonnes, je recommande le livreur très sympathique : il livre normalement à partir de 19h et nous avons été livrés vers 18h30-18h40, donc il prend son poste plus tôt, c'est très bien. »</p>
-      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Réponse de Subito Pizza —</strong> Merci pour ce retour, on transmet le compliment à notre livreur !</p>
-      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg></a>
+      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reply"></use></svg> Réponse de Subito Pizza —</strong> Merci pour ce retour, on transmet le compliment à notre livreur !</p>
+      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-external-link"></use></svg></a>
     </article>
     <!-- FIN AVIS -->
 
@@ -314,8 +322,8 @@
       <p class="review-card__stars">★★★★★</p>
       <p class="review-card__author">Samir B.<span class="review-card__date">Avis Google — juillet 2025</span></p>
       <p class="review-card__text">« La meilleure pizza du 62 et 59 confondus. Depuis que je suis enfant je mange ici et jamais déçu, client depuis plus de 20 ans. »</p>
-      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Réponse de Subito Pizza —</strong> Merci infiniment pour votre fidélité depuis tant d'années, c'est un plaisir de vous servir !</p>
-      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg></a>
+      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reply"></use></svg> Réponse de Subito Pizza —</strong> Merci infiniment pour votre fidélité depuis tant d'années, c'est un plaisir de vous servir !</p>
+      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-external-link"></use></svg></a>
     </article>
     <!-- FIN AVIS -->
 
@@ -324,8 +332,8 @@
       <p class="review-card__stars">★★★★★</p>
       <p class="review-card__author">Jawad K.<span class="review-card__date">Avis Google — juillet 2023</span></p>
       <p class="review-card__text">« Le meilleur rapport qualité prix avec une expérience inégalable dans le secteur : des pizzas très bonnes et des employés accueillants. Que dire de plus à part merci ! Je vous conseille les yeux fermés. »</p>
-      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Réponse de Subito Pizza —</strong> Merci beaucoup pour ce message, toute l'équipe est ravie de vous compter parmi nos clients !</p>
-      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg></a>
+      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reply"></use></svg> Réponse de Subito Pizza —</strong> Merci beaucoup pour ce message, toute l'équipe est ravie de vous compter parmi nos clients !</p>
+      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-external-link"></use></svg></a>
     </article>
     <!-- FIN AVIS -->
 
@@ -334,8 +342,8 @@
       <p class="review-card__stars">★★★★★</p>
       <p class="review-card__author">Abdelilah D.<span class="review-card__date">Avis Google — janvier 2021</span></p>
       <p class="review-card__text">« Excellente pizza. »</p>
-      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Réponse de Subito Pizza —</strong> Merci pour votre avis, à bientôt chez Subito Pizza !</p>
-      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg></a>
+      <p class="review-card__reply"><strong><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reply"></use></svg> Réponse de Subito Pizza —</strong> Merci pour votre avis, à bientôt chez Subito Pizza !</p>
+      <a class="review-card__google-link" href="https://www.google.com/maps?cid=9858007054937316298" target="_blank" rel="noopener">Voir cet avis sur Google <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-external-link"></use></svg></a>
     </article>
     <!-- FIN AVIS -->
 
@@ -343,8 +351,8 @@
 </main>
 
 <footer class="site-footer">
-  <p class="footer-promo"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> 1 pizza achetée = 1 offerte, à emporter <span style="font-weight:400;">(ou 2ème à −50% en livraison)</span></p>
-  <p><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg> Subito Pizza — <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /><circle cx="12" cy="10" r="3" /></svg> 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" /></svg> <a href="tel:0321200033">03 21 20 00 33</a></p>
+  <p class="footer-promo"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reply"></use></svg> 1 pizza achetée = 1 offerte, à emporter <span style="font-weight:400;">(ou 2ème à −50% en livraison)</span></p>
+  <p><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reply"></use></svg> Subito Pizza — <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /><circle cx="12" cy="10" r="3" /></svg> 333 rue Elie Gruyelle, 62110 Hénin-Beaumont — <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" /></svg> <a href="tel:0321200033">03 21 20 00 33</a></p>
   <p class="site-footer__legal"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.496 12a2.5 2.5 0 00.399-2.214A2 2 0 0020.32 6.5 2 2 0 0019 3a2 2 0 00-1.5.68 2 2 0 00-3.287.424 2.5 2.5 0 00-3.189 2.06A3 3 0 0012 12l4-4" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M7 21h10" /><path d="M9.85 6.907A3.5 3.5 0 005.05 12" /></svg> Pour votre santé, mangez au moins cinq fruits et légumes par jour. <a href="https://www.mangerbouger.fr" target="_blank" rel="noopener">www.mangerbouger.fr</a> — <a href="faq.html">FAQ</a> — <a href="mentions-legales.html">Mentions légales</a></p>
   <p class="site-footer__signature"><strong>SUBITO PIZZA</strong> — depuis le 1ᵉʳ avril 1999</p>
 </footer>

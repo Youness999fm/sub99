@@ -365,8 +365,19 @@
     }
     return null;
   }
+  // Mémoïsé sur l'identité de state.orders (audit perf du 24/11/2026) : ensureOpenSelection(),
+  // renderQueue() et renderDetail()/rankOf() appellent tous openOrders() dans le même passage de
+  // rendu — un seul filter() par affectation réelle de state.orders plutôt que trois par rendu.
+  // Sûr uniquement parce que state.orders est TOUJOURS réaffecté (jamais muté en place, voir
+  // replaceOrder() ci-dessus) : la référence change donc exactement quand le contenu change.
+  let openOrdersCacheSource = null;
+  let openOrdersCache = null;
   function openOrders() {
-    return state.orders.filter(o => surfaced(o));
+    if (openOrdersCacheSource !== state.orders) {
+      openOrdersCache = state.orders.filter(o => surfaced(o));
+      openOrdersCacheSource = state.orders;
+    }
+    return openOrdersCache;
   }
   // Programmées, toujours visibles et imprimables depuis l'écran principal (demande du 24/11/2026) : soit
   // pas encore décidées ("new", trop en avance pour entrer dans la file active) soit déjà acceptées
@@ -673,7 +684,9 @@
     const pending = state.authed && (
       state.orders.some(o => o.status === 'new' && surfaced(o))
       || state.orders.some(o => (o.addenda || []).some(a => a.print_pending))
-      || pendingCancelRequests().length > 0
+      // .some() plutôt que pendingCancelRequests().length > 0 (audit perf du 24/11/2026) : seul le
+      // booléen compte ici, inutile de trier/allouer un tableau à chaque tick pour ça.
+      || state.orders.some(o => o.cancel_requested_at && (o.status === 'new' || o.status === 'accepted'))
     );
     const shouldRing = pending && state.soundOn;
     if (shouldRing && !alarmTimer) {
@@ -838,6 +851,7 @@
     if (next !== null && state.authed && gen === pollGen) schedulePoll(next);
   }
 
+  let lastOrdersSignature = null;
   function applyOrders(data) {
     const list = Array.isArray(data.orders) ? data.orders : [];
     const now = toDate(data.server_now);
@@ -864,7 +878,17 @@
     state.ordersLoaded = true;
     ensureOpenSelection();
     syncAlarm();
-    scheduleRender();
+    // Ne programme un rendu complet (renderAll() : filter+tri+échappement HTML sur 6 sections) que
+    // si quelque chose a réellement changé depuis le dernier sondage (audit perf du 24/11/2026) —
+    // sinon ce travail se refaisait en pure perte toutes les POLL_VISIBLE_MS, même sans commande
+    // nouvelle. Comparaison sur le JSON complet de la liste (pas un sous-ensemble de champs choisi
+    // à la main) pour ne jamais risquer de rater un champ affiché quelque part et rendre un écran
+    // périmé.
+    const ordersSignature = JSON.stringify(list);
+    if (ordersSignature !== lastOrdersSignature || freshlyNew.length || freshAddenda.length) {
+      lastOrdersSignature = ordersSignature;
+      scheduleRender();
+    }
     alertNew(arrivals);
     alertAddendum(freshAddenda);
     if (scheduledArrivals.length) {
@@ -987,8 +1011,13 @@
   function replaceOrder(order) {
     if (!order) return;
     const i = state.orders.findIndex(o => String(o.id) === String(order.id));
-    if (i >= 0) state.orders[i] = order;
-    else state.orders.push(order);
+    // Réaffecte state.orders (jamais de mutation en place) : openOrders() s'appuie sur l'identité
+    // de cette référence pour ne filtrer qu'une fois par passage de rendu (audit perf du
+    // 24/11/2026) — un push()/affectation d'index laisserait cette référence inchangée et
+    // renverrait un résultat périmé.
+    state.orders = i >= 0
+      ? state.orders.map((o, idx) => (idx === i ? order : o))
+      : state.orders.concat([order]);
   }
 
   async function decide(id, action, delay) {
@@ -2465,7 +2494,7 @@
     return `
       <div class="ticket">
         <div class="t-head">
-          <img class="t-logo" src="../assets/img/logo.jpg" alt="" width="30" height="30">
+          <img class="t-logo" src="../assets/img/icons/favicon-32.png" alt="" width="30" height="30">
         </div>
         <div class="t-customer-box">
           <p class="t-customer-name">${esc(customerLabel(o))}</p>
@@ -3034,7 +3063,21 @@
   }
 
   let printRequestSeq = 0;
-  const pendingPrints = new Map(); // requestId -> { orderId, label, base64, attempt, scheduledJob, addendumId }
+  const pendingPrints = new Map(); // requestId -> { orderId, label, base64, attempt, scheduledJob, addendumId, watchdog }
+  // Filet de sécurité indépendant du pont natif (audit perf du 24/11/2026) : si l'appli Android ne
+  // rappelle jamais window.onPrinterSendResult (lien Bluetooth qui flanche sans lever d'exception
+  // ni répondre), rien ne nettoyait jamais l'entrée — fuite mémoire permanente (chaîne base64 du
+  // ticket comprise) sur une tablette qui reste ouverte plusieurs jours, et le commerçant n'était
+  // même jamais prévenu que ce ticket précis n'était jamais parti. 20s laisse largement le temps
+  // aux 3 tentatives normales (PRINT_RETRY_DELAYS_MS, ~8,5s au pire si chaque échec répond vite).
+  const PRINT_WATCHDOG_MS = 20000;
+  function startPrint(requestId, job) {
+    pendingPrints.set(requestId, job);
+    job.watchdog = setTimeout(() => {
+      if (pendingPrints.has(requestId)) finalizePrint(requestId, false, 'timeout — aucune réponse de l’appli');
+    }, PRINT_WATCHDOG_MS);
+    sendAttempt(requestId);
+  }
 
   // Lance l'impression d'une commande (depuis l'acceptation, le bouton manuel "Imprimer/Réimprimer le
   // ticket", ou — avec { scheduledJob: true } — la tâche d'impression de préparation H-45 d'une commande
@@ -3046,8 +3089,7 @@
       const payload = printerPayload(o);
       const base64 = bytesToBase64(buildTicketBytes(payload));
       const requestId = 'p' + (++printRequestSeq) + '-' + payload.orderId;
-      pendingPrints.set(requestId, { orderId: payload.orderId, label: customerLabel(o), base64, attempt: 0, scheduledJob, addendumId: null });
-      sendAttempt(requestId);
+      startPrint(requestId, { orderId: payload.orderId, label: customerLabel(o), base64, attempt: 0, scheduledJob, addendumId: null });
     } catch (e) { /* l'impression ne doit jamais bloquer le flux de commande */ }
   }
 
@@ -3060,11 +3102,10 @@
       const payload = printerAddendumPayload(addendum, order);
       const base64 = bytesToBase64(buildAddendumTicketBytes(payload));
       const requestId = 'a' + (++printRequestSeq) + '-' + payload.addendumId;
-      pendingPrints.set(requestId, {
+      startPrint(requestId, {
         orderId: payload.orderId, label: `${payload.headline} · ${customerLabel(order)}`,
         base64, attempt: 0, scheduledJob: false, addendumId: addendum.id
       });
-      sendAttempt(requestId);
     } catch (e) { /* l'impression ne doit jamais bloquer le flux de commande */ }
   }
 
@@ -3080,8 +3121,7 @@
       const sum = recapOrders().reduce((s, o) => s + (Number(o.total_cents) || 0), 0);
       const base64 = bytesToBase64(buildRecapTicketBytes(sum, state.serviceDay));
       const requestId = 'r' + (++printRequestSeq);
-      pendingPrints.set(requestId, { orderId: null, label: 'Recette du jour', base64, attempt: 0, scheduledJob: false, addendumId: null, recap: true });
-      sendAttempt(requestId);
+      startPrint(requestId, { orderId: null, label: 'Recette du jour', base64, attempt: 0, scheduledJob: false, addendumId: null, recap: true });
     } catch (e) { /* l'impression ne doit jamais bloquer le flux */ }
   }
 
@@ -3111,6 +3151,7 @@
     const job = pendingPrints.get(requestId);
     if (!job) return;
     pendingPrints.delete(requestId);
+    clearTimeout(job.watchdog);
 
     // Résumé de recette : jamais suivi côté serveur (rien à accuser réception, rien à rejouer
     // automatiquement) — un simple résultat immédiat suffit, le bouton reste disponible pour réessayer.

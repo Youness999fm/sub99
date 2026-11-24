@@ -4,16 +4,20 @@
    Les réponses de /api/ ne passent jamais par le cache. Pas de push. */
 'use strict';
 
-const CACHE = 'subito-site-v1';
+// v2 (audit perf du 24/11/2026) : la coquille référençait encore les fichiers non minifiés
+// (style.css, cart.js...) — les pages chargent désormais leurs .min.* (tools/minify-assets.mjs),
+// donc l'ancienne liste ne correspondait plus à rien de réellement chargé. Le bump de version
+// fait nettoyer l'ancien cache par le handler activate ci-dessous.
+const CACHE = 'subito-site-v2';
 const SHELL = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/assets/css/style.css',
-  '/assets/css/cart.css',
-  '/assets/js/main.js',
-  '/assets/js/cart.js',
-  '/assets/js/icons.js'
+  '/assets/css/style.min.css',
+  '/assets/css/cart.min.css',
+  '/assets/js/main.min.js',
+  '/assets/js/cart.min.js',
+  '/assets/js/icons.min.js'
 ];
 const SHELL_PATHS = new Set(SHELL);
 
@@ -45,7 +49,9 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
-  if (!SHELL_PATHS.has(url.pathname) || url.search) return;
+  // Le chemin seul décide (pas la query string) : un lien/script versionné (?v=...) sur un
+  // fichier de la coquille reste mis en cache par son pathname, comme avant le versionnage.
+  if (!SHELL_PATHS.has(url.pathname)) return;
 
   event.respondWith(
     fetch(req)

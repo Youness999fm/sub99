@@ -111,8 +111,10 @@
 
   // Article indisponible (pizza ou produit) : on retire son bouton de commande, on le grise, on pose le bandeau.
   function markOff(card) {
-    const widget = card.querySelector('.pizza-widget') || card.querySelector('.add-to-cart');
-    if (widget) widget.remove();
+    // Masqué (.menu-item.is-off règle CSS), jamais retiré du DOM : un retrait libérait l'espace
+    // réservé par le bouton de commande et rapetissait la carte au moment même de la résolution
+    // du fetch de disponibilité — un déplacement de plus (CLS, audit perf du 24/11/2026), qui
+    // pouvait en plus étirer/rétrécir toute la ligne de cartes voisines dans la grille.
     card.classList.add('is-off');
     card.setAttribute('data-indisponible', '');
 
@@ -124,13 +126,17 @@
     sticker.textContent = 'Victime de son succès';
     visual.appendChild(sticker);
 
-    const body = card.querySelector('.menu-item__body');
-    if (body) card.insertBefore(visual, body); else card.appendChild(visual);
-
+    // « Elle se repose un moment... » reste DANS le calque .dispo-visuel (position absolute,
+    // espace déjà réservé par l'aspect-ratio de la photo) plutôt qu'en paragraphe ajouté sous les
+    // ingrédients : un ajout en flux normal après la résolution du fetch de disponibilité décalait
+    // le reste de la carte (CLS mesuré par l'audit perf du 24/11/2026).
     const rest = document.createElement('p');
     rest.className = 'dispo-rest';
     rest.textContent = 'Elle se repose un moment. Revenez très vite.';
-    (body || card).appendChild(rest);
+    visual.appendChild(rest);
+
+    const body = card.querySelector('.menu-item__body');
+    if (body) card.insertBefore(visual, body); else card.appendChild(visual);
   }
 
   // Calzone : seule la garniture indisponible disparaît (bouton du widget et texte de la fiche).

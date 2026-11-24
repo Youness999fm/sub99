@@ -59,6 +59,10 @@
   function showError(el, message) {
     el.textContent = message;
     el.hidden = false;
+    // Déplace le focus clavier sur le message (en plus du role="alert" déjà lu par les
+    // lecteurs d'écran à l'affichage) : un utilisateur au clavier/zoom voit tout de suite
+    // où regarder au lieu de devoir chercher le message dans le formulaire.
+    el.focus();
   }
 
   function hideError(el) {
@@ -314,10 +318,14 @@
       select.addEventListener("change", function () { hint.hidden = select.value !== "appartement"; });
     });
 
-    qs("profileEditToggle").addEventListener("click", function () {
+    qs("profileEditToggle").addEventListener("click", function (e) {
       // Cliquer sur "Modifier" (élément interactif dans <summary>) ne fait PAS basculer le <details>
       // parent dans les navigateurs testés : il faut l'ouvrir explicitement pour que le formulaire,
       // démasqué juste après, soit réellement visible (un <details> fermé masque tout son contenu).
+      // stopPropagation (audit perf/tactile du 24/11/2026) : avec la zone cliquable élargie par
+      // CSS (marges négatives), un tap qui déborde légèrement reste capté par ce bouton plutôt que
+      // de remonter vers le <summary> parent et ouvrir/fermer le <details> par erreur.
+      e.stopPropagation();
       const form = qs("profileForm");
       form.hidden = !form.hidden;
       if (!form.hidden) qs("profileDetails").open = true;

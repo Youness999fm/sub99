@@ -177,8 +177,12 @@
   font-size: 0.78rem;
   color: var(--red);
   text-decoration: underline;
-  padding: 2px;
   flex-shrink: 0;
+  /* Cible tactile >= 44px (audit perf du 24/11/2026) sans agrandir le texte ni décaler la ligne
+     flex : le padding élargit la zone cliquable, les marges négatives annulent son effet sur le
+     layout (seul le bord droit peut s'étendre, le bord gauche ne doit pas empiéter sur le texte). */
+  padding: 12px 10px;
+  margin: -12px -10px -12px 0;
 }
 
 .account-orders-title {
