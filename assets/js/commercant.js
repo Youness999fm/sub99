@@ -2493,7 +2493,7 @@
         <div class="t-rule t-bottom"></div>
         ${Number(o.delivery_fee_cents) > 0 ? `<div class="t-line"><span>Frais de livraison</span><span>${esc(eur(o.delivery_fee_cents))}</span></div>` : ''}
         <div class="t-line t-total"><strong>TOTAL</strong><strong>${esc(eur(o.total_cents))}</strong></div>
-        ${o.delay_minutes != null ? `<div class="t-line"><span>Délai annoncé</span><span>${esc(delayLabel(o.delay_minutes, o.mode === 'delivery'))}</span></div>` : ''}
+        ${o.delay_minutes != null && !o.scheduled_for ? `<div class="t-line"><span>Délai annoncé</span><span>${esc(delayLabel(o.delay_minutes, o.mode === 'delivery'))}</span></div>` : ''}
         ${ready ? `<div class="t-line"><span>Prête vers</span><span>${esc(hm(ready))}</span></div>` : ''}
         ${o.status === 'ready' ? `<div class="t-line"><span>État</span><span>Prête</span></div>` : ''}
         ${desserts.length ? `
@@ -2873,7 +2873,9 @@
     text(escTwoColAt('TOTAL', o.total, PRINT_WIDTH_X2));
     charSize(1, 1); bold(false);
     blank(1);
-    if (o.delay) text(escRow('Delai annonce', o.delay));
+    // Jamais pour une commande planifiée (demande du 24/11/2026) : le délai compté depuis l'acceptation
+    // n'a aucun sens pour elle, seule l'heure "PLANIFIEE" affichée plus haut compte.
+    if (o.delay && !o.scheduled) text(escRow('Delai annonce', o.delay));
 
     // Dessert puis boissons : blocs à part, après le total — donnés par la personne à l'accueil, pas par
     // celle qui prépare les pizzas ; ils ne doivent jamais se mélanger aux articles lus pendant la préparation.
