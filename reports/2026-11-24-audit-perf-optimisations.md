@@ -146,3 +146,21 @@ Bilan cumulé sur l'accueil ordinateur, par rapport à ce qui est **en ligne en 
 - **Indisponibilité produit** : hauteur de carte mesurée identique avant/après (442,073 px), calque et texte confirmés dans les limites de la photo.
 - **Rendu vérifié à l'écran** : accueil, menu, avis, galerie (intacte), pied de page, écran de connexion commerçant, file de commandes.
 - **Limite honnête** : le correctif de l'en-tête au scroll (point 1) **n'apparaît pas** dans les scores Lighthouse, qui mesurent un chargement sans scroll — le décalage qu'il supprime ne se produit que lorsqu'un vrai visiteur fait défiler la page. Le gain est réel pour l'utilisateur, pas visible dans cette métrique de laboratoire.
+
+## Après déploiement : un vrai bug trouvé sur la production
+
+En vérifiant les correctifs sur le site en ligne (12 articles réellement indisponibles à ce moment-là), un bug **sans rapport avec la performance** est apparu : sur la carte « Bolognaise », marquée « Victime de son succès », le bouton **« Personnaliser » restait cliquable et son « Ajouter au panier » actif** — un client pouvait commander un plat que le commerçant venait de marquer épuisé.
+
+**Préexistant, pas une régression** : `isBlocked()` (`assets/js/cart.js`) ne teste que le choix de garniture, jamais la disponibilité, et l'ancien `markOff()` ne retirait que `.pizza-widget` ou `.add-to-cart` — jamais le panneau `.customize` qui porte le même bouton d'ajout. Les pizzas étaient protégées (leur bouton vit dans `.pizza-widget`), les pâtes/subitowichs/tex-mex/salades/desserts ne l'étaient pas.
+
+**Corrigé** (`61bf557`) : `.customize` rejoint la règle qui masque les contrôles de commande sur une carte `.is-off`. Vérifié en production : sur « Bolognaise » tout est masqué, sur « Milano » (disponible) tout reste actif.
+
+**Point à trancher côté métier** : `order_create.js` ne revalide **pas** la disponibilité à la création de commande — ce garde côté client est donc la seule barrière. Faut-il refuser la commande côté serveur ? La question n'est pas purement technique (que faire si un article devient épuisé pendant que le client finalise ?), elle n'a donc pas été tranchée ici.
+
+**Conséquence visuelle à noter** : sur une carte indisponible, l'espace des contrôles de commande reste réservé (c'est ce qui évite le décalage) et apparaît donc vide. C'est volontaire ; si ce blanc gêne, il peut accueillir un message plutôt que d'être supprimé — supprimer l'espace ramènerait le décalage.
+
+## Erreur de process à signaler
+
+Le correctif ci-dessus touchait `disponibilite.min.css` **sans bumper le `?v=`** que cette même journée venait d'introduire. Avec le `Cache-Control` d'une heure ajouté en parallèle, les navigateurs ayant déjà chargé la page ont continué à servir l'ancien CSS : constaté en direct sur la production (le serveur servait bien le nouveau fichier, le navigateur gardait l'ancien). Corrigé par un bump en `?v=20261124b` (`a1b1e78`).
+
+**Règle à retenir** : tout déploiement qui modifie un `.min.css` ou un `.min.js` doit bumper le `?v=` des pages, sinon le cache d'une heure masque le changement. C'est la contrepartie du gain de cache.
