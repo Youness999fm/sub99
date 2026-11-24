@@ -114,6 +114,30 @@ test('jamais pour une commande déjà prête, refusée ou annulée (rejeu sans e
   assert.equal(vue.prepared_at, preparedAvant, 'prepared_at ne doit pas être réécrit par la transition automatique');
 });
 
+test('commande planifiée (SBT-003) : jamais « prête » avant l\'heure demandée, même délai dépassé '
+  + '(bug réel trouvé le 24/11/2026 en production : une commande planifiée acceptée automatiquement '
+  + 'restaurant fermé reçoit un délai compté depuis l\'acceptation, qui peut être des heures avant le créneau)', async () => {
+  const cust = await nouveauClient('autoready-planifiee@example.test');
+  const id = await commander(cust);
+  assert.equal((await owner.post('owner_order_decide.php', { id, action: 'accept', delay_minutes: 10 })).status, 200);
+  reculerAcceptedAt(id, 10, 5); // délai de 10 min dépassé depuis 5 s, comme le 1er test
+  const dansDeuxHeures = utcAt(utcToEpoch(nowUtc()) + 7200);
+  db.prepare('UPDATE orders SET scheduled_for = ? WHERE id = ?').run(dansDeuxHeures, id);
+
+  const avant = await owner.get('owner_orders.php');
+  const vueAvant = avant.json.orders.find((o) => o.id === id);
+  assert.equal(vueAvant.status, 'accepted', 'délai dépassé mais créneau dans 2h : ne doit PAS encore être "prête"');
+  assert.equal(vueAvant.prepared_at, null);
+
+  // Le créneau arrive : désormais, le même délai dépassé doit bien déclencher la transition.
+  const ilYABref = utcAt(utcToEpoch(nowUtc()) - 1);
+  db.prepare('UPDATE orders SET scheduled_for = ? WHERE id = ?').run(ilYABref, id);
+  const apres = await owner.get('owner_orders.php');
+  const vueApres = apres.json.orders.find((o) => o.id === id);
+  assert.equal(vueApres.status, 'ready', 'créneau passé + délai dépassé : doit maintenant être "prête"');
+  assert.ok(vueApres.prepared_at);
+});
+
 test('toujours « accepted » tant que le délai n\'est pas dépassé', async () => {
   const cust = await nouveauClient('autoready-pasencore@example.test');
   const id = await commander(cust);

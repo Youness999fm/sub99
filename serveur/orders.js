@@ -563,7 +563,15 @@ export async function autoReadyOverdueOrders(rows, now) {
   const dues = rows.filter((o) => String(o.status) === 'accepted'
     && o.delay_minutes !== null && o.delay_minutes !== undefined && Number(o.delay_minutes) !== 0
     && o.accepted_at !== null && o.accepted_at !== undefined
-    && utcToEpoch(String(o.accepted_at)) + Number(o.delay_minutes) * 60 <= nowEpoch);
+    && utcToEpoch(String(o.accepted_at)) + Number(o.delay_minutes) * 60 <= nowEpoch
+    // Commande planifiée (SBT-003) : jamais « prête » avant l'heure demandée par le client, même si le
+    // délai annoncé est déjà dépassé. Bug réel trouvé le 24/11/2026 en testant en production : une commande
+    // planifiée acceptée AUTOMATIQUEMENT (restaurant fermé au moment de la commande, voir order_create.js)
+    // reçoit un délai par défaut (réglage "default_delay_minutes") compté depuis l'acceptation immédiate,
+    // qui peut avoir lieu des heures voire des jours avant le créneau réellement choisi — sans ce garde-fou,
+    // la commande passait « prête » (et sortait de « En préparation » vers la recette du jour) en pleine
+    // nuit, bien avant que quiconque ait commencé à la préparer.
+    && (o.scheduled_for === null || o.scheduled_for === undefined || utcToEpoch(String(o.scheduled_for)) <= nowEpoch));
   if (dues.length === 0) return;
   const ids = dues.map((o) => Number(o.id));
   const ph = ids.map(() => '?').join(',');
