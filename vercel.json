@@ -1,5 +1,8 @@
 {
   "regions": ["dub1"],
+  "redirects": [
+    { "source": "/serveur/:path*", "destination": "/404.html", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/(.*)\\.php", "destination": "/api/$1" }
   ],
