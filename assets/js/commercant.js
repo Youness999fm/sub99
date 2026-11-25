@@ -11,6 +11,10 @@
   // Valeur spéciale pour « venir tout de suite » (le client est invité à venir sans attendre,
   // ex. le restaurant va bientôt fermer) : jamais un délai par défaut, seulement au cas par cas.
   const DELAY_IMMEDIATE = 0;
+  // Livraison : délai imposé, non modifiable (demande du commerçant le 25/11/2026). Le trajet du
+  // livreur rend intenable un délai court, et un employé distrait annonçait parfois 20 min.
+  const DELAY_LIVRAISON = 60;
+  const DELAY_LIVRAISON_LABEL = '1 h';
   const SERVICE_START = '18h';
   const SERVICE_END = '23h';
   const POLL_VISIBLE_MS = 4000;
@@ -1658,6 +1662,19 @@
           <button type="button" class="btn btn-accept btn-xl dec-main" data-action="accept" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : 'Accepter'}</button>
           <button type="button" class="btn btn-refuse btn-xl" data-action="refuse" data-id="${esc(o.id)}" ${dis}>Refuser</button>`;
       }
+      // Livraison : délai imposé, jamais choisi (demande du commerçant le 25/11/2026 — un employé
+      // qui ne remarquait pas que c'était une livraison annonçait parfois 20 min, impossible à tenir
+      // avec le trajet du livreur). On l'annonce donc dès cet écran, sans parler d'étape suivante.
+      if (o.mode === 'delivery') {
+        return cancelReq + `
+          <p class="ask">Livraison · délai imposé</p>
+          <div class="dec-delay">
+            <span class="dd-num">plus ou moins ${DELAY_LIVRAISON_LABEL}</span>
+            <span class="dd-sub">Délai fixe en livraison : il ne se choisit pas.</span>
+          </div>
+          <button type="button" class="btn btn-accept btn-xl dec-main" data-action="accept" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : 'Accepter'}</button>
+          <button type="button" class="btn btn-refuse btn-xl" data-action="refuse" data-id="${esc(o.id)}" ${dis}>Refuser</button>`;
+      }
       return cancelReq + `
         <p class="ask">Délai par défaut</p>
         <div class="dec-delay">
@@ -1666,6 +1683,19 @@
         </div>
         <button type="button" class="btn btn-accept btn-xl dec-main" data-action="accept" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : 'Accepter'}</button>
         <button type="button" class="btn btn-refuse btn-xl" data-action="refuse" data-id="${esc(o.id)}" ${dis}>Refuser</button>`;
+    }
+
+    // Deuxième écran d'une LIVRAISON : on garde la confirmation (éviter une acceptation par
+    // mégarde) mais aucune tuile de délai — il n'y a rien à choisir.
+    if (o.mode === 'delivery') {
+      return `
+        <p class="ask">Livraison · délai imposé</p>
+        <div class="dec-delay">
+          <span class="dd-num">plus ou moins ${DELAY_LIVRAISON_LABEL}</span>
+          <span class="dd-sub">Délai fixe en livraison : il ne se choisit pas.</span>
+        </div>
+        <button type="button" class="btn btn-accept btn-xl dec-main" data-action="accept-confirm" data-id="${esc(o.id)}" ${dis}>${busy ? 'Envoi…' : 'Confirmer · plus ou moins ' + DELAY_LIVRAISON_LABEL}</button>
+        <button type="button" class="btn btn-ghost" data-action="edit-cancel" ${dis}>Annuler</button>`;
     }
     const m = state.draftDelay != null ? state.draftDelay : state.defaultDelay;
     const tiles = DELAYS.map(v => `
@@ -3551,18 +3581,26 @@
           // Commande programmée : l'heure est déjà fixée par le client, pas de délai à choisir.
           if (o.scheduled_for) { decide(o.id, 'accept', scheduledDelayMinutes(o)); break; }
           state.editingId = o.id;
-          // Livraison : 1 heure présélectionnée par défaut (trajet du livreur), au lieu du délai par
-          // défaut habituel pensé pour la préparation à emporter.
-          state.draftDelay = o.mode === 'delivery' ? 60 : state.defaultDelay;
+          // Livraison : délai IMPOSÉ, pas seulement présélectionné (voir DELAY_LIVRAISON).
+          state.draftDelay = o.mode === 'delivery' ? DELAY_LIVRAISON : state.defaultDelay;
         }
         break;
       }
-      case 'delay':
-        if (state.editingId != null) state.draftDelay = Number(t.dataset.min);
+      case 'delay': {
+        // Une livraison n'a aucune tuile de délai affichée ; ce garde empêche quand même tout
+        // changement (clic au clavier, ancien écran resté ouvert) — le délai livraison est imposé.
+        const cible = findOrder(state.editingId);
+        if (state.editingId != null && !(cible && cible.mode === 'delivery')) state.draftDelay = Number(t.dataset.min);
         break;
+      }
       case 'accept-confirm': {
         const o = findOrder(id);
-        if (o && state.editingId === o.id) decide(o.id, 'accept', state.draftDelay != null ? state.draftDelay : state.defaultDelay);
+        if (!o || state.editingId !== o.id) return;
+        // Livraison : on renvoie toujours DELAY_LIVRAISON, quoi qu'il y ait dans draftDelay.
+        const minutes = o.mode === 'delivery'
+          ? DELAY_LIVRAISON
+          : (state.draftDelay != null ? state.draftDelay : state.defaultDelay);
+        decide(o.id, 'accept', minutes);
         return;
       }
       case 'edit-cancel':
