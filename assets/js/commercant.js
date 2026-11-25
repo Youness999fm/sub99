@@ -369,19 +369,12 @@
     }
     return null;
   }
-  // Mémoïsé sur l'identité de state.orders (audit perf du 24/11/2026) : ensureOpenSelection(),
-  // renderQueue() et renderDetail()/rankOf() appellent tous openOrders() dans le même passage de
-  // rendu — un seul filter() par affectation réelle de state.orders plutôt que trois par rendu.
-  // Sûr uniquement parce que state.orders est TOUJOURS réaffecté (jamais muté en place, voir
-  // replaceOrder() ci-dessus) : la référence change donc exactement quand le contenu change.
-  let openOrdersCacheSource = null;
-  let openOrdersCache = null;
+  // Jamais mémoïsé : surfaced() compare à l'heure courante, donc le résultat change avec le temps
+  // même quand state.orders est identique. Un cache posé le 24/11/2026 et retiré le 25/11/2026 pour
+  // cette raison (même cause que le rendu conditionnel d'applyOrders : une commande programmée
+  // arrivée à l'heure restait invisible).
   function openOrders() {
-    if (openOrdersCacheSource !== state.orders) {
-      openOrdersCache = state.orders.filter(o => surfaced(o));
-      openOrdersCacheSource = state.orders;
-    }
-    return openOrdersCache;
+    return state.orders.filter(o => surfaced(o));
   }
   // Programmées, toujours visibles et imprimables depuis l'écran principal (demande du 24/11/2026) : soit
   // pas encore décidées ("new", trop en avance pour entrer dans la file active) soit déjà acceptées
@@ -855,7 +848,6 @@
     if (next !== null && state.authed && gen === pollGen) schedulePoll(next);
   }
 
-  let lastOrdersSignature = null;
   function applyOrders(data) {
     const list = Array.isArray(data.orders) ? data.orders : [];
     const now = toDate(data.server_now);
@@ -882,17 +874,13 @@
     state.ordersLoaded = true;
     ensureOpenSelection();
     syncAlarm();
-    // Ne programme un rendu complet (renderAll() : filter+tri+échappement HTML sur 6 sections) que
-    // si quelque chose a réellement changé depuis le dernier sondage (audit perf du 24/11/2026) —
-    // sinon ce travail se refaisait en pure perte toutes les POLL_VISIBLE_MS, même sans commande
-    // nouvelle. Comparaison sur le JSON complet de la liste (pas un sous-ensemble de champs choisi
-    // à la main) pour ne jamais risquer de rater un champ affiché quelque part et rendre un écran
-    // périmé.
-    const ordersSignature = JSON.stringify(list);
-    if (ordersSignature !== lastOrdersSignature || freshlyNew.length || freshAddenda.length) {
-      lastOrdersSignature = ordersSignature;
-      scheduleRender();
-    }
+    // Rendu à CHAQUE sondage, sans condition. Une optimisation du 24/11/2026 ne le déclenchait que
+    // si les données des commandes avaient changé : BUG RÉEL signalé par le commerçant le 25/11/2026
+    // — une commande programmée sonnait à l'heure dite mais n'apparaissait pas dans « À traiter »,
+    // il fallait changer d'onglet et revenir pour la voir. En effet l'affichage ne dépend pas que
+    // des données : surfaced(), scheduledOrders(), prepOrders() comparent toutes à l'heure courante,
+    // donc l'écran doit se redessiner même quand les données sont identiques.
+    scheduleRender();
     alertNew(arrivals);
     alertAddendum(freshAddenda);
     if (scheduledArrivals.length) {
