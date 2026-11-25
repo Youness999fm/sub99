@@ -299,7 +299,7 @@ function initFinaleEmbers() {
 
 // Statut "commandes ouvertes/fermées" en temps réel, avec effet odomètre
 // sur les chiffres (comme un compteur premium, pas un simple texte qui
-// change). Créneau réel : commandes prises de 18h00 à 22h47.
+// change). Créneau réel : commandes prises de 17h55 à 22h47.
 function initOrderStatus() {
   const root = document.getElementById('order-status');
   if (!root) return;
@@ -311,7 +311,9 @@ function initOrderStatus() {
   const srEl = document.getElementById('order-status-sr');
   if (!labelEl || !verbEl || !hoursEl || !minutesEl || !srEl) return;
 
-  const OPEN_H = 18, OPEN_M = 0;
+  // Doit rester aligné sur HORAIRES_PAR_DEFAUT (serveur/horaires.js) : c'est le serveur qui décide
+  // réellement si une commande passe, ce compte à rebours ne fait que l'annoncer.
+  const OPEN_H = 17, OPEN_M = 55;
   const CLOSE_H = 22, CLOSE_M = 47;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 

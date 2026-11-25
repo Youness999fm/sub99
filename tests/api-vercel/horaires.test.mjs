@@ -3,16 +3,19 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { lireCreneau, creneauActif, commandesOuvertes, minutesParis, libelleHeure } from '../../serveur/horaires.js';
 
+// 17h55 = 1075 minutes depuis minuit, 22h47 = 1367 (ouverture avancée le 25/11/2026).
+const RETRAIT = { debut: 17 * 60 + 55, fin: 22 * 60 + 47 };
+
 test('lecture du créneau', () => {
-  assert.deepEqual(lireCreneau('18:00-22:47'), { debut: 1080, fin: 1367 });
+  assert.deepEqual(lireCreneau('17:55-22:47'), RETRAIT);
   assert.deepEqual(lireCreneau('18h30-23h00'), { debut: 1110, fin: 1380 });
   assert.equal(lireCreneau('off'), null);
-  assert.deepEqual(lireCreneau('n importe quoi'), { debut: 1080, fin: 1367 }, 'valeur invalide : créneau du site');
+  assert.deepEqual(lireCreneau('n importe quoi'), RETRAIT, 'valeur invalide : créneau du site');
 });
 
 test('créneau actif : Vercel par défaut, local sans contrôle, variable prioritaire', () => {
   assert.equal(creneauActif('pickup', {}), null);
-  assert.deepEqual(creneauActif('pickup', { VERCEL: '1' }), { debut: 1080, fin: 1367 });
+  assert.deepEqual(creneauActif('pickup', { VERCEL: '1' }), RETRAIT);
   assert.equal(creneauActif('pickup', { VERCEL: '1', HORAIRES_COMMANDES: 'off' }), null);
   assert.deepEqual(creneauActif('pickup', { HORAIRES_COMMANDES: '11:00-14:00' }), { debut: 660, fin: 840 });
 });
@@ -26,12 +29,13 @@ test('créneau actif livraison : indépendant du retrait, défaut 19h-22h, varia
   assert.deepEqual(creneauActif('delivery', { HORAIRES_LIVRAISON_COMMANDES: '20:00-21:00' }), { debut: 1200, fin: 1260 });
   // La variable du retrait ne doit jamais influencer la livraison, et inversement.
   assert.deepEqual(creneauActif('delivery', { VERCEL: '1', HORAIRES_COMMANDES: '10:00-11:00' }), { debut: 19 * 60, fin: 22 * 60 });
-  assert.deepEqual(creneauActif('pickup', { VERCEL: '1', HORAIRES_LIVRAISON_COMMANDES: '10:00-11:00' }), { debut: 1080, fin: 1367 });
+  assert.deepEqual(creneauActif('pickup', { VERCEL: '1', HORAIRES_LIVRAISON_COMMANDES: '10:00-11:00' }), RETRAIT);
 });
 
 test('ouvert / fermé, bornes comprises', () => {
-  const c = lireCreneau('18:00-22:47');
-  assert.equal(commandesOuvertes(c, 17 * 60 + 59), false);
+  const c = lireCreneau('17:55-22:47');
+  assert.equal(commandesOuvertes(c, 17 * 60 + 54), false, 'une minute avant l’ouverture');
+  assert.equal(commandesOuvertes(c, 17 * 60 + 55), true, 'à 17h55 pile, le retrait ouvre');
   assert.equal(commandesOuvertes(c, 18 * 60), true);
   assert.equal(commandesOuvertes(c, 22 * 60 + 46), true);
   assert.equal(commandesOuvertes(c, 22 * 60 + 47), false);
@@ -54,7 +58,7 @@ import { before, after } from 'node:test';
 // +14 : ce fichier n'avait, par oubli, aucun décalage de port (collision silencieuse avec les autres
 // fichiers de ce dossier qui n'en avaient pas non plus — voir fondations.test.mjs/statut-pret.test.mjs).
 process.env.SUBITO_TEST_PORT = String(Number(process.env.SUBITO_TEST_PORT || 8091) + 14);
-const { makeEnv, runTool, startServer, stopServer, Client } = await import('./lib/harness.mjs');
+const { makeEnv, runTool, startServer, stopServer, Client, openTestDb, OWNER_CODE, SUPER_CODE } = await import('./lib/harness.mjs');
 
 let ctx;
 let proc;
@@ -131,4 +135,40 @@ test('order_create : la livraison a son propre horaire, indépendant du retrait'
   assert.equal(retraitFerme.json.error, 'closed');
   const livraisonToujoursOuverte = await bob.post('order_create.php', corpsLivraison('horaires-liv-4'));
   assert.equal(livraisonToujoursOuverte.status, 201, livraisonToujoursOuverte.text, 'la livraison doit rester ouverte malgré le retrait fermé');
+});
+
+// BUG RÉEL (signalé par le commerçant le 25/11/2026) : une fermeture/ouverture forcée dont la ligne
+// d'expiration manque en base restait active POUR TOUJOURS — l'horaire automatique ne reprenait jamais
+// la main et seul le code supérieur pouvait rouvrir. Les employés ne l'ont pas : le restaurant restait
+// fermé aux commandes en ligne tant que le patron n'intervenait pas. Voir lireBascule (serveur/horaires.js).
+test('bascule forcée sans expiration : l’horaire automatique reprend la main tout seul', async () => {
+  delete process.env.HORAIRES_COMMANDES;
+  process.env.HORAIRES_COMMANDES = '00:00-23:59'; // horaire actif : il existe donc une prochaine transition
+  const patron = new Client('patron-bascule');
+  assert.equal((await patron.post('owner_login.php', { code: OWNER_CODE, remember: false })).status, 200);
+
+  // Fermeture forcée en règle, puis on simule l'état cassé : l'expiration disparaît de la base.
+  const pose = await patron.post('owner_open_mode.php', { service: 'pickup', mode: 'closed', code: SUPER_CODE });
+  assert.equal(pose.status, 200, pose.text);
+  assert.equal(pose.json.mode, 'closed');
+  assert.notEqual(pose.json.expires_at, null, 'une bascule posée normalement a toujours une expiration');
+
+  const db = openTestDb(ctx);
+  try {
+    db.prepare("DELETE FROM settings WHERE skey = 'open_mode_expires_at'").run();
+    assert.equal(db.prepare("SELECT svalue FROM settings WHERE skey = 'open_mode_expires_at'").get(), undefined);
+
+    // Relecture : l'expiration manquante doit être rattrapée (et réécrite en base), pas ignorée.
+    const relu = await patron.get('owner_open_mode.php?service=pickup');
+    assert.equal(relu.status, 200, relu.text);
+    assert.notEqual(relu.json.expires_at, null, 'sans ce rattrapage, la fermeture forcée ne s’arrêterait jamais');
+    assert.equal(relu.json.expires_at, relu.json.prochaine_transition, 'elle doit expirer à la prochaine transition automatique');
+
+    const ligne = db.prepare("SELECT svalue FROM settings WHERE skey = 'open_mode_expires_at'").get();
+    assert.ok(ligne && /^\d+$/.test(ligne.svalue), 'la réparation doit être écrite en base, pas refaite à chaque lecture');
+  } finally {
+    db.close();
+    await patron.post('owner_open_mode.php', { service: 'pickup', mode: 'auto', code: SUPER_CODE });
+    delete process.env.HORAIRES_COMMANDES;
+  }
 });

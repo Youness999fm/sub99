@@ -1,9 +1,9 @@
 // Horaires de prise de commande en ligne, à l'heure de Paris — DEUX horaires indépendants (décision du
-// 24/11/2026) : retrait sur place (18h00-22h47, comme avant) et livraison (19h00-22h00, plus court — pas
+// 24/11/2026) : retrait sur place (17h55-22h47) et livraison (19h00-22h00, plus court — pas
 // de livreur disponible avant 19h ni après 22h). Chacun a sa propre bascule manuelle (ouverture/fermeture
 // forcée, accès supérieur) : fermer la livraison (ex. plus de livreur ce soir) n'affecte jamais le retrait
 // sur place, et inversement.
-// Réglage retrait : variable HORAIRES_COMMANDES, au format « HH:MM-HH:MM » (ex. « 18:00-22:47 »), ou
+// Réglage retrait : variable HORAIRES_COMMANDES, au format « HH:MM-HH:MM » (ex. « 17:55-22:47 »), ou
 // « off » pour accepter les commandes à toute heure (utile pour un essai en dehors du service).
 // Réglage livraison : variable HORAIRES_LIVRAISON_COMMANDES, même format, défaut « 19:00-22:00 ».
 // Sans variable : contrôle actif uniquement sur Vercel, avec les créneaux affichés sur le site.
@@ -12,7 +12,8 @@ import { maintenantEpoch } from './horloge.js';
 import { FUSEAU, parisLocalVersEpoch, jourParisDecale } from './util.js';
 import { one, exec, estViolationUnique } from './db.js';
 
-export const HORAIRES_PAR_DEFAUT = '18:00-22:47';
+// Retrait : ouverture avancée à 17h55 le 25/11/2026 (demande du commerçant) — la fermeture reste 22h47.
+export const HORAIRES_PAR_DEFAUT = '17:55-22:47';
 export const HORAIRES_LIVRAISON_PAR_DEFAUT = '19:00-22:00';
 export const MODES_OUVERTURE = ['auto', 'open', 'closed'];
 export const SERVICES = ['pickup', 'delivery'];
@@ -51,7 +52,23 @@ async function lireBascule(service, maintenant) {
     one('SELECT svalue FROM settings WHERE skey = ?', [cleExp])
   ]);
   const mode = modeRow !== null && MODES_OUVERTURE.includes(modeRow.svalue) ? modeRow.svalue : 'auto';
-  const expiresAt = expRow !== null && /^\d+$/.test(expRow.svalue) ? Number(expRow.svalue) : null;
+  let expiresAt = expRow !== null && /^\d+$/.test(expRow.svalue) ? Number(expRow.svalue) : null;
+
+  // BUG RÉEL CORRIGÉ LE 25/11/2026 : une bascule forcée SANS date d'expiration (ligne d'expiration
+  // absente, vidée, illisible, ou écrite à un moment où aucun horaire automatique n'était actif)
+  // restait active indéfiniment — l'horaire automatique ne reprenait JAMAIS la main, et il fallait le
+  // code supérieur pour rouvrir. Les employés ne l'ont pas : le restaurant restait fermé aux commandes
+  // en ligne tant que le patron n'intervenait pas lui-même. On rattrape ici en lui donnant la date
+  // qu'elle aurait dû avoir (prochaine transition automatique), écrite tout de suite pour que la
+  // réparation soit définitive et pas refaite à chaque lecture.
+  if (mode !== 'auto' && expiresAt === null) {
+    const prochaine = prochaineTransition(creneauActif(service), maintenant);
+    if (prochaine !== null) {
+      expiresAt = prochaine;
+      await ecrireReglage(cleExp, String(prochaine));
+    }
+  }
+
   if (mode !== 'auto' && expiresAt !== null && maintenant >= expiresAt) {
     // Expirée : on revient à l'automatique, et on l'écrit tout de suite (ne dépend pas du prochain appel).
     await Promise.all([ecrireReglage(cleMode, 'auto'), ecrireReglage(cleExp, null)]);

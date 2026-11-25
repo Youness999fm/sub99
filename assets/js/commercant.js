@@ -3770,6 +3770,25 @@
   // rouvre pas (ex. bascule posée en fin de service, qui doit redevenir "automatique" avant la réouverture).
   setInterval(() => { if (state.authed) loadOpenMode(); }, 60000);
 
+  // ...mais 60 s de retard sur une ouverture est visible en salle : à 17h55 l'écran doit basculer sur
+  // « ouvert » tout de suite, pas à 17h56 (demande du commerçant le 25/11/2026 — les employés n'ont pas
+  // le code supérieur et ne doivent jamais avoir à forcer l'ouverture eux-mêmes). Le serveur renvoie déjà
+  // l'instant exact de la prochaine bascule : on programme une relecture juste après, pour chaque service.
+  const transitionTimers = { pickup: null, delivery: null };
+  function programmerTransition(service) {
+    clearTimeout(transitionTimers[service]);
+    const quand = toDate(state.openMode[service] && state.openMode[service].prochaineTransition);
+    if (!quand) return;
+    const dans = quand.getTime() - Date.now() + 1500; // 1,5 s de marge : le serveur a forcément basculé
+    if (dans <= 0 || dans > 3600000) return; // passé, ou trop loin : le sondage de 60 s s'en chargera
+    transitionTimers[service] = setTimeout(() => { if (state.authed) loadOpenMode(service); }, dans);
+  }
+  setInterval(() => {
+    if (!state.authed) return;
+    programmerTransition('pickup');
+    programmerTransition('delivery');
+  }, 60000);
+
   // ---------- Détection d'une nouvelle version déployée (décision du 22/11/2026) ----------
   // Cette page reste ouverte en continu sur la tablette, parfois pendant des jours : une mise à jour du
   // code (ex. ce correctif lui-même) ne sert à rien tant que la page n'est pas rechargée, ce qui n'arrive
