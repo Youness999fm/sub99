@@ -24,3 +24,12 @@ serveur/outils/
 .claude/
 .env
 .env.*
+
+# Documentation interne : elle était lisible publiquement jusqu'au 25/11/2026 (AGENTS.md, CLAUDE.md et
+# docs/ répondaient 200 en ligne). Aucun de ces fichiers n'est utilisé par le site ni par les fonctions
+# /api/ : les retirer du déploiement ne change rien au fonctionnement.
+# Le dossier serveur/, lui, ne peut PAS être listé ici (les fonctions en ont besoin via includeFiles) :
+# son accès web est bloqué par la redirection en tête de vercel.json.
+AGENTS.md
+CLAUDE.md
+docs/
