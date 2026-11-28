@@ -25,14 +25,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=optional">
-<link rel="stylesheet" href="assets/css/style.min.css?v=20261125a">
-<link rel="stylesheet" href="assets/css/cart.min.css?v=20261125a">
-<link rel="stylesheet" href="assets/css/order-launch.min.css?v=20261125a">
-<script src="assets/js/main.min.js?v=20261125a" defer></script>
-<script src="assets/js/account.min.js?v=20261125a" defer></script>
-<script src="assets/js/icons.min.js?v=20261125a" defer></script>
-<script src="assets/js/cart.min.js?v=20261125a" defer></script>
-<script src="assets/js/order-launch.min.js?v=20261125a" defer></script>
+<link rel="stylesheet" href="assets/css/style.min.css?v=20261127a">
+<link rel="stylesheet" href="assets/css/cart.min.css?v=20261127a">
+<link rel="stylesheet" href="assets/css/order-launch.min.css?v=20261127a">
+<script src="assets/js/main.min.js?v=20261127a" defer></script>
+<script src="assets/js/account.min.js?v=20261127a" defer></script>
+<script src="assets/js/icons.min.js?v=20261127a" defer></script>
+<script src="assets/js/cart.min.js?v=20261127a" defer></script>
+<script src="assets/js/order-launch.min.js?v=20261127a" defer></script>
 <script>
   try {
     if (sessionStorage.getItem('subitoIntroSeen') === '1') {
@@ -433,6 +433,10 @@
     <span class="order-popup__icon" aria-hidden="true"><svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14-1 1" /><path d="m13.75 18.25-1.25 1.42" /><path d="M17.775 5.654a15.68 15.68 0 0 0-12.121 12.12" /><path d="M18.8 9.3a1 1 0 0 0 2.1 7.7" /><path d="M21.964 20.732a1 1 0 0 1-1.232 1.232l-18-5a1 1 0 0 1-.695-1.232A19.68 19.68 0 0 1 15.732 2.037a1 1 0 0 1 1.232.695z" /></svg></span>
     <h2 class="order-popup__title" id="orderPopupTitle">Commandez en ligne dès maintenant</h2>
     <p class="order-popup__text">Créez votre compte en quelques instants et composez votre commande directement depuis le site — plus besoin d'attendre au téléphone.</p>
+    <p class="order-popup__paiement">
+      <svg class="subito-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+      <span><strong>Aucun paiement en ligne.</strong> Vous réglez sur place au retrait, ou au livreur à la livraison.</span>
+    </p>
     <a class="btn-solid order-popup__cta" href="compte.html?compte=creer">Créer mon compte</a>
     <button type="button" class="order-popup__dismiss" id="orderPopupDismiss">Continuer sans commander</button>
   </div>

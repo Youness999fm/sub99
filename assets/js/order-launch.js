@@ -6,14 +6,17 @@
    popup n'est que sur index.html, l'autre ne l'est pas) — pas
    de risque que les deux s'affichent en même temps.
 
-   Affichée une seule fois par visiteur, jamais relancée après
-   une fermeture (bouton ✕, clic hors de la fenêtre, ou Échap).
+   Affichée à CHAQUE ouverture de l'accueil (demande du
+   27/11/2026) : le message « commande en ligne, aucun paiement
+   en ligne » doit être vu, pas seulement à la toute première
+   visite. Elle reste refermable immédiatement (bouton ✕, clic
+   hors de la fenêtre, ou Échap), et n'est jamais montrée à un
+   client déjà connecté — il n'a plus de compte à créer.
    ============================================================ */
 
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "subito_order_launch_popup_seen";
   // Élément qui avait le focus avant l'ouverture : il le récupère à la fermeture.
   let lastFocused = null;
 
@@ -35,16 +38,13 @@
     const overlay = qs("orderPopupOverlay");
     const wasOpen = !!overlay && !overlay.hidden;
     if (overlay) overlay.hidden = true;
-    try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) { /* stockage indisponible : tant pis, elle ne réapparaîtra pas pendant cette visite */ }
+    // Plus rien n'est mémorisé : la fenêtre doit revenir à la prochaine ouverture
+    // de l'accueil. Fermée, elle ne réapparaît pas tant qu'on reste sur la page.
     if (wasOpen && lastFocused && typeof lastFocused.focus === "function") lastFocused.focus();
     lastFocused = null;
   }
 
   function maybeOpenPopup(overlay) {
-    let alreadySeen = false;
-    try { alreadySeen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (e) { /* pas de stockage : on considère que non, tant pis si ça réapparaît */ }
-    if (alreadySeen) return;
-
     setTimeout(function () {
       openPopup(overlay);
     }, 1600);
@@ -57,11 +57,6 @@
 
     qs("orderPopupClose").addEventListener("click", closePopup);
     qs("orderPopupDismiss").addEventListener("click", closePopup);
-    // « Créer mon compte » compte aussi comme vu : la fenêtre ne doit pas revenir au retour sur l'accueil.
-    const cta = overlay.querySelector(".order-popup__cta");
-    if (cta) cta.addEventListener("click", function () {
-      try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) { /* stockage bloqué : tant pis */ }
-    });
     overlay.addEventListener("click", function (e) {
       if (e.target === overlay) closePopup();
     });

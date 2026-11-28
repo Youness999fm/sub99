@@ -204,10 +204,34 @@
 }
 
 .order-popup__text {
-  margin: 0 0 22px;
+  margin: 0 0 14px;
   color: var(--gray);
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+/* Rassurance « aucun paiement en ligne » (demande du 27/11/2026) : la crainte
+   d'avoir à sortir sa carte bancaire est le premier frein à la création d'un
+   compte, alors que tout se règle sur place ou au livreur. */
+.order-popup__paiement {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0 0 20px;
+  padding: 11px 13px;
+  background: var(--green-tint);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--green);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.order-popup__paiement .subito-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--green);
 }
 
 .order-popup__cta {
