@@ -903,6 +903,43 @@
   margin-top: 10px;
 }
 
+/* Repère au-dessus des tailles (27/11/2026) : discret, il disparaît dès qu'une
+   taille est choisie — il n'a plus rien à apprendre au client à ce moment-là. */
+.pizza-widget__hint-taille {
+  display: flex;
+  /* flex-start, pas center : si le texte passe sur deux lignes dans une fiche
+     étroite, la flèche doit rester alignée sur la première ligne. */
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0 0 7px;
+  color: var(--gray);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Indispensable : le « display: flex » ci-dessus écrase le display:none que le
+   navigateur applique à [hidden] — sans cette règle le repère resterait
+   affiché après le clic sur une taille. */
+.pizza-widget__hint-taille[hidden] {
+  display: none;
+}
+
+.pizza-widget__hint-taille svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--red);
+  animation: pizza-widget-fleche 1.8s ease-in-out infinite;
+}
+
+@keyframes pizza-widget-fleche {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pizza-widget__hint-taille svg { animation: none; }
+}
+
 .pizza-widget__sizes {
   display: flex;
   flex-wrap: wrap;

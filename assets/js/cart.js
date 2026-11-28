@@ -1318,6 +1318,24 @@ const SUBITO_CART_CONFIG = {
 
     refresh();
 
+    // Repère discret au-dessus des tailles (demande du 27/11/2026) : sur la carte,
+    // rien n'indiquait qu'il fallait d'abord appuyer sur une taille pour voir
+    // « Ajouter telle quelle » et « Personnaliser ». Disparaît dès qu'une taille
+    // est choisie, pour ne pas encombrer la fiche une fois le geste compris.
+    // Réservé au menu : composer.html l'explique déjà dans « Comment ça marche ? ».
+    if (opts.sizeHint) {
+      const sizeHint = document.createElement("p");
+      sizeHint.className = "pizza-widget__hint-taille";
+      sizeHint.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" '
+        + 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        + '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>'
+        + '<span>Appuyez sur une taille</span>';
+      sizeButtons.forEach(function (b) {
+        b.addEventListener("click", function () { sizeHint.hidden = true; });
+      });
+      wrap.appendChild(sizeHint);
+    }
+
     wrap.appendChild(sizeRow);
     if (fillerRow) wrap.appendChild(fillerRow);
     wrap.appendChild(actionRow);
@@ -1580,7 +1598,7 @@ const SUBITO_CART_CONFIG = {
 
       if (sizeChart.length) {
         const choice = parsed.choice && parsed.choice.options.length ? parsed.choice : null;
-        body.appendChild(buildPizzaWidget(name, ingredients, sizeChart, pizzaCatalog, { allowHalf: !item.hasAttribute("data-no-half"), choice: choice }));
+        body.appendChild(buildPizzaWidget(name, ingredients, sizeChart, pizzaCatalog, { allowHalf: !item.hasAttribute("data-no-half"), choice: choice, sizeHint: true }));
         return;
       }
 
