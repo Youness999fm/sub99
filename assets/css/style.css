@@ -2827,6 +2827,29 @@ section { padding: 32px 20px; }
   display: flex;
   flex-direction: column;
   transition: transform 0.35s cubic-bezier(0.22, 0.75, 0.2, 1), box-shadow 0.35s ease;
+
+  /* FLUIDITÉ (28/11/2026). La carte complète fait ~6900 éléments, dont 43 %
+     sont les panneaux « Personnaliser » : 41 panneaux construits d'avance et
+     invisibles, alors qu'un client en ouvre un seul. Mesuré : 1015 ms de
+     style+mise en page et 741 ms de rendu sur mobile bridé, et 35 ms pour un
+     recalcul complet sur un desktop rapide (donc ~150 ms sur téléphone).
+     content-visibility demande au navigateur de ne calculer ni le style, ni la
+     mise en page, ni le rendu des fiches hors écran. Rien n'est retiré du DOM :
+     la logique de commande, les ancres de catégorie et la recherche de page
+     continuent de fonctionner à l'identique.
+     « auto 442px » = hauteur médiane réelle d'une fiche, et le mot-clé auto
+     fait retenir la vraie taille après le premier affichage : pas de saut
+     d'ascenseur pendant le défilement. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 442px;
+}
+
+/* À l'impression, tout doit être rendu : on rend la main au navigateur. */
+@media print {
+  .menu-item {
+    content-visibility: visible;
+    contain-intrinsic-size: none;
+  }
 }
 
 .menu-item__badge {
