@@ -21,6 +21,12 @@ assets/js/winners-data.js
 assets/css/tirage.css
 supabase/
 serveur/outils/
+# Laboratoire front : prototypes pas encore validés (atelier « Compose ta
+# pizza »). À ne retirer d'ici que le jour où le module est intégré au site.
+lab/
+assets/css/lab/
+assets/js/lab/
+assets/img/lab/
 .claude/
 .env
 .env.*

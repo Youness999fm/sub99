@@ -1,0 +1,797 @@
+/* ==========================================================================
+   L'ATELIER SUBITO — prototype isolé
+   --------------------------------------------------------------------------
+   Règle structurante : L'EXPÉRIENCE TIENT DANS UN ÉCRAN. Jamais de défilement
+   vertical, sur téléphone comme sur ordinateur. Le bouton d'action principal
+   est toujours visible sans avoir à bouger la page.
+
+   Tout est préfixé `.atelier-*` / `.kitchen*` / `.tray*` / `.floor*` /
+   `.panel*` / `.steps*` / `.summary*` / `.pz*` / `.chips*` / `.final-strip` /
+   `.btn-atelier` : le fichier peut cohabiter avec style.css sans collision.
+   ========================================================================== */
+
+.atelier-app {
+  --at-panel-ink: #1C1B19;
+  --at-muted: #6B6560;
+  --at-line: #E7E5E1;
+  --at-gold: #D4AF64;
+  --at-gold-bright: #F2CE8A;
+  --at-gold-ink: #8A6A2C;
+  --at-red: #D62828;
+  --at-green: #0E3B27;
+  --at-radius: 16px;
+  --at-shadow-card: 0 2px 4px rgba(10, 14, 18, 0.18), 0 18px 40px -14px rgba(10, 14, 18, 0.7);
+  --at-pad: clamp(10px, 1.6vw, 22px);
+  --tray-gap: clamp(6px, 1vw, 14px);
+  --card-w: 120px;
+
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  isolation: isolate;
+  background: #12171B;
+  color: #F3F0EA;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Spécificité renforcée : la règle `.atelier-app > *` plus bas repositionne
+   tous les enfants directs et écraserait ce positionnement absolu. */
+.atelier-app > .kitchen {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.kitchen__rail,
+.kitchen__bench { position: absolute; left: 0; right: 0; }
+.kitchen__rail { top: 0; height: 38%; }
+.kitchen__bench { top: 38%; bottom: 0; }
+.kitchen svg { width: 100%; height: 100%; display: block; }
+
+/* L'arête du rail : un filet clair puis un filet sombre. Deux pixels qui font
+   la différence entre une saignée dans la tôle et un aplat. */
+.kitchen__edge {
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 3px;
+  background: linear-gradient(180deg, rgba(226, 234, 239, 0.85), rgba(10, 14, 17, 0.75));
+}
+
+.atelier-app > * { position: relative; z-index: 1; min-width: 0; }
+
+.visually-hidden-atelier {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================  StepProgress  */
+
+.atelier-app__progress { padding: 8px var(--at-pad) 2px; }
+
+.steps { position: relative; }
+
+.steps__bar {
+  position: absolute;
+  left: 8%; right: 8%;
+  top: 15px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.steps__fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--at-gold), var(--at-gold-bright));
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  transition: transform 0.55s cubic-bezier(0.22, 0.75, 0.2, 1);
+  box-shadow: 0 0 10px rgba(242, 206, 138, 0.6);
+}
+
+.steps__list {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+  margin: 0; padding: 0;
+  list-style: none;
+}
+
+.steps__item { flex: 1 1 0; display: flex; justify-content: center; min-width: 0; }
+
+.steps__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgba(243, 240, 234, 0.55);
+  font: inherit;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.steps__btn:disabled { cursor: default; }
+
+.steps__dot {
+  display: grid;
+  place-items: center;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: #262D34;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  color: rgba(243, 240, 234, 0.72);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.5, 1), background 0.3s ease,
+    border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.steps__item.is-done .steps__btn { color: rgba(243, 240, 234, 0.82); }
+.steps__item.is-done .steps__dot {
+  background: linear-gradient(160deg, #F2CE8A, #C49B4C);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #3A2A08;
+}
+
+.steps__item.is-current .steps__btn { color: #FFF; font-weight: 700; }
+.steps__item.is-current .steps__dot {
+  background: linear-gradient(160deg, #FFFFFF, #E6E1D6);
+  border-color: #FFF;
+  color: #12171A;
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px rgba(212, 175, 100, 0.24), 0 6px 14px -5px rgba(0, 0, 0, 0.8);
+}
+
+.steps__item.is-locked .steps__dot { opacity: 0.45; }
+.steps__btn:not(:disabled):hover .steps__dot { transform: scale(1.08); }
+.steps__btn:focus-visible { outline: none; }
+.steps__btn:focus-visible .steps__dot { box-shadow: 0 0 0 3px #FFF, 0 0 0 6px var(--at-gold); }
+
+.steps__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================================  mur de bacs  */
+
+.atelier-app__tray { padding: 2px var(--at-pad) 6px; }
+
+.tray__hint {
+  margin: 0 auto 6px;
+  width: max-content;
+  max-width: 100%;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(10, 14, 17, 0.45);
+  text-align: center;
+  font-size: 0.74rem;
+  color: rgba(243, 240, 234, 0.78);
+}
+
+/* Les bacs tiennent toujours dans la largeur : jamais de défilement, jamais
+   de balayage. Le nombre par rangée et la taille des cartes sont calculés en
+   JS (--card-w) à partir de la place réellement disponible. */
+.tray__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--tray-gap);
+}
+
+.tray__row[hidden] { display: none; }
+
+.tray-card {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--card-w);
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tray-card__bin {
+  display: block;
+  perspective: 900px;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.6));
+}
+
+.tray-card__bin svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Plongée légère : on regarde dans le bac, on ne le voit pas de face. */
+  transform: rotateX(19deg) translateZ(0);
+  transform-origin: 50% 90%;
+  transition: transform 0.4s cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+.tray-card:hover .tray-card__bin svg,
+.tray-card:focus-visible .tray-card__bin svg { transform: rotateX(9deg) scale(1.05); }
+
+.tray-card__meta { display: grid; gap: 0; text-align: center; line-height: 1.2; }
+
+.tray-card__name {
+  font-weight: 700;
+  font-size: clamp(0.64rem, 0.9vw, 0.84rem);
+  color: #F7F4EE;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tray-card__price {
+  font-size: clamp(0.58rem, 0.78vw, 0.74rem);
+  color: var(--at-gold-bright);
+  font-variant-numeric: tabular-nums;
+  /* Un libellé qui passe à la ligne ferait déborder le rail : les cartes sont
+     calibrées au pixel près sur la hauteur disponible. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tray-card__sub {
+  font-size: clamp(0.52rem, 0.68vw, 0.66rem);
+  color: rgba(243, 240, 234, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tray-card__badge {
+  position: absolute;
+  top: -3px; right: 3px;
+  display: grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #F2CE8A, #C09343);
+  color: #2E2105;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.26s ease, transform 0.34s cubic-bezier(0.34, 1.56, 0.5, 1);
+}
+
+.tray-card.is-active .tray-card__badge { opacity: 1; transform: scale(1); }
+.tray-card.is-active .tray-card__bin svg { transform: rotateX(9deg) scale(1.04); }
+.tray-card.is-active .tray-card__name { color: #FFF; }
+
+.tray-card.is-active::after {
+  content: "";
+  position: absolute;
+  inset: -4px -5px -2px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(242, 206, 138, 0.75);
+  background: rgba(242, 206, 138, 0.09);
+  pointer-events: none;
+}
+
+.tray-card:focus-visible { outline: 3px solid var(--at-gold-bright); outline-offset: 3px; border-radius: 12px; }
+.tray-card--size .tray-card__bin { filter: none; }
+.tray-card--size .tray-card__bin svg { transform: rotateX(13deg); }
+
+/* ==========================================================  la pizza  */
+
+.atelier-app__floor {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 6px var(--at-pad) 10px;
+}
+
+.floor__canvas {
+  height: 100%;
+  aspect-ratio: 1;
+  max-width: 100%;
+  display: flex;
+}
+
+.pz { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* Les transformations CSS doivent se comporter comme l'attribut `transform`
+   du SVG : origine au coin du viewBox, pas au centre de la boîte. */
+.pz, .pz * { transform-box: view-box; transform-origin: 0 0; }
+
+.floor__caption {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: rgba(14, 18, 21, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ===============================================================  panneaux  */
+
+.panel {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--at-radius);
+  background: linear-gradient(180deg, #FFFFFF, #FAF9F6);
+  color: var(--at-panel-ink);
+  box-shadow: var(--at-shadow-card);
+}
+
+.panel__eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 0;
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--at-gold-ink);
+  font-weight: 700;
+}
+
+.panel__step-num { font-size: 1rem; line-height: 1; }
+.panel__step-total { color: var(--at-muted); font-weight: 600; letter-spacing: 0.06em; }
+
+.panel__title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.05rem, 1.3vw, 1.34rem);
+  line-height: 1.1;
+}
+
+.panel__help { margin: 0; font-size: 0.78rem; line-height: 1.4; color: var(--at-muted); }
+
+.panel__picked { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--at-line); }
+
+.panel__picked-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.panel__picked-label {
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.panel__count { font-size: 0.7rem; color: var(--at-gold-ink); font-weight: 700; white-space: nowrap; }
+.panel__empty { margin: 0; font-size: 0.74rem; color: var(--at-muted); font-style: italic; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+
+.chips__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 5px 3px 9px;
+  border-radius: 999px;
+  background: var(--at-green);
+  color: #FFF;
+  font-size: 0.72rem;
+  font-weight: 600;
+  animation: at-chip-in 0.32s cubic-bezier(0.34, 1.56, 0.5, 1) both;
+}
+
+@keyframes at-chip-in {
+  from { opacity: 0; transform: scale(0.7) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.chips__remove {
+  display: grid;
+  place-items: center;
+  width: 17px; height: 17px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  color: #FFF;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.chips__remove:hover { background: var(--at-red); transform: rotate(90deg); }
+.chips__remove:focus-visible { outline: 2px solid #FFF; outline-offset: 1px; }
+
+.chips__fixed {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* -------------------------------------------------  RightSummaryPanel  */
+
+.summary__size {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #F4F1EA;
+  border: 1px dashed var(--at-line);
+  font-size: 0.84rem;
+}
+
+.panel--summary.has-size .summary__size {
+  background: linear-gradient(135deg, #0E3B27, #14543A);
+  border-style: solid;
+  border-color: transparent;
+  color: #FFF;
+}
+
+.summary__size-name { font-weight: 700; }
+.summary__size-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+.panel--summary:not(.has-size) .summary__size-name { color: var(--at-muted); font-style: italic; }
+
+.summary__body { display: grid; gap: 8px; overflow-y: auto; min-height: 0; }
+.summary__empty { margin: 0; font-size: 0.76rem; color: var(--at-muted); font-style: italic; }
+.summary__group { display: grid; gap: 2px; }
+
+.summary__group-title {
+  margin: 0;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--at-gold-ink);
+  font-weight: 700;
+}
+
+.summary__list { margin: 0; padding: 0; list-style: none; display: grid; }
+
+.summary__line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.78rem;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(231, 229, 225, 0.8);
+}
+
+.summary__line:last-child { border-bottom: 0; }
+.summary__line-price { font-variant-numeric: tabular-nums; color: var(--at-muted); white-space: nowrap; }
+.summary__line-price em { font-style: normal; color: var(--at-green); font-size: 0.72rem; }
+
+.summary__foot { display: grid; gap: 6px; padding-top: 8px; border-top: 2px solid var(--at-panel-ink); }
+.summary__total { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+
+.summary__total-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.summary__total-value {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary__total-value.is-bumped { animation: at-bump 0.46s cubic-bezier(0.34, 1.56, 0.5, 1); }
+
+@keyframes at-bump {
+  0% { transform: scale(1); color: var(--at-panel-ink); }
+  38% { transform: scale(1.14); color: var(--at-gold-ink); }
+  100% { transform: scale(1); color: var(--at-panel-ink); }
+}
+
+.summary__demo { margin: 0; font-size: 0.62rem; color: var(--at-muted); text-align: center; }
+
+/* Replie le détail sur petit écran. Masqué sur grand écran, où tout tient. */
+.summary__toggle {
+  display: none;
+  width: 100%;
+  padding: 5px;
+  border: 0;
+  border-radius: 8px;
+  background: #F1EEE8;
+  color: var(--at-panel-ink);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-atelier {
+  display: block;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 11px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.btn-atelier--primary {
+  background: linear-gradient(135deg, #E23A31, #B81D1D);
+  color: #FFF;
+  box-shadow: 0 8px 18px -8px rgba(184, 29, 29, 0.9);
+}
+
+.btn-atelier--primary:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.06); }
+.btn-atelier--primary:disabled { background: #D9D5CE; color: #8A847D; box-shadow: none; cursor: not-allowed; }
+.btn-atelier--primary.is-final { background: linear-gradient(135deg, #14543A, #0C3524); }
+
+.btn-atelier--ghost {
+  padding: 4px;
+  background: none;
+  color: var(--at-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.btn-atelier--ghost:hover { color: var(--at-red); }
+.btn-atelier:focus-visible { outline: 3px solid var(--at-gold); outline-offset: 2px; }
+
+/* ====================================================  récapitulatif final  */
+
+.final-strip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(10px, 2vw, 24px);
+  padding: 10px clamp(12px, 2vw, 22px);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(242, 206, 138, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 18px 40px -22px rgba(0, 0, 0, 0.9);
+}
+
+.final-strip__head { display: grid; gap: 0; }
+
+.final-strip__eyebrow {
+  margin: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--at-gold-bright);
+  font-weight: 700;
+}
+
+.final-strip__size {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.final-strip__size small {
+  display: block;
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  color: rgba(243, 240, 234, 0.6);
+  font-weight: 400;
+}
+
+.final-strip__chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+
+.final-strip__chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.final-strip__chips li.is-included { background: rgba(242, 206, 138, 0.14); border-color: rgba(242, 206, 138, 0.35); }
+.final-strip__chips li small { font-size: 0.56rem; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.7; }
+
+.final-strip__total { display: grid; gap: 0; margin: 0; text-align: right; }
+.final-strip__total span { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.65; }
+
+.final-strip__total strong {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--at-gold-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================  calque de vol  */
+
+.atelier-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.atelier-stage__item { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+.atelier-stage__item svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* ================================================================  toast  */
+
+.atelier-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translate(-50%, 16px);
+  margin: 0;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: #11161A;
+  border: 1px solid rgba(242, 206, 138, 0.5);
+  color: #FFF;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 16px 36px -14px rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.22, 0.75, 0.2, 1);
+  z-index: 20;
+}
+
+.atelier-toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* ===========================================  grand écran : panneaux flottants */
+
+@media (min-width: 900px) {
+  .atelier-app { --panel-w: clamp(232px, 20vw, 290px); }
+
+  .atelier-app > .panel {
+    position: absolute;
+    bottom: var(--at-pad);
+    width: var(--panel-w);
+    z-index: 3;
+  }
+
+  .panel--step { left: var(--at-pad); max-height: 42%; }
+  .panel--summary { right: var(--at-pad); max-height: 54%; }
+
+  /* La pizza garde sa place entre les deux panneaux. */
+  .atelier-app__floor { padding-inline: calc(var(--panel-w) + var(--at-pad) * 2); }
+}
+
+/* ======================================  petit écran : barre d'action fixe */
+
+@media (max-width: 899px) {
+  .atelier-app { grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+
+  .atelier-app__progress { grid-row: 1; }
+  .atelier-app__tray { grid-row: 2; }
+  .atelier-app > .panel--step { grid-row: 3; }
+  .atelier-app__floor { grid-row: 4; }
+  .atelier-app > .panel--summary { grid-row: 5; }
+
+  .atelier-app > .panel {
+    border-radius: 0;
+    box-shadow: 0 -8px 24px -12px rgba(0, 0, 0, 0.8);
+  }
+
+  /* Étape : réduite à l'essentiel — le titre et ce qui est déjà choisi. */
+  .panel--step {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 6px var(--at-pad);
+  }
+
+  .panel--step .panel__eyebrow { grid-row: 1; }
+  .panel--step .panel__title { grid-row: 1; font-size: 0.98rem; }
+  .panel--step .panel__help { display: none; }
+  .panel--step .panel__picked-head { display: none; }
+
+  .panel--step .panel__picked {
+    grid-column: 1 / -1;
+    padding-top: 5px;
+    border-top: 1px solid var(--at-line);
+  }
+
+  .panel--step .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .panel--step .chips::-webkit-scrollbar { display: none; }
+  .panel--step .chips__item { flex: none; }
+  .panel--step .panel__empty { font-size: 0.7rem; }
+
+  /* Résumé : une barre d'action toujours visible, le détail se déplie. */
+  .panel--summary {
+    gap: 6px;
+    padding: 8px var(--at-pad) calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .summary__toggle { display: block; order: -2; }
+  .panel--summary .summary__foot { order: -1; border-top: 0; padding-top: 0; }
+  .panel--summary .summary__demo { display: none; }
+  .panel--summary .btn-atelier--ghost { display: none; }
+  .panel--summary .summary__size,
+  .panel--summary .summary__body { display: none; }
+
+  .panel--summary.is-open .summary__size { display: flex; }
+  .panel--summary.is-open .summary__body { display: grid; max-height: 32vh; }
+  .panel--summary.is-open .summary__demo { display: block; }
+  .panel--summary.is-open .btn-atelier--ghost { display: block; }
+
+  .summary__foot {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+  }
+
+  .summary__total { flex-direction: column; align-items: flex-start; gap: 0; }
+  .summary__total-label { font-size: 0.56rem; }
+  .summary__total-value { font-size: 1.2rem; }
+  .btn-atelier { padding: 10px 12px; font-size: 0.84rem; }
+
+  .floor__caption { font-size: 0.6rem; padding: 3px 10px; }
+  .tray__hint { display: none; }
+  .steps__label { display: none; }
+  .steps__bar { top: 14px; }
+  .final-strip { grid-template-columns: 1fr; gap: 6px; }
+  .final-strip__total { text-align: left; }
+  .final-strip__chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+}
+
+/* Écran très bas (téléphone en paysage) : on sacrifie le superflu. */
+@media (max-height: 540px) {
+  .tray__hint, .floor__caption { display: none; }
+  .steps__dot { width: 24px; height: 24px; font-size: 0.66rem; }
+  .panel--step .panel__picked { display: none; }
+}
+
+/* ================================================  mouvement réduit  */
+
+@media (prefers-reduced-motion: reduce) {
+  .atelier-app *, .atelier-stage * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .steps__fill { transition: none; }
+}

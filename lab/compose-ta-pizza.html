@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>[LAB] L'Atelier Subito — prototype</title>
+
+<!-- Page de laboratoire : hors navigation, hors sitemap, exclue du déploiement
+     Vercel (.vercelignore). Elle ne charge AUCUN script du site (ni cart.js,
+     ni main.js) : aucune interaction possible avec le panier ou la commande. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#12171B">
+<link rel="shortcut icon" href="../favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="../assets/css/lab/atelier.css">
+<style>
+  /* Chrome minimal de la page de lab. L'expérience occupe exactement la
+     fenêtre : la page elle-même ne défile jamais. */
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: #0B0E11;
+    color: #F3F0EA;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  }
+  .lab-shell {
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .lab-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px clamp(10px, 2vw, 20px);
+    background: #171C21;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.72rem;
+    color: rgba(243, 240, 234, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .lab-bar__tag {
+    flex: none;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #D62828;
+    color: #fff;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    font-size: 0.6rem;
+  }
+  .lab-bar__text { overflow: hidden; text-overflow: ellipsis; }
+  .lab-bar a { color: #F2CE8A; margin-left: auto; flex: none; }
+  @media (max-width: 560px) { .lab-bar__text { display: none; } }
+  .lab-noscript { margin: 20px; padding: 16px; border-radius: 14px; border: 1px solid #D62828; }
+</style>
+</head>
+<body>
+
+<div class="lab-shell">
+  <div class="lab-bar">
+    <span class="lab-bar__tag">PROTOTYPE</span>
+    <span class="lab-bar__text">Zone de laboratoire — non reliée à la production, aucun panier, aucune commande.</span>
+    <a href="../composer.html">composer.html →</a>
+  </div>
+
+  <noscript>
+    <p class="lab-noscript">Ce prototype est entièrement interactif : il nécessite JavaScript activé.</p>
+  </noscript>
+
+  <!-- Point de montage unique du module. L'attribut déclenche l'auto-init. -->
+  <div data-atelier-root></div>
+</div>
+
+<script type="module" src="../assets/js/lab/atelier/index.js"></script>
+</body>
+</html>

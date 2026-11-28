@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[LAB] Contrôle des ressources — L'Atelier Subito</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="shortcut icon" href="../favicon.ico">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0 0 60px;
+    background: #0B0E11;
+    color: #F3F0EA;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  header {
+    padding: 18px clamp(12px, 3vw, 32px);
+    background: repeating-linear-gradient(135deg, #1B2126 0 14px, #171C21 14px 28px);
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+  h1 { margin: 0 0 4px; font-size: 1.3rem; }
+  header p { margin: 0; color: rgba(243,240,234,.66); font-size: .88rem; max-width: 70ch; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 clamp(12px, 3vw, 32px); }
+  .totals {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin: 20px 0 8px;
+  }
+  .pill {
+    padding: 7px 14px; border-radius: 999px; font-size: .84rem; font-weight: 700;
+    border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05);
+  }
+  .pill.ok { background: rgba(46,160,67,.18); border-color: rgba(46,160,67,.5); color: #7EE787; }
+  .pill.warn { background: rgba(212,175,100,.16); border-color: rgba(212,175,100,.5); color: #F2CE8A; }
+  .pill.miss { background: rgba(214,40,40,.16); border-color: rgba(214,40,40,.5); color: #FF9C9C; }
+  h2 {
+    margin: 32px 0 4px; font-size: .78rem; letter-spacing: .14em;
+    text-transform: uppercase; color: #F2CE8A;
+  }
+  h2 small { display:block; letter-spacing:0; text-transform:none; color: rgba(243,240,234,.55); font-size:.82rem; font-weight:400; margin-top:4px; }
+  .grid {
+    display: grid; gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    margin-top: 14px;
+  }
+  .card {
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 12px; overflow: hidden;
+    background: rgba(255,255,255,.03);
+    display: flex; flex-direction: column;
+  }
+  .card.is-ok { border-color: rgba(46,160,67,.5); }
+  .card.is-warn { border-color: rgba(212,175,100,.55); }
+  .card.is-miss { border-color: rgba(214,40,40,.45); }
+  .thumb {
+    height: 130px; display: grid; place-items: center; position: relative;
+    /* Damier : révèle immédiatement un fond blanc resté en place. */
+    background-image:
+      linear-gradient(45deg, #2A3036 25%, transparent 25%, transparent 75%, #2A3036 75%),
+      linear-gradient(45deg, #2A3036 25%, #1A1F24 25%, #1A1F24 75%, #2A3036 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 8px 8px;
+  }
+  .thumb img { max-width: 100%; max-height: 130px; display: block; }
+  .thumb.on-light { background: #F2F2F2; }
+  .asset-missing {
+    display: grid; place-items: center; gap: 2px; width: 100%; height: 100%;
+    background: repeating-linear-gradient(45deg, #5A1414 0 10px, #431010 10px 20px);
+    color: #FFC9C9; text-align: center;
+  }
+  .asset-missing span { font-weight: 800; font-size: .72rem; letter-spacing: .1em; line-height: 1.25; }
+  .asset-missing small { font-size: .62rem; opacity: .75; padding: 0 6px; }
+  .meta { padding: 9px 11px; font-size: .76rem; }
+  .meta b { display: block; font-size: .82rem; margin-bottom: 2px; }
+  .meta code { font-size: .68rem; color: rgba(243,240,234,.5); word-break: break-all; }
+  .issues { margin: 6px 0 0; padding-left: 15px; color: #F2CE8A; font-size: .72rem; }
+  .issues li { margin-bottom: 2px; }
+  .issues.is-miss { color: #FF9C9C; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 14px 0 0; font-size: .84rem; }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  a { color: #F2CE8A; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Contrôle des ressources — L'Atelier Subito</h1>
+    <p>
+      Dépose tes images aux chemins attendus puis recharge cette page. Chaque
+      vignette est affichée sur un damier : si tu vois un carré blanc plein au
+      lieu du damier, le fond n'a pas été détouré. Le bouton « fond clair »
+      permet de chercher les liserés sombres.
+      Consignes de génération : <a href="assets-brief/prompts.md">assets-brief/prompts.md</a>.
+    </p>
+    <div class="toolbar">
+      <label><input type="checkbox" id="light"> Afficher les vignettes sur fond clair</label>
+      <label><input type="checkbox" id="only-missing"> Ne montrer que ce qui manque</label>
+    </div>
+    <div class="totals" id="totals"></div>
+  </div>
+</header>
+
+<div class="wrap" id="out"></div>
+
+<script type="module">
+import { MANIFEST } from '../assets/js/lab/atelier/data/assets.js';
+import { checkAsset, missingPlaceholder } from '../assets/js/lab/atelier/core/asset-loader.js';
+
+const BASE = '../';
+const WAVES = [
+  [1, 'Vague 1 — prouver le photoréalisme', 'Plan de travail, pâtes, sauces, bacs de sauce, louche. À valider avant d’engager la suite.'],
+  [2, 'Vague 2 — bibliothèque alimentaire', 'Un bac et une planche de 12 morceaux par ingrédient.'],
+  [3, 'Vague 3 — ustensiles et mains', 'Les mains sont le point faible de la génération IA : voir la note dans prompts.md.']
+];
+
+const out = document.getElementById('out');
+const totals = document.getElementById('totals');
+const results = await Promise.all(MANIFEST.map((a) => checkAsset(a, BASE)));
+
+for (const [waveNo, title, subtitle] of WAVES) {
+  const items = results.filter((r) => r.asset.wave === waveNo);
+  if (!items.length) continue;
+
+  const h2 = document.createElement('h2');
+  h2.innerHTML = `${title} <small>${subtitle}</small>`;
+  out.appendChild(h2);
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  items.forEach((r) => grid.appendChild(card(r)));
+  out.appendChild(grid);
+}
+
+renderTotals();
+
+function card(r) {
+  const el = document.createElement('div');
+  el.className = 'card ' + (r.missing ? 'is-miss' : r.ok ? 'is-ok' : 'is-warn');
+  el.dataset.missing = String(r.missing);
+
+  const thumb = document.createElement('div');
+  thumb.className = 'thumb';
+  if (r.missing) {
+    thumb.appendChild(missingPlaceholder(r.asset.label || r.asset.id));
+  } else {
+    const img = document.createElement('img');
+    img.src = r.url;
+    img.alt = '';
+    thumb.appendChild(img);
+  }
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const dims = r.missing ? '' : `${r.result.width}×${r.result.height}`;
+  meta.innerHTML = `<b></b><code></code>`;
+  meta.querySelector('b').textContent = r.asset.label || r.asset.id;
+  meta.querySelector('code').textContent = r.asset.path.replace('assets/img/lab/atelier/', '') + (dims ? ` · ${dims}` : '');
+
+  if (r.issues.length) {
+    const ul = document.createElement('ul');
+    ul.className = 'issues' + (r.missing ? ' is-miss' : '');
+    r.issues.forEach((i) => {
+      const li = document.createElement('li');
+      li.textContent = i;
+      ul.appendChild(li);
+    });
+    meta.appendChild(ul);
+  }
+  if (r.asset.note) {
+    const p = document.createElement('p');
+    p.className = 'issues';
+    p.textContent = r.asset.note;
+    meta.appendChild(p);
+  }
+
+  el.append(thumb, meta);
+  return el;
+}
+
+function renderTotals() {
+  const ok = results.filter((r) => r.ok).length;
+  const warn = results.filter((r) => !r.ok && !r.missing).length;
+  const miss = results.filter((r) => r.missing).length;
+  totals.innerHTML = '';
+  [
+    ['ok', `${ok} conformes`],
+    ['warn', `${warn} à corriger`],
+    ['miss', `${miss} manquantes`],
+    ['', `${results.length} au total`]
+  ].forEach(([cls, text]) => {
+    const s = document.createElement('span');
+    s.className = 'pill ' + cls;
+    s.textContent = text;
+    totals.appendChild(s);
+  });
+}
+
+document.getElementById('light').addEventListener('change', (e) => {
+  document.querySelectorAll('.thumb').forEach((t) => t.classList.toggle('on-light', e.target.checked));
+});
+document.getElementById('only-missing').addEventListener('change', (e) => {
+  document.querySelectorAll('.card').forEach((c) => {
+    c.hidden = e.target.checked && c.dataset.missing !== 'true';
+  });
+});
+</script>
+</body>
+</html>
