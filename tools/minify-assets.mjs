@@ -22,7 +22,9 @@ const CHECK = process.argv.includes('--check');
 // pas subito-popup.js/.css : aucune page ne le charge actuellement — rien à gagner à le minifier ;
 // pas assets/js/tirage/ : modules ES qui s'importent entre eux, régénérés séparément si besoin).
 const JS_FILES = ['main', 'icons', 'cart', 'account', 'compte', 'commande', 'order-launch', 'commercant', 'disponibilite'];
-const CSS_FILES = ['style', 'cart', 'commande', 'commercant', 'compte', 'disponibilite', 'order-launch', 'tirage'];
+// 'allergenes' ajouté le 28/11/2026 : il était chargé non minifié par menu.html,
+// vegetarien.html et allergenes.html — seul fichier CSS du site dans ce cas.
+const CSS_FILES = ['style', 'cart', 'commande', 'commercant', 'compte', 'disponibilite', 'order-launch', 'tirage', 'allergenes'];
 
 async function minifyJs(name) {
   const src = path.join(ROOT, 'assets', 'js', `${name}.js`);

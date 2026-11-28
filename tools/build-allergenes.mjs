@@ -170,6 +170,10 @@ ${legende}
 /* ---------- 4. Assembler avec la coquille de faq.html ---------- */
 const faq = readFileSync(path.join(ROOT, 'faq.html'), 'utf8');
 const avant = faq.slice(0, faq.indexOf('<main id="main-content"'));
+
+/* Version de cache lue sur la page modèle, pour que allergenes.html suive
+   automatiquement les autres pages à chaque déploiement. */
+const versionAssets = (/style\.min\.css\?v=([0-9a-z]+)/.exec(faq) || [, '1'])[1];
 const apres = faq.slice(faq.indexOf('</main>') + '</main>'.length);
 
 const { html: principal, documentes, nonDocumentes } = contenu();
@@ -181,8 +185,11 @@ const tete = avant
   .replace(/(<meta property="og:description" content=")[^"]*(">)/, '$1Le goût en toute transparence.$2')
   .replace(/(<meta property="og:url" content="[^"]*\/)faq\.html(">)/, '$1allergenes.html$2')
   .replace(/(<link rel="canonical" href="[^"]*\/)faq\.html(">)/, '$1allergenes.html$2')
-  /* La page a besoin des styles de l'accordéon ; le JS de recherche lui est propre. */
-  .replace('</head>', '<link rel="stylesheet" href="assets/css/allergenes.css?v=20261127a">\n<script src="assets/js/allergenes/page.js?v=20261127a" defer></script>\n</head>')
+  /* La page a besoin des styles de l'accordéon ; le JS de recherche lui est propre.
+     La version est reprise de la page modèle (28/11/2026) : elle était écrite en
+     dur, donc figée — la page générée gardait un vieux ?v= que les navigateurs
+     continuaient de servir depuis leur cache après un déploiement. */
+  .replace('</head>', `<link rel="stylesheet" href="assets/css/allergenes.min.css?v=${versionAssets}">\n<script src="assets/js/allergenes/page.js?v=${versionAssets}" defer></script>\n</head>`)
   /* Retire les blocs JSON-LD de la FAQ, qui ne décrivent pas cette page. */
   .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\s*/g, '');
 
