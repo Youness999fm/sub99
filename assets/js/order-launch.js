@@ -6,16 +6,33 @@
    popup n'est que sur index.html, l'autre ne l'est pas) — pas
    de risque que les deux s'affichent en même temps.
 
-   Affichée à CHAQUE ouverture de l'accueil (demande du
-   27/11/2026) : le message « commande en ligne, aucun paiement
-   en ligne » doit être vu, pas seulement à la toute première
-   visite. Elle reste refermable immédiatement (bouton ✕, clic
-   hors de la fenêtre, ou Échap), et n'est jamais montrée à un
-   client déjà connecté — il n'a plus de compte à créer.
+   Affichée une fois par VISITE (ajusté le 28/11/2026) : le
+   message « commande en ligne, aucun paiement en ligne » doit
+   être vu à chaque fois qu'on entre sur le site, mais pas
+   réapparaître à chaque retour sur l'accueil pendant la même
+   visite — c'était pénible en navigation. sessionStorage, comme
+   l'intro (subitoIntroSeen) : remis à zéro quand l'onglet est
+   fermé, donc la prochaine venue la réaffiche.
+   Elle reste refermable immédiatement (bouton ✕, clic hors de
+   la fenêtre, ou Échap), et n'est jamais montrée à un client
+   déjà connecté — il n'a plus de compte à créer.
    ============================================================ */
 
 (function () {
   "use strict";
+
+  const CLE_VISITE = "subitoOrderPopupVu";
+
+  // Déjà vue pendant cette visite ? En cas de stockage indisponible (navigation
+  // privée verrouillée), on répond « non » : mieux vaut la montrer en trop que
+  // de perdre le message.
+  function dejaVueCetteVisite() {
+    try { return sessionStorage.getItem(CLE_VISITE) === "1"; } catch (e) { return false; }
+  }
+
+  function marquerVue() {
+    try { sessionStorage.setItem(CLE_VISITE, "1"); } catch (e) { /* tant pis */ }
+  }
 
   // Élément qui avait le focus avant l'ouverture : il le récupère à la fermeture.
   let lastFocused = null;
@@ -30,6 +47,9 @@
   function openPopup(overlay) {
     lastFocused = document.activeElement;
     overlay.hidden = false;
+    // Marquée dès l'ouverture, pas à la fermeture : si le client change de page
+    // sans la fermer, elle ne doit pas revenir au retour sur l'accueil.
+    marquerVue();
     const close = qs("orderPopupClose");
     if (close) close.focus();
   }
@@ -38,13 +58,14 @@
     const overlay = qs("orderPopupOverlay");
     const wasOpen = !!overlay && !overlay.hidden;
     if (overlay) overlay.hidden = true;
-    // Plus rien n'est mémorisé : la fenêtre doit revenir à la prochaine ouverture
-    // de l'accueil. Fermée, elle ne réapparaît pas tant qu'on reste sur la page.
     if (wasOpen && lastFocused && typeof lastFocused.focus === "function") lastFocused.focus();
     lastFocused = null;
   }
 
   function maybeOpenPopup(overlay) {
+    // Un seul garde-fou, ici : les trois chemins d'appel (connecté, visiteur,
+    // service de session en panne) passent tous par cette fonction.
+    if (dejaVueCetteVisite()) return;
     setTimeout(function () {
       openPopup(overlay);
     }, 1600);
